@@ -20,7 +20,7 @@ class GastoExtraRequest extends FormRequest
     public function rules(): array
     {
         return [
-             'contrato_id' => 'required',
+            'contrato_id' => 'required',
             'cuenta_bancaria_id' => 'required',
             'categoria' => 'required|string|max:50',
             'concepto' => 'required|string',

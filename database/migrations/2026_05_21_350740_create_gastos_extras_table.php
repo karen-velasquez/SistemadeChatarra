@@ -24,8 +24,8 @@ return new class extends Migration
             $table->decimal('monto_bolivianos', 14, 4);
             $table->string('moneda', 10);
             $table->decimal('tipo_cambio', 10, 2)->nullable()->comment('De moneda extranjera a Bs');
-            $table->enum('estado', ['pendiente','pagado'])->default('pendiente');
-            $table->string('metodo_pago', 50)->nullable()->comment('Transferencia, Efectivo, QR, Deposito, etc');
+            $table->enum('estado', ['PENDIENTE', 'PAGADO'])->default('PENDIENTE');
+            $table->string('metodo_pago', 50)->nullable()->comment('TRANSFERENCIA, QR');
             $table->string('comprobante_pago')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

@@ -13,6 +13,8 @@ class GastoExtra extends Model
     protected $fillable = [
         'contrato_id',
         'cuenta_bancaria_id',
+        'tipo_pago',
+        'nombre_titular',
         'categoria',
         'concepto',
         'fecha',

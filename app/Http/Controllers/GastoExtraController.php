@@ -33,11 +33,11 @@ class GastoExtraController extends Controller
             $contrato->gastos_detalle = $gastos;
             $contrato->total_gastos = $gastos->sum('monto_bolivianos');
         }
-        $total = GastoExtra::where('estado','pagado')->sum('monto_bolivianos');
-        $pendientes = GastoExtra::where('estado','pendiente')->sum('monto_bolivianos');
-        $pagados = GastoExtra::where('estado','pagado')->sum('monto_bolivianos');
-        $aduaneros = GastoExtra::where('estado','pagado')->where('categoria','ADUANERO')->sum('monto_bolivianos');
-        $carga = GastoExtra::where('estado','pagado')->where('categoria','CARGUIO')->sum('monto_bolivianos');
+        $total = GastoExtra::where('estado','PAGADO')->sum('monto_bolivianos');
+        $pendientes = GastoExtra::where('estado','PENDIENTE')->sum('monto_bolivianos');
+        $pagados = GastoExtra::where('estado','PAGADO')->sum('monto_bolivianos');
+        $aduaneros = GastoExtra::where('estado','PAGADO')->where('categoria','ADUANERO')->sum('monto_bolivianos');
+        $carga = GastoExtra::where('estado','PAGADO')->where('categoria','CARGUIO')->sum('monto_bolivianos');
         $otros = 0;
         return view('gastos_extras.index',compact('contratos','categorias','cuentas_banco','proveedores','contratosFiltrados','total','pendientes','pagados','aduaneros','carga','otros'));
     }
@@ -87,7 +87,9 @@ class GastoExtraController extends Controller
         $gasto->monto_bolivianos = $montoBolivianos;
         $gasto->tipo_cambio = $monedaEsBob ? null : $request->tipo_cambio;
         $gasto->comprobante_pago = $nombreComprobante;
-        $gasto->estado = 'pagado';
+        $gasto->metodo_pago = $request->metodo_pago;
+        $gasto->nombre_titular = $request->nombre_titular; 
+        $gasto->estado = $request->estado;
         $gasto->save();
         Alert::success('Registrado','Gasto Extra registrado con éxito');
         return redirect()->route('gastos_extras.index');
@@ -148,6 +150,7 @@ class GastoExtraController extends Controller
         $gasto->estado = $request->estado;
         $gasto->metodo_pago = $request->metodo_pago;
         $gasto->comprobante_pago = $nombreComprobante;
+        $gasto->nombre_titular = $request->nombre_titular;
         $gasto->save();
         Alert::success('Actualizado','Gasto Extra actualizado con éxito');
         return redirect()->route('gastos_extras.index');
@@ -156,7 +159,7 @@ class GastoExtraController extends Controller
     public function destroy($uuid)
     {
         $gasto = GastoExtra::where('uuid',$uuid)->firstOrFail();
-        if ($gasto->estado === 'pagado') {
+        if ($gasto->estado === 'PAGADO') {
              Alert::error('Error', 'No puedes eliminar un gasto pagado.');
             return redirect()->route('gastos_extras.index');
         }
