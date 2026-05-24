@@ -150,7 +150,5 @@ function editarProveedor(proveedor) {
     }
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalProveedor')).show();
 }
-
-
 </script>
 @endsection

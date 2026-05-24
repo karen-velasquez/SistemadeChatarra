@@ -29,7 +29,7 @@ class GastoExtraController extends Controller
         }
         $contratosFiltrados = $contratosFiltrados->orderBy('created_at', 'desc')->get();
         foreach ($contratosFiltrados as $contrato) {
-            $gastos = GastoExtra::where('contrato_id',$contrato->id)->whereNull('deleted_at')->orderBy('fecha', 'desc')->get();
+            $gastos = GastoExtra::where('contrato_id',$contrato->id)->whereNull('deleted_at')->orderBy('updated_at', 'desc')->get();
             $contrato->gastos_detalle = $gastos;
             $contrato->total_gastos = $gastos->sum('monto_bolivianos');
         }
@@ -99,9 +99,9 @@ class GastoExtraController extends Controller
         return GastoExtra::with(['contrato', 'cuentaBancaria'])->findOrFail($id);
     }
 
-    public function update(GastoExtraRequest $request, $id)
+    public function update(GastoExtraRequest $request, $uuid)
     {
-        $gasto = GastoExtra::findOrFail($id);
+         $gasto = GastoExtra::where('uuid', $uuid)->firstOrFail();
         $cuenta = CuentaBancaria::findOrFail($request->cuenta_bancaria_id);
         $monedaEsBob = $request->moneda === 'BOB';
         $tipoCambioVacio = empty($request->tipo_cambio);

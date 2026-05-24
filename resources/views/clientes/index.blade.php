@@ -94,7 +94,6 @@
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type ="text/javascript"></script>
 <script src="{{ asset('assets/js/forms/contactosVarios.js') }}" type ="text/javascript"></script>
-
 <script>
 window.limpiarFormularioCliente = function () {
     document.getElementById('formCliente').reset();
@@ -103,7 +102,6 @@ window.limpiarFormularioCliente = function () {
     agregarTelefonoInput();
     agregarDireccionInput();
 };
-
 function resetModalCliente() {
     document.getElementById('tituloCliente').innerHTML ='<i class="bi bi-person-plus "></i> Nuevo Cliente';
     document.getElementById('btnCliente').innerText = 'Registrar';
@@ -141,6 +139,5 @@ function editarCliente(cliente) {
     }
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCliente')).show();
 }
-
 </script>
 @endsection
