@@ -127,10 +127,11 @@
                                 @foreach($contrato->contratoCamiones as $cc)
                                 @php
                                     $tramosRaiz = $cc->tramos->whereNull('tramo_padre_id');
-                                    $ccBorde  = match($cc->estado_entrega) { 'Entregado' => 'border-success', 'Desactivado' => 'border-secondary', default => 'border-warning' };
-                                    $ccFondo  = match($cc->estado_entrega) { 'Entregado' => 'bg-success bg-opacity-10', 'Desactivado' => 'bg-secondary bg-opacity-10', default => 'bg-warning bg-opacity-10' };
-                                    $ccIcono  = match($cc->estado_entrega) { 'Entregado' => 'text-success', 'Desactivado' => 'text-secondary', default => 'text-warning' };
-                                    $ccBadge  = match($cc->estado_entrega) { 'Entregado' => 'bg-success', 'Desactivado' => 'bg-secondary', default => 'bg-warning text-dark' };
+                                    $estadoEntrega = $cc->estado_entrega_calculado;
+                                    $ccBorde  = match($estadoEntrega) { 'Entregado' => 'border-success', 'Desactivado' => 'border-secondary', default => 'border-warning' };
+                                    $ccFondo  = match($estadoEntrega) { 'Entregado' => 'bg-success bg-opacity-10', 'Desactivado' => 'bg-secondary bg-opacity-10', default => 'bg-warning bg-opacity-10' };
+                                    $ccIcono  = match($estadoEntrega) { 'Entregado' => 'text-success', 'Desactivado' => 'text-secondary', default => 'text-warning' };
+                                    $ccBadge  = match($estadoEntrega) { 'Entregado' => 'bg-success', 'Desactivado' => 'bg-secondary', default => 'bg-warning text-dark' };
                                 @endphp
                                 <div class="card border mb-3 {{ $ccBorde }}">
                                     <div class="card-header py-2 {{ $ccFondo }}">
@@ -143,10 +144,10 @@
                                             </div>
                                             <div class="d-flex gap-2 align-items-center">
                                                 <span class="badge {{ $ccBadge }}">
-                                                    {{ $cc->estado_entrega }}
+                                                    {{ $estadoEntrega }}
                                                 </span>
                                                 @can('contratos.edit')
-                                                    @if($cc->estado_entrega !== 'Entregado')
+                                                    @if($estadoEntrega !== 'Entregado')
                                                         <button class="btn btn-sm {{ $cc->activo ? 'btn-outline-warning' : 'btn-outline-success' }}"
                                                             onclick="confirmarToggleCC('{{ $cc->uuid }}', '{{ $cc->camion->placa }}', {{ $cc->activo ? 'true' : 'false' }})"
                                                             title="{{ $cc->activo ? 'Desactivar asignación' : 'Reactivar asignación' }}">
@@ -162,7 +163,7 @@
                                                 <i class="bi bi-tag"></i> Proveedor:
                                                 <strong>{{ number_format($cc->toneladas, 3) }} t</strong>
                                             </small>
-                                            @if($cc->estado_entrega === 'Entregado')
+                                            @if($estadoEntrega === 'Entregado')
                                                 <small class="text-success fw-semibold">
                                                     <i class="bi bi-check-circle"></i> Entregado al cliente:
                                                     <strong>{{ number_format($cc->peso_entregado, 3) }} t</strong>

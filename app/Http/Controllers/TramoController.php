@@ -158,6 +158,21 @@ class TramoController extends Controller
             // Recalcular el padre por si ambos hijos ya estuvieran entregados
             $this->recalcularEstadoPadre($tramo->id);
 
+            // Actualizar estado_entrega del ContratoCamion padre
+            // Refrescar la relación para incluir los tramos recién creados
+            $cc->refresh();
+
+            // Verificar si todos los tramos hojas están entregados (excluyendo "Div. Carga")
+            $todosEntregados = $cc->tramos()
+                ->whereDoesntHave('tramosHijos')
+                ->where('estado', '!=', 'Div. Carga')
+                ->whereNotIn('estado', ['Entregado', 'Desactivado'])
+                ->doesntExist();
+
+            if ($todosEntregados) {
+                $cc->update(['estado_entrega' => 'Entregado']);
+            }
+
             Alert::success('División de Carga', "Se generaron 2 tramos: {$tnCliente1} t entregadas al cliente 1 y {$tnCliente2} t en ruta al destino siguiente.");
             return $desdeSegimiento
                 ? redirect()->route('seguimiento.index')

@@ -109,7 +109,8 @@
                                 <th class="text-end">Ton. pactadas</th>
                                 <th class="text-end">Ton. declaradas</th>
                                 <th class="text-end">Ton. llegadas</th>
-                                <th class="text-end">Diferencia (dec. - llegadas)</th>
+                                <th class="text-end">Dif. (pactado - llegado)</th>
+                                <th class="text-end">Dif. (dec. - llegado)</th>
                                 <th class="text-center">Resultado</th>
                             </tr>
                         </thead>
@@ -117,6 +118,7 @@
                             @foreach($ctrs as $c)
                             @php
                                 $diff       = $c->diferencia_liquidacion;
+                                $diffPactado = $c->diferencia_pactado_llegado;
                                 $declaradas = $c->toneladas_declaradas;
                             @endphp
                             <tr>
@@ -133,6 +135,9 @@
                                 <td class="text-end fw-semibold">{{ number_format($c->toneladas_contrato, 3) }} t</td>
                                 <td class="text-end" style="color:#1976d2">{{ number_format($declaradas, 3) }} t</td>
                                 <td class="text-end">{{ number_format($c->toneladas_entregadas, 3) }} t</td>
+                                <td class="text-end fw-bold {{ $diffPactado < 0 ? 'text-danger' : ($diffPactado > 0 ? 'text-success' : 'text-muted') }}">
+                                    {{ $diffPactado >= 0 ? '+' : '' }}{{ number_format($diffPactado, 3) }} t
+                                </td>
                                 <td class="text-end fw-bold {{ $diff < 0 ? 'text-danger' : ($diff > 0 ? 'text-success' : 'text-muted') }}">
                                     {{ $diff >= 0 ? '+' : '' }}{{ number_format($diff, 3) }} t
                                 </td>
@@ -161,6 +166,9 @@
                                 <td class="text-end">{{ number_format($grupo['total_pactado'], 3) }} t</td>
                                 <td class="text-end" style="color:#1976d2">{{ number_format($grupo['total_declarado'], 3) }} t</td>
                                 <td class="text-end">{{ number_format($grupo['total_entregado'], 3) }} t</td>
+                                <td class="text-end {{ $grupo['diferencia_pactado_llegado'] < 0 ? 'text-danger' : ($grupo['diferencia_pactado_llegado'] > 0 ? 'text-success' : 'text-muted') }}">
+                                    {{ $grupo['diferencia_pactado_llegado'] >= 0 ? '+' : '' }}{{ number_format($grupo['diferencia_pactado_llegado'], 3) }} t
+                                </td>
                                 <td class="text-end {{ $neta < 0 ? 'text-danger' : ($neta > 0 ? 'text-success' : 'text-muted') }}">
                                     {{ $neta >= 0 ? '+' : '' }}{{ number_format($neta, 3) }} t
                                 </td>

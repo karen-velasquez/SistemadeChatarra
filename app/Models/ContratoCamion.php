@@ -83,6 +83,32 @@ class ContratoCamion extends Model
             ->sum('peso_llegada');
     }
 
+    // Estado de entrega calculado dinámicamente basado en tramos hoja
+    public function getEstadoEntregaCalculadoAttribute(): string
+    {
+        // Si no hay tramos, usar el valor de la base de datos
+        if ($this->tramos->isEmpty()) {
+            return $this->attributes['estado_entrega'] ?? 'Pendiente';
+        }
+
+        // Obtener todos los tramos hoja (sin hijos) excluyendo "Div. Carga" (que es un nodo organizador)
+        $tramosHoja = $this->tramos->filter(function($tramo) {
+            return $tramo->tramosHijos->isEmpty() && $tramo->estado !== 'Div. Carga';
+        });
+
+        // Si no hay tramos hoja, usar valor de BD
+        if ($tramosHoja->isEmpty()) {
+            return $this->attributes['estado_entrega'] ?? 'Pendiente';
+        }
+
+        // Verificar si todos los tramos hoja están entregados o desactivados
+        $todosEntregados = $tramosHoja->every(function($tramo) {
+            return in_array($tramo->estado, ['Entregado', 'Desactivado']);
+        });
+
+        return $todosEntregados ? 'Entregado' : 'Pendiente';
+    }
+
     // Descuento en monto: se toma el mayor descuento_porcentaje registrado en tramos finales
     public function getDescuentoMontoAttribute(): float
     {

@@ -148,6 +148,7 @@ class ContratoController extends Controller
             $totalDeclarado  = $ctrs->sum(fn($c) => $c->toneladas_declaradas);
             $totalEntregado  = $ctrs->sum(fn($c) => $c->toneladas_entregadas);
             $diferenciaNeta  = round($totalEntregado - $totalDeclarado, 3);
+            $diferenciaPactadoLlegado = round($totalEntregado - $totalPactado, 3);
 
             return [
                 'proveedor'        => $proveedor,
@@ -156,6 +157,7 @@ class ContratoController extends Controller
                 'total_declarado'  => $totalDeclarado,
                 'total_entregado'  => $totalEntregado,
                 'diferencia_neta'  => $diferenciaNeta,
+                'diferencia_pactado_llegado' => $diferenciaPactadoLlegado,
             ];
         });
 
@@ -181,28 +183,28 @@ class ContratoController extends Controller
             'contratoCamiones.tramos.tramoPadre',
         ])->where('uuid', $uuid)->firstOrFail();
 
-        // Filtrar ContratoCamiones que NO son hijos de una división de carga
-        // Un ContratoCamion es "hijo de división" si TODOS sus tramos tienen un padre con estado "Div. Carga"
+        // Filtrar ContratoCamiones que NO son hijos de una división/transbordo
+        // Un ContratoCamion es "hijo" si TODOS sus tramos tienen un padre con estado "Div. Carga" o "Transbord*"
         $contrato->setRelation('contratoCamiones', $contrato->contratoCamiones->filter(function($cc) {
             // Si no tiene tramos, mantenerlo
             if ($cc->tramos->isEmpty()) {
                 return true;
             }
 
-            // Verificar si TODOS los tramos de este CC tienen un padre con "Div. Carga"
-            $todosHijosDivision = $cc->tramos->every(function($tramo) {
-                // Si el tramo no tiene padre, no es hijo de división
+            // Verificar si TODOS los tramos de este CC son hijos de un padre con división o transbordo
+            $todosHijosDeTransferencia = $cc->tramos->every(function($tramo) {
+                // Si el tramo no tiene padre, no es hijo de transferencia
                 if (!$tramo->tramo_padre_id) {
                     return false;
                 }
 
-                // Verificar si el padre tiene estado "Div. Carga"
+                // Verificar si el padre tiene estado "Div. Carga", "Transbordando" o "Transbordado"
                 $tramoPadre = $tramo->tramoPadre;
-                return $tramoPadre && $tramoPadre->estado === 'Div. Carga';
+                return $tramoPadre && in_array($tramoPadre->estado, ['Div. Carga', 'Transbordando', 'Transbordado']);
             });
 
-            // Si todos los tramos son hijos de división, excluir este ContratoCamion
-            return !$todosHijosDivision;
+            // Si todos los tramos son hijos de transferencia, excluir este ContratoCamion
+            return !$todosHijosDeTransferencia;
         }));
 
         $camionesDisponibles = Camion::with(['conductorActual.conductor', 'marca', 'tipoVehiculo', 'placaPais'])

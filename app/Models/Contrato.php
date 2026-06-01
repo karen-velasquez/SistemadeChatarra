@@ -168,6 +168,13 @@ class Contrato extends Model implements Auditable
         return round($this->toneladas_entregadas - $this->toneladas_declaradas, 3);
     }
 
+    // Diferencia entre toneladas llegadas y las pactadas en el contrato
+    // Negativo = merma (llegó menos de lo pactado), Positivo = excedente (llegó más)
+    public function getDiferenciaPactadoLlegadoAttribute(): float
+    {
+        return round($this->toneladas_entregadas - $this->toneladas_contrato, 3);
+    }
+
     // Clientes únicos a los que se entregó carga en este contrato
     public function getClientesEntregadosAttribute()
     {
