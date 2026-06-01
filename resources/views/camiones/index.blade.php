@@ -83,8 +83,8 @@
                                         @foreach($camiones as $c)
                                         <tr>
                                             <td>{{ $c->placa }}</td>
-                                            <td>{{ $c->tipo_vehiculo }}</td>
-                                            <td>{{ $c->marca }} {{ $c->modelo }}</td>
+                                            <td>{{ $c->tipoVehiculo->valor ?? '-' }}</td>
+                                            <td>{{ $c->marca->valor ?? '-' }} {{ $c->modelo }}</td>
                                             <td>{{ $c->anio }}</td>
                                             <td>{{ number_format($c->capacidad_kg / 1000, 3) }} t</td>
                                             <td>{{ $c->color ?? '-' }}</td>
@@ -110,6 +110,7 @@
                                                             </a>
                                                         </li>
                                                         @endcan
+                                                        @can('camiones.index')
                                                         <li>
                                                             @if($c->fotos->count())
                                                             <a class="dropdown-item" href="#"
@@ -135,6 +136,7 @@
                                                             </span>
                                                             @endif
                                                         </li>
+                                                        @endcan
                                                         @can('camiones.destroy')
                                                         <li>
                                                             <a class="dropdown-item text-danger" href="{{ route('camiones.destroy', $c->uuid) }}"
@@ -189,8 +191,8 @@
                                             <td>{{ $o->nombre_completo }}</td>
                                             <td>
                                                 {{ $o->ci }}
-                                                @if($o->ci_pais)
-                                                    <small class="text-muted d-block">{{ $o->ci_pais }}</small>
+                                                @if($o->ciPais)
+                                                    <small class="text-muted d-block">{{ $o->ciPais->valor }}</small>
                                                 @endif
                                             </td>
                                             <td>{{ $o->telefono ?? '-' }}</td>
@@ -204,7 +206,7 @@
                                                 @endif
                                             </td>
                                             <td>{{ $o->licencia_numero ?? '-' }}</td>
-                                            <td>{{ $o->licencia_pais ?? '-' }}</td>
+                                            <td>{{ $o->licenciaPais->valor ?? '-' }}</td>
                                             <td>
                                                 @if($o->licencia_vencimiento)
                                                     @if($o->licencia_vencimiento->isPast())
@@ -300,7 +302,7 @@
                                     <tbody>
                                         @foreach($asignaciones as $a)
                                         <tr>
-                                            <td>{{ $a->camion->placa }} - {{ $a->camion->marca }}</td>
+                                            <td>{{ $a->camion->placa }} - {{ $a->camion->marca->valor ?? '-' }}</td>
                                             <td>{{ $a->conductor->nombre_completo }}</td>
                                             <td>{{ $a->conductor->licencia_numero }}</td>
                                             <td>{{ $a->fecha_inicio->format('d/m/Y') }}</td>
@@ -358,31 +360,15 @@
                         {{-- Fila 1: País placa / Placa / Tipo / Estado --}}
                         <div class="col-md-3">
                             <label class="form-label">País de la Placa <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('placa_pais') is-invalid @enderror"
-                                name="placa_pais" id="cam_placa_pais"
+                            <select class="form-select @error('placa_pais_id') is-invalid @enderror"
+                                name="placa_pais_id" id="cam_placa_pais_id"
                                 onchange="actualizarFormatoPlaca()" required>
-                                <option value="">-- Seleccione --</option>
-                                <optgroup label="Bolivia">
-                                    <option value="Bolivia" selected>Bolivia</option>
-                                </optgroup>
-                                <optgroup label="Países limítrofes">
-                                    <option value="Argentina">Argentina</option>
-                                    <option value="Brasil">Brasil</option>
-                                    <option value="Chile">Chile</option>
-                                    <option value="Paraguay">Paraguay</option>
-                                    <option value="Perú">Perú</option>
-                                </optgroup>
-                                <optgroup label="Otros">
-                                    <option value="Colombia">Colombia</option>
-                                    <option value="Ecuador">Ecuador</option>
-                                    <option value="Uruguay">Uruguay</option>
-                                    <option value="Venezuela">Venezuela</option>
-                                    <option value="México">México</option>
-                                    <option value="España">España</option>
-                                    <option value="Otro">Otro</option>
-                                </optgroup>
+                                <option value="">-- SELECCIONE UN PAIS --</option>
+                                @foreach($paises as $pais)
+                                    <option value="{{ $pais->id }}">{{ $pais->valor }}</option>
+                                @endforeach
                             </select>
-                            @error('placa_pais')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('placa_pais_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Placa <span class="text-danger">(*)</span></label>
@@ -398,13 +384,13 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Tipo Vehículo <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('tipo_vehiculo') is-invalid @enderror" name="tipo_vehiculo" id="cam_tipo" required>
-                                <option value="">-- Seleccione --</option>
-                                @foreach(['Camión','Volqueta','Trailer','Furgón'] as $tipo)
-                                    <option value="{{ $tipo }}">{{ $tipo }}</option>
+                            <select class="form-select @error('tipo_vehiculo_id') is-invalid @enderror" name="tipo_vehiculo_id" id="cam_tipo_vehiculo_id" required>
+                                <option value="">-- SELECCIONE UN TIPO --</option>
+                                @foreach($tiposVehiculo as $tipo)
+                                    <option value="{{ $tipo->id }}">{{ $tipo->valor }}</option>
                                 @endforeach
                             </select>
-                            @error('tipo_vehiculo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('tipo_vehiculo_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Estado <span class="text-danger">(*)</span></label>
@@ -419,13 +405,13 @@
                         {{-- Fila 2: Marca / Modelo / Año --}}
                         <div class="col-md-4">
                             <label class="form-label">Marca <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('marca') is-invalid @enderror" name="marca" id="cam_marca" required>
-                                <option value="">-- Seleccione --</option>
-                                @foreach(['Volvo','Scania','Mercedes-Benz','Man','DAF','Iveco','Freightliner','Kenworth','Peterbilt','International','Ford','Chevrolet','Toyota','Hino','Isuzu','Faw','Sinotruk','Foton','Shacman','Dongfeng'] as $marca)
-                                    <option value="{{ $marca }}">{{ $marca }}</option>
+                            <select class="form-select @error('marca_id') is-invalid @enderror" name="marca_id" id="cam_marca_id" required>
+                                <option value="">-- SELECCIONE UNA MARCA --</option>
+                                @foreach($marcas as $marca)
+                                    <option value="{{ $marca->id }}">{{ $marca->valor }}</option>
                                 @endforeach
                             </select>
-                            @error('marca')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('marca_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Modelo <span class="text-danger">(*)</span></label>
@@ -569,24 +555,32 @@
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
                     <div class="row g-3">
 
-                        {{-- Fila 1: Nombre | Apellido | Email --}}
-                        <div class="col-md-4">
-                            <label class="form-label">Nombre <span class="text-danger">(*)</span></label>
+                        {{-- Fila 1: Nombre | Apellido Paterno | Apellido Materno | Email --}}
+                        <div class="col-md-3">
+                            <label class="form-label">Nombre(s) <span class="text-danger">(*)</span></label>
                             <input type="text" class="form-control @error('nombre') is-invalid @enderror" name="nombre" id="op_nombre"
                                 onkeypress="return /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]$/.test(event.key)"
                                 oninput="this.value=this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g,'').toUpperCase()"
                                 required>
                             @error('nombre')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Apellido <span class="text-danger">(*)</span></label>
-                            <input type="text" class="form-control @error('apellido') is-invalid @enderror" name="apellido" id="op_apellido"
+                        <div class="col-md-3">
+                            <label class="form-label">Apellido Paterno <span class="text-danger">(*)</span></label>
+                            <input type="text" class="form-control @error('apellido_paterno') is-invalid @enderror" name="apellido_paterno" id="op_apellido_paterno"
                                 onkeypress="return /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]$/.test(event.key)"
                                 oninput="this.value=this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g,'').toUpperCase()"
                                 required>
-                            @error('apellido')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('apellido_paterno')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Apellido Materno <span class="text-danger">(*)</span></label>
+                            <input type="text" class="form-control @error('apellido_materno') is-invalid @enderror" name="apellido_materno" id="op_apellido_materno"
+                                onkeypress="return /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]$/.test(event.key)"
+                                oninput="this.value=this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g,'').toUpperCase()"
+                                required>
+                            @error('apellido_materno')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label">Email</label>
                             <input type="email" class="form-control @error('email') is-invalid @enderror"
                                 name="email" id="op_email"
@@ -599,44 +593,13 @@
                         {{-- Fila 2: País del Documento | N° Documento | Tipo Operador --}}
                         <div class="col-md-4">
                             <label class="form-label">País del Documento <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('ci_pais') is-invalid @enderror" name="ci_pais" id="op_ci_pais" onchange="actualizarFormatoCI()" required>
-                                <option value="">-- Seleccione país --</option>
-                                <optgroup label="Bolivia">
-                                    <option value="Bolivia">Bolivia</option>
-                                </optgroup>
-                                <optgroup label="Países limítrofes">
-                                    <option value="Argentina">Argentina</option>
-                                    <option value="Brasil">Brasil</option>
-                                    <option value="Chile">Chile</option>
-                                    <option value="Paraguay">Paraguay</option>
-                                    <option value="Perú">Perú</option>
-                                </optgroup>
-                                <optgroup label="Resto de Sudamérica">
-                                    <option value="Colombia">Colombia</option>
-                                    <option value="Ecuador">Ecuador</option>
-                                    <option value="Uruguay">Uruguay</option>
-                                    <option value="Venezuela">Venezuela</option>
-                                    <option value="Guyana">Guyana</option>
-                                    <option value="Guyana Francesa">Guyana Francesa</option>
-                                    <option value="Surinam">Surinam</option>
-                                </optgroup>
-                                <optgroup label="Centroamérica y otros">
-                                    <option value="México">México</option>
-                                    <option value="Panamá">Panamá</option>
-                                    <option value="Costa Rica">Costa Rica</option>
-                                    <option value="Guatemala">Guatemala</option>
-                                    <option value="Honduras">Honduras</option>
-                                    <option value="El Salvador">El Salvador</option>
-                                    <option value="Nicaragua">Nicaragua</option>
-                                    <option value="Cuba">Cuba</option>
-                                    <option value="República Dominicana">República Dominicana</option>
-                                    <option value="Estados Unidos">Estados Unidos</option>
-                                    <option value="Canadá">Canadá</option>
-                                    <option value="España">España</option>
-                                    <option value="Otro">Otro</option>
-                                </optgroup>
+                            <select class="form-select @error('ci_pais_id') is-invalid @enderror" name="ci_pais_id" id="op_ci_pais_id" onchange="actualizarFormatoCI()" required>
+                                <option value="">-- SELECCIONE UN PAÍS --</option>
+                                @foreach($paisesDocumento as $pais)
+                                    <option value="{{ $pais->id }}">{{ $pais->valor }}</option>
+                                @endforeach
                             </select>
-                            @error('ci_pais')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('ci_pais_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">N° Documento de Identidad <span class="text-danger">(*)</span></label>
@@ -712,13 +675,13 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">País de Expedición <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('licencia_pais') is-invalid @enderror" name="licencia_pais" id="op_licencia_pais">
-                                <option value="">-- Seleccione --</option>
-                                @foreach(['Bolivia','Argentina','Brasil','Chile','Paraguay','Perú'] as $pais)
-                                    <option value="{{ $pais }}">{{ $pais }}</option>
+                            <select class="form-select @error('licencia_pais_id') is-invalid @enderror" name="licencia_pais_id" id="op_licencia_pais_id">
+                                <option value="">-- SELECCIONE UN PAÍS --</option>
+                                @foreach($paisesDocumento as $pais)
+                                    <option value="{{ $pais->id }}">{{ $pais->valor }}</option>
                                 @endforeach
                             </select>
-                            @error('licencia_pais')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            @error('licencia_pais_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Fecha de Vencimiento <span class="text-danger">(*)</span></label>
@@ -789,7 +752,7 @@
                                 <option value="">-- Seleccione camión --</option>
                                 @foreach($camiones as $c)
                                     <option value="{{ $c->id }}" data-uuid="{{ $c->uuid }}">
-                                        {{ $c->placa }} — {{ $c->marca }} {{ $c->modelo }} ({{ number_format($c->capacidad_kg/1000,1) }} t)
+                                        {{ $c->placa }} — {{ $c->marca->valor ?? '-' }} {{ $c->modelo }} ({{ number_format($c->capacidad_kg/1000,1) }} t)
                                     </option>
                                 @endforeach
                             </select>
@@ -983,37 +946,29 @@
     // Reglas de formato de documento por país
     const _formatosCI = {
         // Solo dígitos
-        'Bolivia':            { tipo: 'digits', maxlen: 10, hint: 'Solo números, ej: 1234567' },
-        'Brasil':             { tipo: 'digits', maxlen: 11, hint: 'CPF: 11 dígitos, ej: 12345678901' },
-        'Paraguay':           { tipo: 'digits', maxlen: 8,  hint: '8 dígitos, ej: 12345678' },
-        'Ecuador':            { tipo: 'digits', maxlen: 10, hint: '10 dígitos (cédula), ej: 1234567890' },
-        'Uruguay':            { tipo: 'digits', maxlen: 8,  hint: '8 dígitos, ej: 12345678' },
+        'BOLIVIA':            { tipo: 'digits', maxlen: 10, hint: 'Solo números, ej: 1234567' },
+        'BRASIL':             { tipo: 'digits', maxlen: 11, hint: 'CPF: 11 dígitos, ej: 12345678901' },
+        'PARAGUAY':           { tipo: 'digits', maxlen: 8,  hint: '8 dígitos, ej: 12345678' },
+        'ECUADOR':            { tipo: 'digits', maxlen: 10, hint: '10 dígitos (cédula), ej: 1234567890' },
+        'URUGUAY':            { tipo: 'digits', maxlen: 8,  hint: '8 dígitos, ej: 12345678' },
         // Alfanumérico (letras y números)
-        'Argentina':          { tipo: 'alphanum', maxlen: 9,  hint: 'DNI: 7-9 dígitos, ej: 12345678' },
-        'Chile':              { tipo: 'alphanum', maxlen: 10, hint: 'RUN con dígito verificador, ej: 12345678K' },
-        'Perú':               { tipo: 'alphanum', maxlen: 9,  hint: 'DNI: 8 dígitos o Pasaporte, ej: 12345678' },
-        'Colombia':           { tipo: 'alphanum', maxlen: 11, hint: 'Cédula de ciudadanía, ej: 1234567890' },
-        'Venezuela':          { tipo: 'alphanum', maxlen: 9,  hint: 'V-12345678 (sin el prefijo)' },
-        'Guyana':             { tipo: 'alphanum', maxlen: 15, hint: 'Pasaporte o ID nacional' },
-        'Guyana Francesa':    { tipo: 'alphanum', maxlen: 15, hint: 'Pasaporte o ID nacional' },
-        'Surinam':            { tipo: 'alphanum', maxlen: 15, hint: 'ID nacional o Pasaporte' },
-        'México':             { tipo: 'alphanum', maxlen: 18, hint: 'CURP: 18 caracteres' },
-        'Panamá':             { tipo: 'alphanum', maxlen: 15, hint: 'Cédula: ej: 8-123-456' },
-        'Costa Rica':         { tipo: 'alphanum', maxlen: 10, hint: 'Cédula: 9-10 dígitos' },
-        'Guatemala':          { tipo: 'alphanum', maxlen: 13, hint: 'DPI: 13 dígitos' },
-        'Honduras':           { tipo: 'alphanum', maxlen: 13, hint: 'DNI: 13 dígitos' },
+        'ARGENTINA':          { tipo: 'alphanum', maxlen: 9,  hint: 'DNI: 7-9 dígitos, ej: 12345678' },
+        'CHILE':              { tipo: 'alphanum', maxlen: 10, hint: 'RUN con dígito verificador, ej: 12345678K' },
+        'PERU':               { tipo: 'alphanum', maxlen: 9,  hint: 'DNI: 8 dígitos o Pasaporte, ej: 12345678' },
+        'COLOMBIA':           { tipo: 'alphanum', maxlen: 11, hint: 'Cédula de ciudadanía, ej: 1234567890' },
+        'VENEZUELA':          { tipo: 'alphanum', maxlen: 9,  hint: 'V-12345678 (sin el prefijo)' },
+        'GUYANA':             { tipo: 'alphanum', maxlen: 15, hint: 'Pasaporte o ID nacional' },
+        'GUAYANA_FRANCESA':   { tipo: 'alphanum', maxlen: 15, hint: 'Pasaporte o ID nacional' },
+        'SURINAM':            { tipo: 'alphanum', maxlen: 15, hint: 'ID nacional o Pasaporte' },
         'El Salvador':        { tipo: 'alphanum', maxlen: 10, hint: 'DUI: 9 dígitos' },
         'Nicaragua':          { tipo: 'alphanum', maxlen: 16, hint: 'Cédula: 14-16 caracteres' },
         'Cuba':               { tipo: 'alphanum', maxlen: 11, hint: '11 dígitos' },
-        'República Dominicana': { tipo: 'alphanum', maxlen: 11, hint: 'Cédula: 11 dígitos' },
-        'Estados Unidos':     { tipo: 'alphanum', maxlen: 20, hint: 'Número de pasaporte o SSN' },
-        'Canadá':             { tipo: 'alphanum', maxlen: 20, hint: 'Número de pasaporte o SIN' },
-        'España':             { tipo: 'alphanum', maxlen: 10, hint: 'DNI (8 dígitos + letra) o NIE' },
-        'Otro':               { tipo: 'alphanum', maxlen: 20, hint: 'Ingrese el número de documento' },
     };
 
     function actualizarFormatoCI() {
-        const pais   = document.getElementById('op_ci_pais').value;
+        const selectPais = document.getElementById('op_ci_pais_id');
+        const paisTexto = selectPais.options[selectPais.selectedIndex]?.text || '';
+        const pais = paisTexto;
         const input  = document.getElementById('op_ci');
         const hint   = document.getElementById('op_ci_hint');
         const regla  = _formatosCI[pais];
@@ -1068,26 +1023,20 @@
 
     // Formatos de placa por país
     const _formatosPlaca = {
-        'Bolivia':    { maxlen: 10, placeholder: 'Ej: 2345-ABC',    hint: '4 dígitos + guion + 3 letras (2345-ABC)',          pattern: /^[0-9]{4}-[A-Z]{3}$/ },
-        'Argentina':  { maxlen: 8,  placeholder: 'Ej: AB123CD',     hint: '2 letras + 3 dígitos + 2 letras (AB123CD) o 3+3',  pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$|^[A-Z]{3}[0-9]{3}$/ },
-        'Brasil':     { maxlen: 8,  placeholder: 'Ej: ABC1D23',     hint: '3 letras + 1 dígito + 1 letra + 2 dígitos',        pattern: /^[A-Z]{3}[0-9][A-Z][0-9]{2}$|^[A-Z]{3}[0-9]{4}$/ },
-        'Chile':      { maxlen: 7,  placeholder: 'Ej: ABCD12',      hint: '4 letras + 2 dígitos o 2 letras + 4 dígitos',      pattern: /^[A-Z]{4}[0-9]{2}$|^[A-Z]{2}[0-9]{4}$/ },
-        'Paraguay':   { maxlen: 8,  placeholder: 'Ej: ABCD123',     hint: '4 letras + 3 dígitos',                             pattern: /^[A-Z]{4}[0-9]{3}$/ },
-        'Perú':       { maxlen: 7,  placeholder: 'Ej: ABC-123',     hint: '3 letras + guion + 3 dígitos',                     pattern: /^[A-Z]{3}-?[0-9]{3}$/ },
-        'Colombia':   { maxlen: 7,  placeholder: 'Ej: ABC123',      hint: '3 letras + 3 dígitos',                             pattern: /^[A-Z]{3}[0-9]{3}$/ },
-        'Ecuador':    { maxlen: 8,  placeholder: 'Ej: ABC-1234',    hint: '3 letras + guion + 4 dígitos',                     pattern: /^[A-Z]{3}-?[0-9]{4}$/ },
-        'Uruguay':    { maxlen: 7,  placeholder: 'Ej: ABC1234',     hint: '3 letras + 4 dígitos',                             pattern: /^[A-Z]{3}[0-9]{4}$/ },
-        'Venezuela':  { maxlen: 8,  placeholder: 'Ej: AB123CD',     hint: '2 letras + 3 dígitos + 2 letras',                  pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/ },
-        'México':     { maxlen: 8,  placeholder: 'Ej: ABC1234',     hint: '3 letras + 4 dígitos (varía por estado)',          pattern: /^[A-Z0-9]{5,8}$/ },
-        'España':     { maxlen: 8,  placeholder: 'Ej: 1234-ABC',    hint: '4 dígitos + guion + 3 letras',                    pattern: /^[0-9]{4}-?[A-Z]{3}$/ },
+        'BOLIVIA':    { maxlen: 10, placeholder: 'Ej: 2345-ABC',    hint: '4 dígitos + guion + 3 letras (2345-ABC)',          pattern: /^[0-9]{4}-[A-Z]{3}$/ },
+        'ARGENTINA':  { maxlen: 8,  placeholder: 'Ej: AB123CD',     hint: '2 letras + 3 dígitos + 2 letras (AB123CD) o 3+3',  pattern: /^[A-Z]{2}[0-9]{3}[A-Z]{2}$|^[A-Z]{3}[0-9]{3}$/ },
+        'BRASIL':     { maxlen: 8,  placeholder: 'Ej: ABC1D23',     hint: '3 letras + 1 dígito + 1 letra + 2 dígitos',        pattern: /^[A-Z]{3}[0-9][A-Z][0-9]{2}$|^[A-Z]{3}[0-9]{4}$/ },
+        'CHILE':      { maxlen: 7,  placeholder: 'Ej: ABCD12',      hint: '4 letras + 2 dígitos o 2 letras + 4 dígitos',      pattern: /^[A-Z]{4}[0-9]{2}$|^[A-Z]{2}[0-9]{4}$/ },
+        'PARAGUAY':   { maxlen: 8,  placeholder: 'Ej: ABCD123',     hint: '4 letras + 3 dígitos',                             pattern: /^[A-Z]{4}[0-9]{3}$/ },
         'Otro':       { maxlen: 15, placeholder: 'Ingrese la placa', hint: 'Ingrese la placa tal como aparece',               pattern: /^[A-Z0-9\-]{2,15}$/ },
     };
 
     function actualizarFormatoPlaca() {
-        const pais  = document.getElementById('cam_placa_pais').value;
+        const selectPais = document.getElementById('cam_placa_pais_id');
+        const paisTexto = selectPais.options[selectPais.selectedIndex]?.text || '';
         const input = document.getElementById('cam_placa');
         const hint  = document.getElementById('cam_placa_hint');
-        const regla = _formatosPlaca[pais];
+        const regla = _formatosPlaca[paisTexto];
 
         input.value = ''; // limpiar al cambiar país
         input.classList.remove('is-valid', 'is-invalid');
@@ -1105,13 +1054,14 @@
     }
 
     function aplicarMascaraPlaca(input) {
-        const pais  = document.getElementById('cam_placa_pais').value;
+        const selectPais = document.getElementById('cam_placa_pais_id');
+        const pais = selectPais.options[selectPais.selectedIndex]?.text || '';
         const regla = _formatosPlaca[pais];
         let val     = input.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
         const cur   = input.selectionStart;
 
         switch (pais) {
-            case 'Bolivia':
+            case 'BOLIVIA':
                 // 4 dígitos + guion + 3 letras → 2345-ABC
                 val = val.replace(/[^0-9A-Z\-]/g, '');
                 // extraer solo dígitos y letras sin el guión
@@ -1121,72 +1071,27 @@
                 val = nums.length === 4 ? nums + '-' + lets : nums;
                 break;
 
-            case 'España':
-                // 4 dígitos + guion + 3 letras → 1234-ABC
-                val = val.replace(/[^0-9A-Z\-]/g, '');
-                let sNums = val.replace(/\-/g, '').replace(/[^0-9]/g, '').slice(0, 4);
-                let sLets = val.replace(/\-/g, '').replace(/[^A-Z]/g, '').slice(0, 3);
-                val = sNums.length === 4 ? sNums + '-' + sLets : sNums;
-                break;
-
-            case 'Perú':
-                // 3 letras + guion + 3 dígitos → ABC-123
-                val = val.replace(/[^A-Z0-9\-]/g, '');
-                let pLets = val.replace(/\-/g, '').replace(/[^A-Z]/g, '').slice(0, 3);
-                let pNums = val.replace(/\-/g, '').replace(/[^0-9]/g, '').slice(0, 3);
-                val = pLets.length === 3 ? pLets + '-' + pNums : pLets;
-                break;
-
-            case 'Ecuador':
-                // 3 letras + guion + 4 dígitos → ABC-1234
-                val = val.replace(/[^A-Z0-9\-]/g, '');
-                let eLets = val.replace(/\-/g, '').replace(/[^A-Z]/g, '').slice(0, 3);
-                let eNums = val.replace(/\-/g, '').replace(/[^0-9]/g, '').slice(0, 4);
-                val = eLets.length === 3 ? eLets + '-' + eNums : eLets;
-                break;
-
-            case 'Argentina':
+            case 'ARGENTINA':
                 // AB123CD (nuevo) o ABC123 (viejo) — solo alfanumérico, sin guión
                 val = val.replace(/[^A-Z0-9]/g, '').slice(0, 8);
                 break;
 
-            case 'Brasil':
+            case 'BRASIL':
                 // ABC1D23 (Mercosur) o ABC1234 — alfanumérico
                 val = val.replace(/[^A-Z0-9]/g, '').slice(0, 8);
                 break;
 
-            case 'Chile':
+            case 'CHILE':
                 // ABCD12 o AB1234 — alfanumérico
                 val = val.replace(/[^A-Z0-9]/g, '').slice(0, 7);
                 break;
 
-            case 'Paraguay':
+            case 'PARAGUAY':
                 // ABCD123 — 4 letras + 3 dígitos
                 val = val.replace(/[^A-Z0-9]/g, '');
                 let pyLets = val.replace(/[^A-Z]/g, '').slice(0, 4);
                 let pyNums = val.replace(/[^0-9]/g, '').slice(0, 3);
                 val = pyLets + pyNums;
-                break;
-
-            case 'Colombia':
-                // ABC123 — 3 letras + 3 dígitos
-                val = val.replace(/[^A-Z0-9]/g, '');
-                let coLets = val.replace(/[^A-Z]/g, '').slice(0, 3);
-                let coNums = val.replace(/[^0-9]/g, '').slice(0, 3);
-                val = coLets + coNums;
-                break;
-
-            case 'Uruguay':
-                // ABC1234 — 3 letras + 4 dígitos
-                val = val.replace(/[^A-Z0-9]/g, '');
-                let uyLets = val.replace(/[^A-Z]/g, '').slice(0, 3);
-                let uyNums = val.replace(/[^0-9]/g, '').slice(0, 4);
-                val = uyLets + uyNums;
-                break;
-
-            case 'Venezuela':
-                // AB123CD — 2 letras + 3 dígitos + 2 letras
-                val = val.replace(/[^A-Z0-9]/g, '').slice(0, 8);
                 break;
 
             default:
@@ -1449,11 +1354,11 @@
         document.getElementById('btnCamion').innerText    = 'Actualizar';
         document.getElementById('methodCamion').value     = 'PUT';
         document.getElementById('formCamion').action      = '/camion/' + camion.id;
-        document.getElementById('cam_placa_pais').value   = camion.placa_pais ?? 'Bolivia';
+        document.getElementById('cam_placa_pais_id').value   = camion.placa_pais_id ?? '';
         actualizarFormatoPlaca();
         document.getElementById('cam_placa').value        = camion.placa;
-        document.getElementById('cam_tipo').value         = camion.tipo_vehiculo;
-        document.getElementById('cam_marca').value        = camion.marca;
+        document.getElementById('cam_tipo_vehiculo_id').value = camion.tipo_vehiculo_id ?? '';
+        document.getElementById('cam_marca_id').value     = camion.marca_id ?? '';
         document.getElementById('cam_modelo').value       = camion.modelo;
         document.getElementById('cam_anio').value         = camion.anio;
         document.getElementById('cam_capacidad').value    = (camion.capacidad_kg / 1000).toFixed(3);
@@ -1584,9 +1489,10 @@
         document.getElementById('btnOperador').innerText = 'Actualizar';
         document.getElementById('methodOperador').value = 'PUT';
         document.getElementById('formOperador').action = '/operador/' + op.id;
-        document.getElementById('op_nombre').value   = op.nombre;
-        document.getElementById('op_apellido').value  = op.apellido;
-        document.getElementById('op_ci_pais').value   = op.ci_pais ?? '';
+        document.getElementById('op_nombre').value            = op.nombre;
+        document.getElementById('op_apellido_paterno').value  = op.apellido_paterno;
+        document.getElementById('op_apellido_materno').value  = op.apellido_materno ?? '';
+        document.getElementById('op_ci_pais_id').value   = op.ci_pais_id ?? '';
         actualizarFormatoCI();
         document.getElementById('op_ci').value        = op.ci;
         document.getElementById('op_email').value     = op.email ?? '';
@@ -1597,7 +1503,7 @@
         document.getElementById('op_tipo').value     = op.tipo_operador;
         document.getElementById('op_estado').value   = op.estado;
         document.getElementById('op_licencia_num').value  = op.licencia_numero ?? '';
-        document.getElementById('op_licencia_pais').value = op.licencia_pais ?? '';
+        document.getElementById('op_licencia_pais_id').value = op.licencia_pais_id ?? '';
         document.getElementById('op_licencia_venc').value = op.licencia_vencimiento ?? '';
 
         // Mostrar info documentos existentes

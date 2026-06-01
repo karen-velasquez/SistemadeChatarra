@@ -34,15 +34,28 @@
                 <table cellspacing="0" width="100%" id="datos" class="table table-hover table-bordered table-sm">
                     <thead>
                         <tr>
+                            <th class="text-center">Empleado</th>
                             <th class="text-center">Nombre Completo</th>
                             <th class="text-center">Correo para acceso <br> al sistema</th>
                             <th class="text-center">Rol Asignado</th>
+                            <th class="text-center">Estado</th>
                             <th class="text-center">Opciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($users as $user)
-                            <tr>
+                            <tr class="{{ !$user->estado ? 'table-secondary text-muted' : '' }}">
+                                <td class="text-center">
+                                    @if($user->empleado)
+                                        <span class="badge bg-success" title="Empleado: {{$user->empleado->nombre_completo}}">
+                                            <i class="bi bi-person-check-fill"></i> {{$user->empleado->cargo->valor ?? 'Sin cargo'}}
+                                        </span>
+                                    @else
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-exclamation-triangle"></i> Sin empleado
+                                        </span>
+                                    @endif
+                                </td>
                                 <td>{{$user->name}}</td>
                                 <td class="text-center">{{$user->email}}</td>
                                 <td class="text-center">
@@ -50,19 +63,45 @@
                                     <strong>{{$rol->name}}</strong>
                                     @endforeach
                                 </td>
+                                <td class="text-center">
+                                    @if($user->estado)
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle-fill"></i> Activo
+                                        </span>
+                                    @else
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-x-circle-fill"></i> Inactivo
+                                        </span>
+                                    @endif
+                                </td>
                              
                                  <td class="text-center">
-                                      <div class="btn-group">
-                                            <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>
-                                            <ul class="dropdown-menu">
+                                      <div class="d-flex gap-1 justify-content-center">
                                                 @can('users.edit')
-                                                <li><a class="dropdown-item" href="{{ route('users.edit',$user->uuid) }}"> <i class="bi bi-pencil"></i> Modificar</a></li>
+                                                    @if($user->estado)
+                                                        <a href="{{ route('users.edit',$user->uuid) }}"
+                                                           class="btn btn-sm btn-outline-secondary"
+                                                           title="Editar">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                    @else
+                                                        <button class="btn btn-sm btn-secondary" disabled
+                                                                title="No se puede editar un usuario inactivo. Active primero al empleado asociado."
+                                                                style="opacity: 0.5; cursor: not-allowed;">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                    @endif
                                                 @endcan
                                                 @can('users.destroy')
-                                                <li><a class="dropdown-item text-danger" href="{{ route('users.destroy', $user->uuid) }}" onclick="return confirm('¿Eliminar este usuario?')"><i class="bi bi-trash"></i> Eliminar</a></li>
+                                                <a href="{{ route('users.destroy', $user->uuid) }}"
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   title="Eliminar"
+                                                   onclick="return confirm('¿Eliminar al usuario {{$user->name}}? Esta acción no se puede deshacer.')">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
                                                 @endcan
-                                            </ul>
                                         </div>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

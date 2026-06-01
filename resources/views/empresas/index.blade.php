@@ -1,0 +1,799 @@
+@extends('layouts.app')
+@section('titulo','Empresas')
+@section('content')
+
+<div class="pagetitle">
+    <div class="d-flex flex-row align-items-center justify-content-between">
+        <div>
+            <h1>GESTIÓN DE EMPRESAS</h1>
+            <nav>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
+                    <li class="breadcrumb-item active">Empresas</li>
+                </ol>
+            </nav>
+        </div>
+        @can('empresas.create')
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEmpresa" onclick="resetModal()">
+            <i class="bi bi-plus-lg"></i> Nueva Empresa
+        </button>
+        @endcan
+    </div>
+</div>
+
+<section class="section">
+
+    {{-- Banner informativo --}}
+    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small">
+        <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0"></i>
+        <div>
+            <strong>Gestión de Empresas</strong> — Aquí se administran las empresas y sus cuentas bancarias o de efectivo.
+            Cada cuenta tiene un saldo que se actualiza automáticamente con los pagos registrados en el sistema.
+            Puedes ver los movimientos de cada cuenta haciendo clic sobre ella, o usar <strong>Ver Movimientos</strong> para ver el historial completo de una empresa.
+            Para agregar una nueva cuenta a una empresa existente, usa el menú de opciones (<i class="bi bi-three-dots"></i>) de cada tarjeta.
+        </div>
+    </div>
+
+    {{-- Card resumen general --}}
+    @php
+        $saldoTotal    = $empresas->sum(fn($e) => $e->cuentas->sum('saldo_actual'));
+        $totalCuentas  = $empresas->sum(fn($e) => $e->cuentas->count());
+    @endphp
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center gap-3 py-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary bg-opacity-10"
+                         style="width:48px;height:48px;flex-shrink:0">
+                        <i class="bi bi-building fs-5 text-primary"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Total Empresas</div>
+                        <div class="fs-5 fw-bold text-primary">{{ $empresas->count() }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center gap-3 py-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-info bg-opacity-10"
+                         style="width:48px;height:48px;flex-shrink:0">
+                        <i class="bi bi-wallet2 fs-5 text-info"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Total Cuentas</div>
+                        <div class="fs-5 fw-bold text-info">{{ $totalCuentas }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center gap-3 py-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-success bg-opacity-10"
+                         style="width:48px;height:48px;flex-shrink:0">
+                        <i class="bi bi-cash-stack fs-5 text-success"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Saldo General</div>
+                        <div class="fs-5 fw-bold {{ $saldoTotal >= 0 ? 'text-success' : 'text-danger' }}">
+                            BOB {{ number_format($saldoTotal, 2) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Cards por empresa --}}
+    <div class="row g-3">
+        @forelse($empresas as $empresa)
+        @php
+            $saldoEmpresa   = $empresa->cuentas->sum('saldo_actual');
+            $cuentasOrden   = $empresa->cuentas->sortByDesc('saldo_actual');
+            $pctCuentas     = $saldoTotal > 0 ? min(100, round($saldoEmpresa / $saldoTotal * 100)) : 0;
+        @endphp
+        <div class="col-12 col-sm-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100" data-empresa-uuid="{{ $empresa->uuid }}" data-total-cuentas="{{ $empresa->cuentas->count() }}" data-saldo-total="{{ number_format($saldoEmpresa, 2) }}">
+                <div class="card-body d-flex flex-column pt-4">
+
+                    {{-- Header empresa --}}
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="fw-bold mb-0">{{ $empresa->nombre }}</h5>
+                            @if($empresa->nit)
+                                <small class="text-muted">NIT: {{ $empresa->nit }}</small>
+                            @endif
+                            @if($empresa->razon_social)
+                                <div class="text-muted small">{{ $empresa->razon_social }}</div>
+                            @endif
+                        </div>
+                        <div class="btn-group ms-2">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('empresas.cuentas', $empresa->uuid) }}">
+                                        <i class="bi bi-graph-up-arrow me-2"></i> Ver Movimientos
+                                    </a>
+                                </li>
+                                @can('empresas.create')
+                                <li>
+                                    <button class="dropdown-item" onclick="abrirModalCuenta('{{ $empresa->uuid }}', '{{ addslashes($empresa->nombre) }}')">
+                                        <i class="bi bi-plus-circle me-2 text-success"></i> Nueva Cuenta
+                                    </button>
+                                </li>
+                                @endcan
+                                <li><hr class="dropdown-divider"></li>
+                                @can('empresas.index')
+                                <li>
+                                    <button class="dropdown-item" onclick="verInfoEmpresa('{{ $empresa->uuid }}')">
+                                        <i class="bi bi-info-circle me-2 text-primary"></i> Ver Información
+                                    </button>
+                                </li>
+                                @endcan
+                                @can('empresas.edit')
+                                <li>
+                                    <button class="dropdown-item" onclick="editarEmpresa('{{ $empresa->uuid }}')">
+                                        <i class="bi bi-pencil me-2"></i> Editar Empresa
+                                    </button>
+                                </li>
+                                @endcan
+                                @can('empresas.destroy')
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    @if($empresa->puedeEliminar())
+                                        <a class="dropdown-item text-danger" href="{{ route('empresas.destroy', $empresa->uuid) }}"
+                                            onclick="return confirm('¿Eliminar empresa {{ $empresa->nombre }}?')">
+                                            <i class="bi bi-trash me-2"></i> Eliminar
+                                        </a>
+                                    @else
+                                        <span class="dropdown-item text-muted"
+                                              style="cursor: not-allowed;"
+                                              title="Esta empresa tiene movimientos, no se puede eliminar">
+                                            <i class="bi bi-trash me-2"></i> Eliminar
+                                        </span>
+                                    @endif
+                                </li>
+                                @endcan
+                            </ul>
+                        </div>
+                    </div>
+
+                    <hr class="my-2">
+
+                    {{-- Saldo total + barra de participación --}}
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <small class="text-muted">Saldo total</small>
+                            @if($saldoTotal > 0)
+                            <small class="text-muted">{{ $pctCuentas }}% del total</small>
+                            @endif
+                        </div>
+                        <div class="fs-5 fw-bold {{ $saldoEmpresa >= 0 ? 'text-success' : 'text-danger' }} mb-1">
+                            BOB {{ number_format($saldoEmpresa, 2) }}
+                        </div>
+                        @if($saldoTotal > 0)
+                        <div class="progress" style="height:5px;">
+                            <div class="progress-bar bg-primary" style="width:{{ $pctCuentas }}%"></div>
+                        </div>
+                        @endif
+                    </div>
+
+                    {{-- Cuentas --}}
+                    @if($cuentasOrden->count())
+                    <div class="d-flex flex-column gap-1 mt-1 flex-grow-1">
+                        @foreach($cuentasOrden as $cuenta)
+                        @php $pctCuenta = $saldoEmpresa > 0 ? min(100, round($cuenta->saldo_actual / $saldoEmpresa * 100)) : 0; @endphp
+                        <a href="{{ route('tesoreria.cuenta', $cuenta->uuid) }}" class="text-decoration-none">
+                            <div class="rounded border px-2 py-2 {{ !$cuenta->activo ? 'opacity-50' : '' }}"
+                                 style="background:#f8f9fa; transition:background .15s;"
+                                 onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <div>
+                                        <div class="small fw-semibold text-dark d-flex align-items-center gap-1">
+                                            <i class="bi bi-wallet2 text-primary"></i>
+                                            {{ $cuenta->nombre_cuenta }}
+                                            @if(!$cuenta->activo)
+                                                <span class="badge bg-secondary" style="font-size:.6rem">Inactiva</span>
+                                            @endif
+                                        </div>
+                                        @if($cuenta->banco)
+                                        <div class="text-muted" style="font-size:.72rem">
+                                            <i class="bi bi-bank me-1"></i>{{ $cuenta->banco->nombre }}
+                                            @if($cuenta->numero_cuenta)
+                                                &nbsp;·&nbsp;<span class="font-monospace">{{ $cuenta->numero_cuenta }}</span>
+                                            @endif
+                                        </div>
+                                        @else
+                                        <div class="text-muted" style="font-size:.72rem">
+                                            <i class="bi bi-cash me-1"></i>Efectivo / Sin banco
+                                        </div>
+                                        @endif
+                                    </div>
+                                    <div class="text-end ms-2 flex-shrink-0">
+                                        <div class="small fw-bold {{ $cuenta->saldo_actual >= 0 ? 'text-success' : 'text-danger' }}">
+                                            BOB {{ number_format($cuenta->saldo_actual, 2) }}
+                                        </div>
+                                        @if($saldoEmpresa > 0)
+                                        <div class="text-muted" style="font-size:.65rem">{{ $pctCuenta }}%</div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @if($saldoEmpresa > 0 && $cuenta->activo)
+                                <div class="progress" style="height:3px;">
+                                    <div class="progress-bar bg-info" style="width:{{ $pctCuenta }}%"></div>
+                                </div>
+                                @endif
+                            </div>
+                        </a>
+                        @endforeach
+                    </div>
+                    @else
+                    <div class="text-center text-muted py-3 flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+                        <i class="bi bi-wallet2 fs-3 mb-1"></i>
+                        <div class="small">Sin cuentas registradas</div>
+                        @can('empresas.create')
+                        <button class="btn btn-sm btn-outline-primary mt-2"
+                            onclick="abrirModalCuenta('{{ $empresa->uuid }}', '{{ addslashes($empresa->nombre) }}')">
+                            <i class="bi bi-plus-lg"></i> Agregar cuenta
+                        </button>
+                        @endcan
+                    </div>
+                    @endif
+
+                </div>
+            </div>
+        </div>
+        @empty
+        <div class="col-12 text-center text-muted py-5">
+            <i class="bi bi-building fs-1"></i>
+            <p class="mt-2">No hay empresas registradas.</p>
+        </div>
+        @endforelse
+    </div>
+</section>
+
+{{-- MODAL NUEVA CUENTA --}}
+<div class="modal fade" id="modalNuevaCuenta" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Nueva Cuenta — <span id="nc_empresa_nombre"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formNuevaCuenta" method="POST" action="">
+                @csrf
+                <input type="hidden" name="redirect_to" value="index">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3"><span class="text-danger">*</span> Todos los campos marcados son obligatorios.</p>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nombre de la cuenta <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre_cuenta" id="nc_nombre_cuenta" class="form-control" required
+                                placeholder="Ej: Cuenta Principal, Caja Chica..."
+                                oninput="validarFormularioCuenta()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Banco <span class="text-danger">*</span></label>
+                            <select name="banco_id" id="nc_banco" class="form-select" required onchange="validarFormularioCuenta()">
+                                <option value="">-- Seleccione un banco --</option>
+                                @foreach($bancos as $banco)
+                                    <option value="{{ $banco->id }}">{{ $banco->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">N° de cuenta <span class="text-danger">*</span></label>
+                            <input type="text" name="numero_cuenta" id="nc_numero_cuenta" class="form-control font-monospace"
+                                placeholder="Ej: 1001234567"
+                                inputmode="numeric"
+                                maxlength="20"
+                                required
+                                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,20);document.getElementById('nc_contador').textContent=this.value.length+' / 20';validarFormularioCuenta()">
+                            <div class="form-text text-end" id="nc_contador">0 / 20</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Moneda <span class="text-danger">*</span></label>
+                            <select name="moneda" id="nc_moneda" class="form-select" required onchange="validarFormularioCuenta()">
+                                @foreach($monedas as $moneda)
+                                    <option value="{{ $moneda->valor }}" {{ $moneda->valor === 'BOB' ? 'selected' : '' }}>
+                                        {{ $moneda->valor }} — {{ $moneda->descripcion }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Saldo inicial <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" name="saldo_inicial" id="nc_saldo_inicial" class="form-control" required min="0" value="0.00"
+                                   placeholder="0.00"
+                                   oninput="if(this.value < 0) this.value = 0; validarFormularioCuenta()"
+                                   onblur="this.value = parseFloat(this.value || 0).toFixed(2)">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnGuardarCuenta" disabled><i class="bi bi-save me-1"></i>Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL EMPRESA --}}
+<div class="modal fade" id="modalEmpresa" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-building"></i> <span id="tituloModal">Nueva Empresa</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEmpresa" method="POST" action="{{ route('empresas.store') }}">
+                @csrf
+                <input type="hidden" name="_method" id="methodEmpresa" value="POST">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3"><span class="text-danger">*</span> Todos los campos marcados son obligatorios.</p>
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre" id="nombre" class="form-control" required
+                                placeholder="Ej: Empresa Ejemplo S.R.L."
+                                oninput="validarFormularioEmpresa()">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">NIT / RUC <span class="text-danger">*</span></label>
+                            <input type="text" name="nit" id="nit" class="form-control font-monospace" required
+                                placeholder="Ej: 1234567890"
+                                inputmode="numeric"
+                                maxlength="15"
+                                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,15);document.getElementById('nit_contador').textContent=this.value.length+' / 15';validarFormularioEmpresa()">
+                            <div class="form-text text-end" id="nit_contador">0 / 15</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Razón Social <span class="text-danger">*</span></label>
+                            <input type="text" name="razon_social" id="razon_social" class="form-control" required
+                                placeholder="Ej: Empresa Ejemplo Sociedad de Responsabilidad Limitada"
+                                oninput="validarFormularioEmpresa()">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono</label>
+                            <div class="input-group">
+                                <select id="tel_pais" class="form-select flex-grow-0" style="width:115px; min-width:115px; max-width:115px;"
+                                    onchange="actualizarPrefijoTelefonoEmp()">
+                                    <option value="Bolivia" data-code="+591" data-maxlen="8" data-placeholder="Ej: 70000000">BO +591</option>
+                                    <option value="Argentina" data-code="+54" data-maxlen="10" data-placeholder="Ej: 1150000000">AR +54</option>
+                                    <option value="Brasil" data-code="+55" data-maxlen="11" data-placeholder="Ej: 11900000000">BR +55</option>
+                                    <option value="Chile" data-code="+56" data-maxlen="9" data-placeholder="Ej: 912345678">CL +56</option>
+                                    <option value="Colombia" data-code="+57" data-maxlen="10" data-placeholder="Ej: 3001234567">CO +57</option>
+                                    <option value="Perú" data-code="+51" data-maxlen="9" data-placeholder="Ej: 912345678">PE +51</option>
+                                    <option value="Paraguay" data-code="+595" data-maxlen="9" data-placeholder="Ej: 981234567">PY +595</option>
+                                    <option value="Uruguay" data-code="+598" data-maxlen="9" data-placeholder="Ej: 912345678">UY +598</option>
+                                    <option value="Ecuador" data-code="+593" data-maxlen="9" data-placeholder="Ej: 987654321">EC +593</option>
+                                    <option value="Venezuela" data-code="+58" data-maxlen="10" data-placeholder="Ej: 4121234567">VE +58</option>
+                                    <option value="México" data-code="+52" data-maxlen="10" data-placeholder="Ej: 5512345678">MX +52</option>
+                                    <option value="Estados Unidos" data-code="+1" data-maxlen="10" data-placeholder="Ej: 2025550100">US +1</option>
+                                    <option value="Canadá" data-code="+1" data-maxlen="10" data-placeholder="Ej: 4165550100">CA +1</option>
+                                    <option value="España" data-code="+34" data-maxlen="9" data-placeholder="Ej: 612345678">ES +34</option>
+                                </select>
+                                <input type="hidden" name="telefono_prefijo" id="telefono_prefijo" value="+591">
+                                <input type="text" class="form-control" name="telefono" id="telefono"
+                                    maxlength="8" placeholder="Ej: 70000000"
+                                    oninput="validarTelefonoEmp(this)">
+                            </div>
+                            <div id="telefono_feedback" class="form-text d-none"></div>
+                            <small id="tel_hint" class="text-muted">Bolivia: 8 dígitos comenzando en 6 o 7</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="text" name="email" id="email" class="form-control"
+                                placeholder="ejemplo@correo.com"
+                                oninput="validarEmail(this)"
+                                onblur="validarEmail(this)">
+                            <div class="form-text" id="email_hint" style="min-height:1.2em"></div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Dirección</label>
+                            <input type="text" name="direccion" id="direccion" class="form-control"
+                                placeholder="Ej: Av. Principal N° 123, La Paz">
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnGuardar" disabled>Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL VER INFORMACIÓN DE EMPRESA --}}
+<div class="modal fade" id="modalInfoEmpresa" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary bg-gradient text-white border-0">
+                <h5 class="modal-title">
+                    <i class="bi bi-building-fill me-2"></i>Información de la Empresa
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        style="opacity: 1; background: transparent url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27 fill=%27%23fff%27%3e%3cpath d=%27M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z%27/%3e%3c/svg%3e') center/1em auto no-repeat;"></button>
+            </div>
+            <div class="modal-body p-4">
+                {{-- Datos Generales --}}
+                <div class="mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-2">
+                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                        </div>
+                        <h6 class="mb-0 fw-bold text-primary">Datos Generales</h6>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="text-muted small d-block mb-1">
+                                    <i class="bi bi-building me-1"></i>Nombre
+                                </label>
+                                <div class="fw-semibold" id="info_nombre">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="text-muted small d-block mb-1">
+                                    <i class="bi bi-card-text me-1"></i>NIT / RUC
+                                </label>
+                                <div class="fw-semibold font-monospace" id="info_nit">-</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="text-muted small d-block mb-1">
+                                    <i class="bi bi-file-text me-1"></i>Razón Social
+                                </label>
+                                <div class="fw-semibold" id="info_razon_social">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Contacto --}}
+                <div class="mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-2 me-2">
+                            <i class="bi bi-telephone-fill text-success fs-5"></i>
+                        </div>
+                        <h6 class="mb-0 fw-bold text-success">Contacto</h6>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="text-muted small d-block mb-1">
+                                    <i class="bi bi-telephone me-1"></i>Teléfono
+                                </label>
+                                <div class="fw-semibold" id="info_telefono">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="text-muted small d-block mb-1">
+                                    <i class="bi bi-envelope me-1"></i>Email
+                                </label>
+                                <div class="fw-semibold" id="info_email">-</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-3 rounded border bg-light">
+                                <label class="text-muted small d-block mb-1">
+                                    <i class="bi bi-geo-alt me-1"></i>Dirección
+                                </label>
+                                <div class="fw-semibold" id="info_direccion">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Resumen Financiero --}}
+                <div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-2 me-2">
+                            <i class="bi bi-cash-stack text-warning fs-5"></i>
+                        </div>
+                        <h6 class="mb-0 fw-bold text-warning">Resumen Financiero</h6>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded border bg-info bg-opacity-10 text-center">
+                                <label class="text-muted small d-block mb-2">
+                                    <i class="bi bi-wallet2 me-1"></i>Total Cuentas
+                                </label>
+                                <div class="fw-bold fs-3 text-info" id="info_total_cuentas">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="p-3 rounded border bg-light text-center">
+                                <label class="text-muted small d-block mb-2">
+                                    <i class="bi bi-currency-exchange me-1"></i>Saldo Total
+                                </label>
+                                <div class="fw-bold fs-3" id="info_saldo_total">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@section('scripts')
+<script>
+// Validación de teléfono por país
+const _prefijosEmp = {
+    'Bolivia': { code: '+591', hint: 'Bolivia: 8 dígitos comenzando en 6 o 7', pattern: /^[67]\d{7}$/ },
+    'Argentina': { code: '+54', hint: 'Argentina: 10 dígitos (ej: 11 + 8 dígitos)', pattern: /^\d{10}$/ },
+    'Brasil': { code: '+55', hint: 'Brasil: 11 dígitos (ej: 11 + 9 dígitos)', pattern: /^\d{11}$/ },
+    'Chile': { code: '+56', hint: 'Chile: 9 dígitos comenzando en 9', pattern: /^9\d{8}$/ },
+    'Colombia': { code: '+57', hint: 'Colombia: 10 dígitos (ej: 300 + 7 dígitos)', pattern: /^\d{10}$/ },
+    'Perú': { code: '+51', hint: 'Perú: 9 dígitos comenzando en 9', pattern: /^9\d{8}$/ },
+    'Paraguay': { code: '+595', hint: 'Paraguay: 9 dígitos comenzando en 9', pattern: /^9\d{8}$/ },
+    'Uruguay': { code: '+598', hint: 'Uruguay: 9 dígitos comenzando en 9', pattern: /^9\d{8}$/ },
+    'Ecuador': { code: '+593', hint: 'Ecuador: 9 dígitos comenzando en 9', pattern: /^9\d{8}$/ },
+    'Venezuela': { code: '+58', hint: 'Venezuela: 10 dígitos (ej: 412 + 7 dígitos)', pattern: /^\d{10}$/ },
+    'México': { code: '+52', hint: 'México: 10 dígitos (ej: 55 + 8 dígitos)', pattern: /^\d{10}$/ },
+    'Estados Unidos': { code: '+1', hint: 'Ej: 2025550100', pattern: /^\d{10}$/ },
+    'Canadá': { code: '+1', hint: 'Ej: 4165550100', pattern: /^\d{10}$/ },
+    'España': { code: '+34', hint: 'Ej: 612345678', pattern: /^\d{9}$/ },
+};
+
+function actualizarPrefijoTelefonoEmp() {
+    const sel = document.getElementById('tel_pais');
+    const opt = sel.options[sel.selectedIndex];
+    const code = opt ? (opt.dataset.code || '+') : '+';
+    const pais = opt ? opt.value : '';
+    const maxlen = opt && opt.dataset.maxlen ? parseInt(opt.dataset.maxlen) : 15;
+    const ph = opt && opt.dataset.placeholder ? opt.dataset.placeholder : 'Número';
+    const info = _prefijosEmp[pais] || { hint: 'Ingrese el número sin código de país' };
+
+    const inp = document.getElementById('telefono');
+    document.getElementById('telefono_prefijo').value = code;
+    document.getElementById('tel_hint').textContent = info.hint;
+    inp.maxLength = maxlen;
+    inp.placeholder = ph;
+    inp.value = '';
+
+    const fb = document.getElementById('telefono_feedback');
+    fb.className = 'form-text d-none';
+    inp.classList.remove('is-valid', 'is-invalid');
+}
+
+function validarTelefonoEmp(input) {
+    input.value = input.value.replace(/[^0-9]/g, '');
+
+    const pais = document.getElementById('tel_pais').value;
+    const info = _prefijosEmp[pais];
+    const fb = document.getElementById('telefono_feedback');
+    const val = input.value;
+    const maxlen = parseInt(input.maxLength) || 15;
+
+    if (!val) {
+        fb.className = 'form-text d-none';
+        input.classList.remove('is-valid', 'is-invalid');
+        return;
+    }
+
+    if (val.length < maxlen) {
+        fb.className = 'form-text text-danger';
+        fb.textContent = '⚠ Faltan ' + (maxlen - val.length) + ' dígito(s)';
+        input.classList.add('is-invalid');
+        input.classList.remove('is-valid');
+        return;
+    }
+
+    if (info && info.pattern && !info.pattern.test(val)) {
+        fb.className = 'form-text text-danger';
+        fb.textContent = '⚠ Formato inválido para ' + pais;
+        input.classList.add('is-invalid');
+        input.classList.remove('is-valid');
+    } else {
+        fb.className = 'form-text text-success';
+        fb.textContent = '✓ Teléfono válido';
+        input.classList.add('is-valid');
+        input.classList.remove('is-invalid');
+    }
+}
+
+function validarEmail(input) {
+    const hint  = document.getElementById('email_hint');
+    const val   = input.value.trim();
+
+    if (!val) {
+        hint.className   = 'form-text text-muted';
+        hint.textContent = '';
+        input.classList.remove('is-invalid', 'is-valid');
+        return;
+    }
+
+    const tieneArroba = val.includes('@');
+    const partes      = val.split('@');
+    const tieneDominio= partes.length === 2 && partes[1].includes('.');
+    const regex       = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    const valido      = regex.test(val);
+
+    if (!tieneArroba) {
+        hint.className   = 'form-text text-danger';
+        hint.textContent = '⚠ Falta el símbolo @';
+        input.classList.add('is-invalid');
+        input.classList.remove('is-valid');
+    } else if (!tieneDominio) {
+        hint.className   = 'form-text text-danger';
+        hint.textContent = '⚠ Falta el dominio (ej: .com, .net)';
+        input.classList.add('is-invalid');
+        input.classList.remove('is-valid');
+    } else if (!valido) {
+        hint.className   = 'form-text text-danger';
+        hint.textContent = '⚠ Formato inválido. Ej: nombre@correo.com';
+        input.classList.add('is-invalid');
+        input.classList.remove('is-valid');
+    } else {
+        hint.className   = 'form-text text-success';
+        hint.textContent = '✓ Correo válido';
+        input.classList.add('is-valid');
+        input.classList.remove('is-invalid');
+    }
+}
+
+function validarFormularioEmpresa() {
+    const nombre = document.getElementById('nombre').value.trim();
+    const nit = document.getElementById('nit').value.trim();
+    const razonSocial = document.getElementById('razon_social').value.trim();
+    const btnGuardar = document.getElementById('btnGuardar');
+
+    // Validar que los campos obligatorios tengan contenido
+    const formularioValido = nombre !== '' && nit !== '' && razonSocial !== '';
+
+    btnGuardar.disabled = !formularioValido;
+}
+
+function resetModal() {
+    document.getElementById('tituloModal').innerText    = 'Nueva Empresa';
+    document.getElementById('btnGuardar').innerText     = 'Registrar';
+    document.getElementById('methodEmpresa').value      = 'POST';
+    document.getElementById('formEmpresa').action       = '{{ route("empresas.store") }}';
+    document.getElementById('formEmpresa').reset();
+    document.getElementById('nit_contador').textContent = '0 / 15';
+    document.getElementById('tel_pais').value           = 'Bolivia';
+    actualizarPrefijoTelefonoEmp();
+
+    // Deshabilitar botón al resetear
+    document.getElementById('btnGuardar').disabled = true;
+
+    // Limpiar feedback de email
+    const emailHint = document.getElementById('email_hint');
+    emailHint.textContent = '';
+    emailHint.className = 'form-text';
+    document.getElementById('email').classList.remove('is-valid', 'is-invalid');
+}
+
+function validarFormularioCuenta() {
+    // Si la validación está desactivada temporalmente, salir
+    if (window.validacionCuentaActiva === false) {
+        return;
+    }
+
+    const nombreCuenta = document.getElementById('nc_nombre_cuenta');
+    const banco = document.getElementById('nc_banco');
+    const numeroCuenta = document.getElementById('nc_numero_cuenta');
+    const moneda = document.getElementById('nc_moneda');
+    const saldoInicial = document.getElementById('nc_saldo_inicial');
+    const btnGuardar = document.getElementById('btnGuardarCuenta');
+
+    // Verificar que todos los elementos existan
+    if (!nombreCuenta || !banco || !numeroCuenta || !moneda || !saldoInicial || !btnGuardar) {
+        return;
+    }
+
+    // Validar que todos los campos obligatorios tengan contenido
+    const formularioValido = nombreCuenta.value.trim() !== '' &&
+                            banco.value !== '' &&
+                            numeroCuenta.value.trim() !== '' &&
+                            moneda.value !== '' &&
+                            saldoInicial.value !== '' &&
+                            !isNaN(parseFloat(saldoInicial.value));
+
+    btnGuardar.disabled = !formularioValido;
+}
+
+function abrirModalCuenta(uuid, nombre) {
+    // Deshabilitar validación temporalmente
+    window.validacionCuentaActiva = false;
+
+    document.getElementById('nc_empresa_nombre').textContent = nombre;
+    document.getElementById('formNuevaCuenta').action = '/empresas/' + uuid + '/cuentas/store';
+
+    // Limpiar campos específicos sin usar reset() para evitar eventos
+    document.getElementById('nc_nombre_cuenta').value = '';
+    document.getElementById('nc_banco').value = '';
+    document.getElementById('nc_numero_cuenta').value = '';
+    document.getElementById('nc_moneda').value = 'BOB';
+    document.getElementById('nc_saldo_inicial').value = '0.00';
+    document.getElementById('nc_contador').textContent = '0 / 20';
+
+    // Forzar botón deshabilitado
+    document.getElementById('btnGuardarCuenta').disabled = true;
+
+    // Reactivar validación y ejecutarla
+    window.validacionCuentaActiva = true;
+    validarFormularioCuenta();
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevaCuenta')).show();
+}
+
+function editarEmpresa(uuid) {
+    fetch('/empresas/' + uuid + '/edit')
+        .then(r => r.json())
+        .then(e => {
+            document.getElementById('tituloModal').innerText    = 'Editar Empresa';
+            document.getElementById('btnGuardar').innerText     = 'Actualizar';
+            document.getElementById('methodEmpresa').value      = 'PUT';
+            document.getElementById('formEmpresa').action       = '/empresas/' + uuid;
+            document.getElementById('nombre').value             = e.nombre ?? '';
+            document.getElementById('nit').value                = e.nit ?? '';
+            document.getElementById('nit_contador').textContent = (e.nit ?? '').length + ' / 15';
+            document.getElementById('razon_social').value       = e.razon_social ?? '';
+            document.getElementById('telefono').value           = e.telefono ?? '';
+            document.getElementById('email').value              = e.email ?? '';
+            document.getElementById('direccion').value          = e.direccion ?? '';
+            document.getElementById('tel_pais').value           = 'Bolivia';
+            actualizarPrefijoTelefonoEmp();
+
+            // Validar email si existe
+            if (e.email) {
+                validarEmail(document.getElementById('email'));
+            }
+
+            // Validar formulario para habilitar botón
+            validarFormularioEmpresa();
+
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEmpresa')).show();
+        });
+}
+
+function verInfoEmpresa(uuid) {
+    fetch('/empresas/' + uuid + '/edit')
+        .then(r => r.json())
+        .then(e => {
+            // Datos generales
+            document.getElementById('info_nombre').textContent = e.nombre || '-';
+            document.getElementById('info_nit').textContent = e.nit || '-';
+            document.getElementById('info_razon_social').textContent = e.razon_social || '-';
+
+            // Contacto
+            document.getElementById('info_telefono').textContent = e.telefono || '-';
+            document.getElementById('info_email').textContent = e.email || '-';
+            document.getElementById('info_direccion').textContent = e.direccion || '-';
+
+            // Resumen financiero (desde data attributes del card)
+            const empresaCard = document.querySelector(`[data-empresa-uuid="${uuid}"]`);
+            const totalCuentas = empresaCard ? empresaCard.dataset.totalCuentas : '0';
+            const saldoTotal = empresaCard ? empresaCard.dataset.saldoTotal : '0.00';
+
+            document.getElementById('info_total_cuentas').textContent = totalCuentas;
+            const saldoElement = document.getElementById('info_saldo_total');
+            saldoElement.textContent = 'BOB ' + saldoTotal;
+            saldoElement.className = 'fw-semibold fs-5 ' + (parseFloat(saldoTotal.replace(/,/g, '')) >= 0 ? 'text-success' : 'text-danger');
+
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalInfoEmpresa')).show();
+        });
+}
+</script>
+@endsection

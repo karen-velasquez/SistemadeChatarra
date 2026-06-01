@@ -15,17 +15,12 @@ class CamionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'placa_pais'    => 'required|string|max:100',
+            'placa_pais_id' => 'required|exists:parametros,id',
             'placa'         => ['required', 'string', 'max:15',
                 Rule::unique('camiones')->ignore($this->route('camion'))->whereNull('deleted_at')
             ],
-            'tipo_vehiculo' => ['required', Rule::in(['Camión','Volqueta','Trailer','Furgón'])],
-            'marca'         => ['required', Rule::in([
-                'Volvo','Scania','Mercedes-Benz','Man','DAF','Iveco',
-                'Freightliner','Kenworth','Peterbilt','International',
-                'Ford','Chevrolet','Toyota','Hino','Isuzu',
-                'Faw','Sinotruk','Foton','Shacman','Dongfeng',
-            ])],
+            'tipo_vehiculo_id' => 'required|exists:parametros,id',
+            'marca_id'         => 'required|exists:parametros,id',
             'modelo'        => 'required|string|max:50',
             'anio'          => 'required|integer|min:1970|max:' . date('Y'),
             'capacidad_tn'  => 'required|numeric|min:3.5|max:35',
@@ -41,13 +36,14 @@ class CamionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'placa_pais.required'    => 'El país de la placa es obligatorio.',
+            'placa_pais_id.required' => 'El país de la placa es obligatorio.',
+            'placa_pais_id.exists'   => 'El país seleccionado no es válido.',
             'placa.required'         => 'La placa es obligatoria.',
             'placa.unique'           => 'Esta placa ya está registrada.',
-            'tipo_vehiculo.required' => 'El tipo de vehículo es obligatorio.',
-            'tipo_vehiculo.in'       => 'El tipo de vehículo no es válido.',
-            'marca.required'         => 'La marca es obligatoria.',
-            'marca.in'               => 'Seleccione una marca válida de la lista.',
+            'tipo_vehiculo_id.required' => 'El tipo de vehículo es obligatorio.',
+            'tipo_vehiculo_id.exists'   => 'El tipo de vehículo seleccionado no es válido.',
+            'marca_id.required'      => 'La marca es obligatoria.',
+            'marca_id.exists'        => 'La marca seleccionada no es válida.',
             'modelo.required'        => 'El modelo es obligatorio.',
             'anio.required'          => 'El año es obligatorio.',
             'anio.min'               => 'El año mínimo permitido es 1970.',

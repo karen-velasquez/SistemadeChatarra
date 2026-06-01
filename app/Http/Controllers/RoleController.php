@@ -17,8 +17,7 @@ class RoleController extends Controller
     }
     public function index()
     {
-        $roles=Role::where('id','>',1)->withCount('users')->get();
-        //$roles=Role::get();
+        $roles = Role::where('id','>',1)->withCount('users')->get();
         return view('roles.index',compact('roles'));
     }
 
@@ -74,12 +73,26 @@ class RoleController extends Controller
 
     public function destroy($uuid)
     {
-        //dd($role);
-        $role=Role::where('uuid',$uuid)->firstOrFail();
+        $role = Role::where('uuid',$uuid)->withCount('users')->firstOrFail();
+
+        // Verificar si el rol está siendo usado por usuarios
+        if ($role->users_count > 0) {
+            Alert::warning(
+                'No se puede eliminar',
+                "El rol '{$role->name}' no puede ser eliminado porque {$role->users_count} " .
+                ($role->users_count == 1 ? 'usuario tiene' : 'usuarios tienen') .
+                " este rol asignado."
+            );
+            return redirect()->route('roles.index');
+        }
+
+        // Eliminar permisos asociados al rol
         DB::table('role_has_permissions')->where('role_id',$role->id)->delete();
+
+        // Eliminar el rol
         DB::table('roles')->where('id',$role->id)->delete();
-       //$role->delete();
-       Alert::success('Eliminado','Rol eliminado con exito!');
-       return redirect()->route('roles.index');
+
+        Alert::success('Eliminado','Rol eliminado con éxito!');
+        return redirect()->route('roles.index');
     }
 }

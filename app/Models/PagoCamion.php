@@ -6,6 +6,7 @@ use Illuminate\Support\Str;
 use Wildside\Userstamps\Userstamps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\CuentaEmpresa;
 
 class PagoCamion extends Model
 {
@@ -14,6 +15,7 @@ class PagoCamion extends Model
     protected $table = 'pagos_camion';
 
     protected $fillable = [
+        'lote_pago_id',
         'contrato_camion_id',
         'tipo_pago',
         'monto',
@@ -61,7 +63,7 @@ class PagoCamion extends Model
 
     public function cuentaOrigen()
     {
-        return $this->belongsTo(CuentaBancaria::class, 'cuenta_origen_id');
+        return $this->belongsTo(CuentaEmpresa::class, 'cuenta_origen_id');
     }
 
     public function cuentaDestino()

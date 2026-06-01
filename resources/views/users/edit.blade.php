@@ -17,7 +17,44 @@
       <div class="col-lg-12">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">Modificar datos del usuario</h5>
+            <h5 class="card-title">Modificar Datos del Usuario</h5>
+            <p class="text-muted small mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Actualice la información del usuario. El empleado asociado no puede ser modificado para mantener la integridad de los registros del sistema.
+                Puede cambiar el rol asignado para ajustar los permisos de acceso.
+            </p>
+
+            {{-- Indicadores de características --}}
+            <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-lock-fill text-warning me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Empleado</small>
+                            <strong class="small">No modificable</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-pencil-fill text-primary me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Rol</small>
+                            <strong class="small">Modificable</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-envelope-fill text-info me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Email</small>
+                            <strong class="small">Modificable</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
            <!--CONTENIDO -->
            {!! Form::model($user,['route'=>['users.update',$user->id],'method'=>'PUT']) !!}
                 @include('users._form',['texto' => 'Actualizar','tipo'=>'2','texto_pass'=>'Cambiar Contraseña','color'=>'success'])

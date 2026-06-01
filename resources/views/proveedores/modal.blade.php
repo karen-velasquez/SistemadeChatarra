@@ -28,10 +28,10 @@
 
                         <div class="col-md-4">
                             <label class="form-label">PAIS <strong class="text-danger">(*)</strong></label>
-                            <select class="form-select" name="pais" id="prov_pais" required>
+                            <select class="form-select" name="pais_id" id="prov_pais" required>
                                 <option value="">-- SELECCIONE UN PAIS --</option>
                                 @foreach($paises as $pais)
-                                    <option value="{{ $pais->descripcion }}">{{ $pais->descripcion }}</option>
+                                    <option value="{{ $pais->id }}">{{ $pais->valor ?? $pais->descripcion }}</option>
                                 @endforeach
                             </select>
                         </div>

@@ -14,14 +14,20 @@ class Proveedor extends Model implements Auditable
     protected $fillable = [
         'nombre',
         'nit',
-        'pais',
+        'pais_id',
         'email',
         'tipo_producto',
         'created_by',
         'updated_by',
         'deleted_by',
-        
+
     ];
+
+    public function pais()
+    {
+        return $this->belongsTo(Parametro::class, 'pais_id');
+    }
+
     public function contacts()
     {
         return $this->morphMany(\App\Models\Contacto::class, 'contactable');

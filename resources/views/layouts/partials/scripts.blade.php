@@ -58,26 +58,23 @@
 
 <script>
 (function () {
-    var submenus = ['menu-proveedores', 'menu-transporte', 'menu-clientes', 'menu-admin'];
-
-    submenus.forEach(function (id) {
-        var toggle = document.querySelector('[data-sidebar-target="' + id + '"]');
-        if (!toggle) return;
-
-        toggle.addEventListener('click', function (e) {
+    document.querySelectorAll('[data-sidebar-target]').forEach(function(toggle) {
+        toggle.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
 
-            var target = document.getElementById(id);
+            var targetId = toggle.getAttribute('data-sidebar-target');
+            var target   = document.getElementById(targetId);
             if (!target) return;
 
             var isOpen = target.classList.contains('submenu-open');
 
             // Cerrar todos
-            submenus.forEach(function (otherId) {
-                var other = document.getElementById(otherId);
-                var otherToggle = document.querySelector('[data-sidebar-target="' + otherId + '"]');
-                if (other) other.classList.remove('submenu-open');
-                if (otherToggle) otherToggle.classList.add('collapsed');
+            document.querySelectorAll('.sidebar-submenu').forEach(function(el) {
+                el.classList.remove('submenu-open');
+            });
+            document.querySelectorAll('[data-sidebar-target]').forEach(function(l) {
+                l.classList.add('collapsed');
             });
 
             // Si estaba cerrado, abrir

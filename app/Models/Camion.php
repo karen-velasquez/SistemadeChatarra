@@ -18,9 +18,9 @@ class Camion extends Model implements Auditable
 
     protected $fillable = [
         'placa',
-        'placa_pais',   
-        'tipo_vehiculo',
-        'marca',
+        'placa_pais_id',
+        'tipo_vehiculo_id',
+        'marca_id',
         'modelo',
         'anio',
         'capacidad_kg',
@@ -45,6 +45,21 @@ class Camion extends Model implements Auditable
     public function propietario()
     {
         return $this->belongsTo(OperadorTransporte::class, 'propietario_id');
+    }
+
+    public function marca()
+    {
+        return $this->belongsTo(Parametro::class, 'marca_id');
+    }
+
+    public function tipoVehiculo()
+    {
+        return $this->belongsTo(Parametro::class, 'tipo_vehiculo_id');
+    }
+
+    public function placaPais()
+    {
+        return $this->belongsTo(Parametro::class, 'placa_pais_id');
     }
 
     // Historial completo de conductores

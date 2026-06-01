@@ -17,8 +17,8 @@ class ReporteController extends Controller
     {
         $fechaInicio = $request->fecha_inicio ?? now()->startOfMonth()->format('Y-m-d');
         $fechaFin = $request->fecha_fin ?? now()->format('Y-m-d');
-        $proveedores = Proveedor::whereNull('deleted_at')->orderBy('nombre')->get();
-        $clientes = Cliente::whereNull('deleted_at')->orderBy('nombre')->get();
+        $proveedores = Proveedor::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
+        $clientes = Cliente::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
         $contratosQuery = Contrato::with(['proveedor', 'cliente'])->whereNull('deleted_at');
         if ($request->filled('proveedor_id')) {
             $contratosQuery->where('proveedor_id', $request->proveedor_id);

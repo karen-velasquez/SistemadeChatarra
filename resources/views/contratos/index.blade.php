@@ -13,11 +13,13 @@
                 </ol>
             </nav>
         </div>
-        @can('contratos.create')
-        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalContrato" onclick="resetModalContrato()">
-            <i class="bi bi-plus-lg"></i> Nuevo Contrato
-        </button>
-        @endcan
+        <div class="d-flex gap-2">
+            @can('contratos.create')
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalContrato" onclick="resetModalContrato()">
+                <i class="bi bi-plus-lg"></i> Nuevo Contrato
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
@@ -58,7 +60,7 @@
                                             <span class="badge bg-primary">Internacional</span>
                                         @endif
                                     </td>
-                                    <td>{{ $c->proveedor->nombre }} <small class="text-muted">({{ $c->proveedor->pais }})</small></td>
+                                    <td>{{ $c->proveedor->nombre }} <small class="text-muted">({{ $c->proveedor->pais->valor ?? '-' }})</small></td>
                                     <td>
                                         @forelse($c->clientes_entregados as $cli)
                                             <span class="badge bg-light text-dark border">{{ $cli->nombre }}</span>
@@ -103,16 +105,42 @@
                                             <span class="text-muted">-</span>
                                         @endif
                                     </td>
-                                    <td>{{ $c->moneda }} {{ number_format($c->monto_total, 2) }}</td>
+                                    <td>
+                                        {{ $c->moneda }} {{ number_format($c->monto_total, 2) }}
+                                        @if($c->envios_cerrados)
+                                            <br><span class="badge bg-danger mt-1" style="font-size:.65rem">
+                                                <i class="bi bi-lock-fill me-1"></i>Envíos cerrados
+                                            </span>
+                                        @endif
+                                    </td>
                                     <td class="text-center">
                                         <div class="btn-group">
                                             <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>
                                             <ul class="dropdown-menu">
+                                                @can('contratos.index')
                                                 <li>
-                                                    <a class="dropdown-item" href="{{ route('contratos.camiones', $c->uuid) }}">
-                                                        <i class="bi bi-truck"></i> Gestionar Camiones
+                                                    @if($c->envios_cerrados)
+                                                        <span class="dropdown-item text-muted">
+                                                            <i class="bi bi-lock-fill text-danger"></i> Envíos cerrados
+                                                        </span>
+                                                    @else
+                                                        <a class="dropdown-item" href="{{ route('contratos.camiones', $c->uuid) }}">
+                                                            <i class="bi bi-truck"></i> Gestionar Camiones
+                                                        </a>
+                                                    @endif
+                                                </li>
+                                                @endcan
+                                                @can('contratos.cerrar')
+                                                @if(!$c->envios_cerrados)
+                                                <li>
+                                                    <a class="dropdown-item text-warning" href="{{ route('contratos.cerrar', $c->uuid) }}"
+                                                        onclick="return confirm('¿Cerrar envíos del contrato {{ $c->numero_contrato }}? Ya no se podrán agregar más camiones.')">
+                                                        <i class="bi bi-lock"></i> Cierre de Envíos
                                                     </a>
                                                 </li>
+                                                @endif
+                                                @endcan
+                                                @can('contratos.index')
                                                 @if($c->documento_pdf)
                                                 <li>
                                                     <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}" target="_blank">
@@ -120,19 +148,39 @@
                                                     </a>
                                                 </li>
                                                 @endif
-                                                @can('contratos.edit')
-                                                <li>
-                                                    <a class="dropdown-item" href="#" onclick="editarContrato({{ $c->id }}, '{{ $c->uuid }}')">
-                                                        <i class="bi bi-pencil"></i> Modificar
-                                                    </a>
-                                                </li>
                                                 @endcan
+                                                @if($c->envios_cerrados)
+                                                    @can('contratos.index')
+                                                    <li>
+                                                        <a class="dropdown-item" href="#" onclick="verContrato({{ $c->id }}, '{{ $c->uuid }}')">
+                                                            <i class="bi bi-eye"></i> Ver información
+                                                        </a>
+                                                    </li>
+                                                    @endcan
+                                                @else
+                                                    @can('contratos.edit')
+                                                    <li>
+                                                        <a class="dropdown-item" href="#" onclick="editarContrato({{ $c->id }}, '{{ $c->uuid }}')">
+                                                            <i class="bi bi-pencil"></i> Modificar
+                                                        </a>
+                                                    </li>
+                                                    @endcan
+                                                @endif
                                                 @can('contratos.destroy')
                                                 <li>
-                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.destroy', $c->uuid) }}"
-                                                        onclick="return confirm('¿Eliminar el contrato {{ $c->numero_contrato }}?')">
-                                                        <i class="bi bi-trash"></i> Eliminar
-                                                    </a>
+                                                    @if($c->contratoCamiones->count() > 0)
+                                                        <span class="dropdown-item text-muted" style="cursor: not-allowed;"
+                                                            data-bs-toggle="tooltip"
+                                                            data-bs-placement="left"
+                                                            title="No se puede eliminar porque tiene {{ $c->contratoCamiones->count() }} camión(es) asignado(s)">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </span>
+                                                    @else
+                                                        <a class="dropdown-item text-danger" href="{{ route('contratos.destroy', $c->uuid) }}"
+                                                            onclick="return confirm('¿Eliminar el contrato {{ $c->numero_contrato }}?')">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </a>
+                                                    @endif
                                                 </li>
                                                 @endcan
                                             </ul>
@@ -189,7 +237,7 @@
                                 <option value="">-- Seleccione proveedor --</option>
                                 @foreach($proveedores as $pv)
                                     <option value="{{ $pv->id }}">
-                                        {{ $pv->nombre }} — {{ $pv->pais }}
+                                        {{ $pv->nombre }} — {{ $pv->pais->valor ?? '-' }}
                                         @if($pv->nit) (NIT: {{ $pv->nit }}) @endif
                                     </option>
                                 @endforeach
@@ -282,41 +330,64 @@
     @endif
 
     function resetModalContrato() {
-        document.getElementById('tituloContrato').innerText = 'Nuevo Contrato';
-        document.getElementById('btnContrato').innerText    = 'Registrar';
-        document.getElementById('methodContrato').value     = 'POST';
-        document.getElementById('formContrato').action      = '{{ route("contratos.store") }}';
+        document.getElementById('tituloContrato').innerText  = 'Nuevo Contrato';
+        document.getElementById('btnContrato').innerText     = 'Registrar';
+        document.getElementById('btnContrato').style.display = '';
+        document.getElementById('methodContrato').value      = 'POST';
+        document.getElementById('formContrato').action       = '{{ route("contratos.store") }}';
         document.getElementById('numero_contrato_display').value = '{{ $numeroSiguiente }}';
         document.getElementById('formContrato').reset();
         document.getElementById('moneda').value = 'BOB';
         document.getElementById('pdfActualInfo').classList.add('d-none');
+        // Quitar disabled de todos los campos por si venían de modo solo-ver
+        ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato','moneda','monto_total','documento_pdf'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.removeAttribute('disabled');
+        });
     }
 
-    function editarContrato(id, uuid) {
+    function _cargarContrato(uuid, soloVer) {
         fetch('/contrato/' + uuid + '/edit')
             .then(r => r.json())
             .then(c => {
-                document.getElementById('tituloContrato').innerText          = 'Editar Contrato';
-                document.getElementById('btnContrato').innerText             = 'Actualizar';
-                document.getElementById('methodContrato').value              = 'PUT';
-                document.getElementById('formContrato').action               = '/contrato/' + id;
-                document.getElementById('numero_contrato_display').value     = c.numero_contrato;
-                document.getElementById('tipo_contrato').value               = c.tipo_contrato;
-                document.getElementById('proveedor_id').value                = c.proveedor_id;
-                document.getElementById('fecha_inicio').value                = c.fecha_inicio ?? '';
-                document.getElementById('fecha_fin').value                   = c.fecha_fin ?? '';
-                document.getElementById('toneladas_contrato').value          = c.toneladas_contrato ?? '';
-                document.getElementById('moneda').value                      = c.moneda;
-                document.getElementById('monto_total').value                 = c.monto_total;
-                document.getElementById('documento_pdf').value               = '';
+                const readonly = soloVer;
+                document.getElementById('tituloContrato').innerText = soloVer ? 'Información del Contrato' : 'Editar Contrato';
+                document.getElementById('btnContrato').style.display = soloVer ? 'none' : '';
+                document.getElementById('methodContrato').value      = 'PUT';
+                document.getElementById('formContrato').action       = '/contrato/' + c.id;
+
+                const campos = ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato','moneda','monto_total'];
+                campos.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.value = c[id] ?? '';
+                    readonly ? el.setAttribute('disabled', true) : el.removeAttribute('disabled');
+                });
+                document.getElementById('numero_contrato_display').value = c.numero_contrato;
+                document.getElementById('numero_contrato_display').setAttribute('disabled', true);
+                document.getElementById('documento_pdf').value = '';
+                document.getElementById('documento_pdf').disabled = readonly;
                 const pdfInfo = document.getElementById('pdfActualInfo');
-                if (c.documento_pdf) {
-                    pdfInfo.classList.remove('d-none');
-                } else {
-                    pdfInfo.classList.add('d-none');
-                }
+                c.documento_pdf ? pdfInfo.classList.remove('d-none') : pdfInfo.classList.add('d-none');
+
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContrato')).show();
             });
     }
+
+    function editarContrato(id, uuid) {
+        _cargarContrato(uuid, false);
+    }
+
+    function verContrato(id, uuid) {
+        _cargarContrato(uuid, true);
+    }
+
+    // Inicializar tooltips de Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
 </script>
 @endsection

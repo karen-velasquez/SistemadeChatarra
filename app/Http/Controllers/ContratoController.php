@@ -7,6 +7,8 @@ use App\Models\Contrato;
 use App\Models\Cliente;
 use App\Models\Proveedor;
 use App\Models\OperadorTransporte;
+use App\Models\Parametro;
+use Illuminate\Support\Carbon;
 use App\Http\Requests\ContratoRequest;
 use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
@@ -21,16 +23,17 @@ class ContratoController extends Controller
     public function index()
     {
         $contratos  = Contrato::with([
-                            'proveedor',
+                            'proveedor.pais',
                             'contratoCamiones.tramos',
                         ])
                         ->whereNull('deleted_at')
                         ->orderByDesc('created_at')
                         ->get();
 
-        $clientes   = Cliente::whereNull('deleted_at')->orderBy('nombre')->get();
+        $clientes   = Cliente::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
 
-        $proveedores = Proveedor::whereNull('deleted_at')
+        $proveedores = Proveedor::with('pais')
+                        ->whereNull('deleted_at')
                         ->orderBy('nombre')
                         ->get();
 
@@ -94,24 +97,90 @@ class ContratoController extends Controller
     public function destroy($uuid)
     {
         $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+
+        // Verificar si tiene camiones asignados
+        if ($contrato->contratoCamiones()->count() > 0) {
+            Alert::error('Error', 'No se puede eliminar el contrato porque tiene camiones asignados. Primero elimine los camiones del contrato.');
+            return redirect()->route('contratos.index');
+        }
+
         $contrato->delete();
         Alert::success('Eliminación', 'Contrato eliminado con éxito.');
         return redirect()->route('contratos.index');
+    }
+
+    public function cerrarEnvios($uuid)
+    {
+        $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+
+        if ($contrato->envios_cerrados) {
+            Alert::warning('Aviso', 'Los envíos de este contrato ya están cerrados.');
+            return redirect()->route('contratos.index');
+        }
+
+        $contrato->update([
+            'envios_cerrados'    => true,
+            'envios_cerrados_at' => Carbon::now(),
+            'updated_by'         => auth()->id(),
+        ]);
+
+        Alert::success('Cierre de Envíos', "Contrato {$contrato->numero_contrato}: envíos cerrados. Ya no se pueden agregar más camiones.");
+        return redirect()->route('contratos.index');
+    }
+
+    public function liquidacion()
+    {
+        // Contratos cerrados con sus relaciones para liquidación
+        $contratos = Contrato::with([
+                'proveedor',
+                'contratoCamiones.tramos',
+            ])
+            ->whereNull('deleted_at')
+            ->where('envios_cerrados', true)
+            ->orderBy('proveedor_id')
+            ->orderByDesc('envios_cerrados_at')
+            ->get();
+
+        // Agrupar por proveedor
+        $porProveedor = $contratos->groupBy('proveedor_id')->map(function ($ctrs) {
+            $proveedor       = $ctrs->first()->proveedor;
+            $totalPactado    = $ctrs->sum('toneladas_contrato');
+            $totalDeclarado  = $ctrs->sum(fn($c) => $c->toneladas_declaradas);
+            $totalEntregado  = $ctrs->sum(fn($c) => $c->toneladas_entregadas);
+            $diferenciaNeta  = round($totalEntregado - $totalDeclarado, 3);
+
+            return [
+                'proveedor'        => $proveedor,
+                'contratos'        => $ctrs,
+                'total_pactado'    => $totalPactado,
+                'total_declarado'  => $totalDeclarado,
+                'total_entregado'  => $totalEntregado,
+                'diferencia_neta'  => $diferenciaNeta,
+            ];
+        });
+
+        return view('contratos.liquidacion', compact('porProveedor'));
     }
 
     public function camiones($uuid)
     {
         $contrato = Contrato::with([
             'proveedor',
-            'contratoCamiones.camion',
+            'contratoCamiones.camion.marca',
+            'contratoCamiones.camion.tipoVehiculo',
+            'contratoCamiones.camion.placaPais',
             'contratoCamiones.conductor',
-            'contratoCamiones.tramos.camion',
+            'contratoCamiones.tramos.camion.marca',
+            'contratoCamiones.tramos.camion.tipoVehiculo',
+            'contratoCamiones.tramos.camion.placaPais',
             'contratoCamiones.tramos.conductor',
-            'contratoCamiones.tramos.tramosHijos.camion',
+            'contratoCamiones.tramos.tramosHijos.camion.marca',
+            'contratoCamiones.tramos.tramosHijos.camion.tipoVehiculo',
+            'contratoCamiones.tramos.tramosHijos.camion.placaPais',
             'contratoCamiones.tramos.tramosHijos.conductor',
         ])->where('uuid', $uuid)->firstOrFail();
 
-        $camionesDisponibles = Camion::with(['conductorActual.conductor'])
+        $camionesDisponibles = Camion::with(['conductorActual.conductor', 'marca', 'tipoVehiculo', 'placaPais'])
             ->whereNull('deleted_at')
             ->where('estado', 'Activo')
             ->orderBy('placa')
@@ -123,8 +192,10 @@ class ContratoController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $clientes = Cliente::whereNull('deleted_at')->orderBy('nombre')->get();
+        $clientes = Cliente::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
 
-        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes'));
+        $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
+
+        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas'));
     }
 }

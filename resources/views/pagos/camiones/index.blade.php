@@ -3,16 +3,14 @@
 @section('content')
 
 <div class="pagetitle">
-    <div class="d-flex flex-row align-items-center justify-content-between">
-        <div>
-            <h1>HISTORIAL DE PAGOS A CAMIONES</h1>
-            <nav>
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                    <li class="breadcrumb-item active">Historial Pagos Camiones</li>
-                </ol>
-            </nav>
-        </div>
+    <div>
+        <h1>HISTORIAL DE PAGOS A CAMIONES</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
+                <li class="breadcrumb-item active">Historial Pagos Camiones</li>
+            </ol>
+        </nav>
     </div>
 </div>
 
@@ -109,7 +107,7 @@
                                 </td>
                                 <td>
                                     <strong>{{ $camion->placa }}</strong>
-                                    <small class="text-muted d-block">{{ $camion->marca }}</small>
+                                    <small class="text-muted d-block">{{ $camion->marca->valor ?? '-' }}</small>
                                 </td>
                                 <td>
                                     <a href="{{ route('contratos.camiones', $cc->contrato->uuid) }}" class="text-decoration-none small">
@@ -148,13 +146,16 @@
                                     @if($p->cuentaDestino)
                                         <small class="text-muted d-block">
                                             🏦 {{ $p->cuentaDestino->banco->nombre ?? '' }}
+                                            @if($p->cuentaDestino->tipo_relacion)
+                                                <span class="badge bg-secondary ms-1" style="font-size:.6rem">{{ $p->cuentaDestino->tipo_relacion }}</span>
+                                            @endif
                                             @if($p->cuentaDestino->alias) ({{ $p->cuentaDestino->alias }}) @endif
                                         </small>
                                     @endif
                                 </td>
                                 <td>
                                     @if($p->cuentaOrigen)
-                                        <small>{{ $p->cuentaOrigen->titular?->nombre_completo ?? '—' }}</small>
+                                        <small>{{ $p->cuentaOrigen->empresa->nombre ?? '—' }}</small>
                                         @if($p->cuentaOrigen->alias)
                                             <small class="text-muted d-block">({{ $p->cuentaOrigen->alias }})</small>
                                         @endif

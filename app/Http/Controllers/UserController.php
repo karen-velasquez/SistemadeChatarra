@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Parametro;
+use App\Models\Empleado;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Http\Requests\UserRequest;
@@ -23,15 +24,19 @@ class UserController extends Controller
     }
     public function index()
     {
-        $users=User::with(['roles','ubicacion'])->where('id','<>',1)->get();
+        $users=User::with(['roles','ubicacion','empleado.cargo'])->where('id','<>',1)->get();
         return view('users.index',compact('users'));
     }
 
    public function create()
     {
-        $roles=Role::where('id','>',1)->get();
-        $user=new User();
-        return view('users.create',compact('roles','user'));
+        $roles = Role::where('id','>',1)->get();
+        $empleados = Empleado::whereNull('deleted_at')
+            ->orderBy('apellido_paterno')
+            ->orderBy('nombre')
+            ->get();
+        $user = new User();
+        return view('users.create',compact('roles','user','empleados'));
     }
 
     public function datos_empleado(Request $request){
@@ -45,6 +50,7 @@ class UserController extends Controller
         $user->name = $request->name;
         $user->email = $request->email;
         $user->password = Hash::make($request->password);
+        $user->empleado_id = $request->empleado_id;
         $user->save();
         $avatar = new LetterAvatar($request->name,'circle', 64);
         $path=public_path().'/assets/avatar/'.$user->id.'.jpg';
@@ -103,13 +109,18 @@ class UserController extends Controller
     {
         $user=User::where('uuid',$uuid)->firstOrFail();
         $roles=Role::where('id','>',1)->get();
-        return view('users.edit',compact('user','roles'));
+        $empleados = Empleado::whereNull('deleted_at')
+            ->orderBy('apellido_paterno')
+            ->orderBy('nombre')
+            ->get();
+        return view('users.edit',compact('user','roles','empleados'));
     }
 
      public function update(UserRequest $request, User $user)
-    {        
+    {
         $usuario= User::where('id',$user->id)->first();
         $user->name=$request->name;
+        $user->empleado_id = $request->empleado_id;
         $user->save();
         $user->roles()->sync($request->role_id);
         Alert::success('Datos actualizados correctamente!');

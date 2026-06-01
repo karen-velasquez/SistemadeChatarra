@@ -19,7 +19,7 @@ class User extends Authenticatable implements Auditable
     use \OwenIt\Auditing\Auditable;
 
     protected $fillable = [
-        'name', 'email', 'password','estado'
+        'name', 'email', 'password', 'estado', 'empleado_id'
     ];
 
     protected $hidden = [
@@ -30,6 +30,7 @@ class User extends Authenticatable implements Auditable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'estado' => 'boolean',
     ];
 
     public function rol()
@@ -43,6 +44,10 @@ class User extends Authenticatable implements Auditable
 
     public function ubicacion(){
         return $this->belongsTo(Parametro::class,'lugar_trabajo_id','id');
+    }
+
+    public function empleado(){
+        return $this->belongsTo(Empleado::class, 'empleado_id');
     }
     protected static function boot()
     {

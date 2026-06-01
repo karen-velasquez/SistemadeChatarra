@@ -17,13 +17,19 @@ class Cliente extends Model implements Auditable
     protected $fillable = [
         'nombre',
         'email',
-        'pais',
+        'pais_id',
         'nit',
         'created_by',
         'updated_by',
         'deleted_by',
-        
+
     ];
+
+    public function pais()
+    {
+        return $this->belongsTo(Parametro::class, 'pais_id');
+    }
+
     public function contacts()
     {
         return $this->morphMany(\App\Models\Contacto::class, 'contactable');

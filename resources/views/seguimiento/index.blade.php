@@ -220,11 +220,20 @@
                                                 @endif
                                                 <li><hr class="dropdown-divider"></li>
                                                 @endcan
+                                                @can('contratos.index')
                                                 <li>
                                                     <a class="dropdown-item" href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}">
                                                         <i class="bi bi-eye text-primary me-2"></i> Ver contrato
                                                     </a>
                                                 </li>
+                                                @endcan
+                                                @can('pagos_camiones.index')
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                        <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
+                                                    </button>
+                                                </li>
+                                                @endcan
                                             </ul>
                                         </div>
                                     </td>
@@ -347,11 +356,20 @@
                                                 @endif
                                                 <li><hr class="dropdown-divider"></li>
                                                 @endcan
+                                                @can('contratos.index')
                                                 <li>
                                                     <a class="dropdown-item" href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}">
                                                         <i class="bi bi-eye text-primary me-2"></i> Ver contrato
                                                     </a>
                                                 </li>
+                                                @endcan
+                                                @can('pagos_camiones.index')
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                        <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
+                                                    </button>
+                                                </li>
+                                                @endcan
                                             </ul>
                                         </div>
                                     </td>
@@ -458,6 +476,7 @@
                                                 @endif
                                                 <li><hr class="dropdown-divider"></li>
                                                 @endcan
+                                                @can('contratos.index')
                                                 <li>
                                                     <a class="dropdown-item" href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}">
                                                         <i class="bi bi-eye text-primary me-2"></i> Ver contrato
@@ -468,6 +487,14 @@
                                                         <i class="bi bi-file-earmark-pdf text-success me-2"></i> Nota de entrega
                                                     </a>
                                                 </li>
+                                                @endcan
+                                                @can('pagos_camiones.index')
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                        <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
+                                                    </button>
+                                                </li>
+                                                @endcan
                                             </ul>
                                         </div>
                                     </td>
@@ -499,20 +526,22 @@
                                     <th>Fecha entrega</th>
                                     <th>Cliente</th>
                                     <th>Descuento</th>
+                                    <th class="text-center">Flete pagado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($entregados as $t)
-                                <tr data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}">
+                                @php $cc = $t->contratoCamion; @endphp
+                                <tr class="{{ !$cc->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $cc->contrato->proveedor_id }}">
                                     <td>
-                                        <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
+                                        <a href="{{ route('contratos.camiones', $cc->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
-                                            {{ $t->contratoCamion->contrato->numero_contrato }}
+                                            {{ $cc->contrato->numero_contrato }}
                                         </a>
                                     </td>
                                     <td>
-                                        <small>{{ $t->contratoCamion->contrato->proveedor?->nombre ?? '—' }}</small>
+                                        <small>{{ $cc->contrato->proveedor?->nombre ?? '—' }}</small>
                                     </td>
                                     <td>
                                         <strong>{{ $t->camion->placa }}</strong>
@@ -531,8 +560,8 @@
                                     </td>
                                     <td class="text-end">
                                         <strong class="text-success">{{ number_format($t->peso_llegada, 3) }} t</strong>
-                                        @if($t->estado === 'Entrega Parcial')
-                                            <span class="badge bg-info text-dark d-block mt-1"><i class="bi bi-pie-chart"></i> Parcial</span>
+                                        @if($t->estado === 'Div. Carga')
+                                            <span class="badge bg-info text-dark d-block mt-1"><i class="bi bi-pie-chart"></i> Div. Carga</span>
                                         @endif
                                     </td>
                                     <td>{{ $t->fecha_llegada?->format('d/m/Y') ?? '—' }}</td>
@@ -545,13 +574,52 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
+                                        @php
+                                            $pct = $cc->monto_neto > 0 ? min(100, round($cc->total_pagado / $cc->monto_neto * 100)) : null;
+                                        @endphp
+                                        @if(is_null($pct))
+                                            <span class="text-muted small">Sin flete</span>
+                                        @else
+                                            <div class="d-flex align-items-center gap-1 justify-content-center">
+                                                <div class="progress flex-grow-1" style="height:8px;min-width:60px;">
+                                                    <div class="progress-bar {{ $pct >= 100 ? 'bg-success' : ($pct > 0 ? 'bg-warning' : 'bg-secondary') }}"
+                                                        style="width:{{ $pct }}%"></div>
+                                                </div>
+                                                <small class="{{ $pct >= 100 ? 'text-success' : 'text-warning' }} fw-semibold">{{ $pct }}%</small>
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                                 <i class="bi bi-list-ul"></i> Opciones
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end">
+                                                @can('contratos.edit')
+                                                @if($cc->monto_acordado)
+                                                @if($cc->saldo_pendiente > 0)
                                                 <li>
-                                                    <a class="dropdown-item" href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}">
+                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $cc->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}',{{ $cc->saldo_pendiente }},'{{ $cc->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $cc->camion->propietario_id ?? 'null' }},'{{ addslashes($cc->camion->propietario?->nombre_completo ?? '') }}')">
+                                                        <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
+                                                    </button>
+                                                </li>
+                                                @else
+                                                <li>
+                                                    <span class="dropdown-item text-success"><i class="bi bi-check-circle me-2"></i> Flete pagado</span>
+                                                </li>
+                                                @endif
+                                                @else
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirModalFlete('{{ $cc->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($cc->contrato->numero_contrato) }}')">
+                                                        <i class="bi bi-tag text-info me-2"></i> Asignar flete
+                                                    </button>
+                                                </li>
+                                                @endif
+                                                <li><hr class="dropdown-divider"></li>
+                                                @endcan
+                                                @can('contratos.index')
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('contratos.camiones', $cc->contrato->uuid) }}">
                                                         <i class="bi bi-eye text-primary me-2"></i> Ver contrato
                                                     </a>
                                                 </li>
@@ -560,6 +628,14 @@
                                                         <i class="bi bi-file-earmark-pdf text-success me-2"></i> Nota de entrega
                                                     </a>
                                                 </li>
+                                                @endcan
+                                                @can('pagos_camiones.index')
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                        <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
+                                                    </button>
+                                                </li>
+                                                @endcan
                                             </ul>
                                         </div>
                                     </td>
@@ -684,16 +760,19 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">Cuenta Origen (Empleado)</label>
+                            <label class="form-label">Cuenta Origen (Tesorería)</label>
                             <select class="form-select" name="cuenta_origen_id">
                                 <option value="">-- Efectivo / Sin cuenta --</option>
-                                @foreach($cuentasEmpresa as $cta)
-                                    <option value="{{ $cta->id }}">
-                                        {{ $cta->titular?->nombre_completo ?? '—' }} —
-                                        {{ $cta->banco->nombre }} {{ $cta->numero_cuenta }}
-                                        @if($cta->alias) ({{ $cta->alias }}) @endif
-                                        [{{ $cta->moneda }}]
-                                    </option>
+                                @foreach($empresas as $empresa)
+                                    <optgroup label="{{ $empresa->nombre }}">
+                                        @foreach($empresa->cuentas as $cta)
+                                            <option value="{{ $cta->id }}">
+                                                {{ $cta->nombre_cuenta }}
+                                                @if($cta->banco) — {{ $cta->banco }} @endif
+                                                [{{ $cta->moneda }}]
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                         </div>
@@ -759,11 +838,12 @@
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
                             <select class="form-select" name="moneda_pago" id="edit_moneda_pago" required onchange="editToggleTc(this.value)">
-                                <option value="BOB">🇧🇴 BOB</option>
-                                <option value="USD">🇺🇸 USD</option>
-                                <option value="BRL">🇧🇷 BRL</option>
-                                <option value="ARS">🇦🇷 ARS</option>
-                                <option value="PEN">🇵🇪 PEN</option>
+                                @php
+                                    $flags = ['BOB' => '🇧🇴', 'USD' => '🇺🇸', 'BRL' => '🇧🇷', 'ARS' => '🇦🇷', 'PEN' => '🇵🇪', 'EUR' => '🇪🇺', 'CLP' => '🇨🇱', 'PYG' => '🇵🇾', 'COP' => '🇨🇴', 'UYU' => '🇺🇾'];
+                                @endphp
+                                @foreach($monedas as $moneda)
+                                    <option value="{{ $moneda->valor }}">{{ $flags[$moneda->valor] ?? '' }} {{ $moneda->valor }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-8">
@@ -818,15 +898,9 @@
                             <label class="form-label fw-semibold">Monto del flete <span class="text-danger">(*)</span></label>
                             <div class="input-group">
                                 <select class="form-select flex-grow-0" style="width:100px;" name="moneda_flete" id="flete_moneda">
-                                    <option value="BOB">🇧🇴 BOB</option>
-                                    <option value="USD">🇺🇸 USD</option>
-                                    <option value="EUR">🇪🇺 EUR</option>
-                                    <option value="BRL">🇧🇷 BRL</option>
-                                    <option value="ARS">🇦🇷 ARS</option>
-                                    <option value="PEN">🇵🇪 PEN</option>
-                                    <option value="CLP">🇨🇱 CLP</option>
-                                    <option value="PYG">🇵🇾 PYG</option>
-                                    <option value="COP">🇨🇴 COP</option>
+                                    @foreach($monedas as $moneda)
+                                        <option value="{{ $moneda->valor }}">{{ $flags[$moneda->valor] ?? '' }} {{ $moneda->valor }}</option>
+                                    @endforeach
                                 </select>
                                 <input type="number" step="0.01" min="0.01" class="form-control"
                                     name="monto_acordado" required placeholder="0.00">
@@ -893,15 +967,9 @@
                                     <div class="col-md-4">
                                         <label class="form-label mb-1">Moneda</label>
                                         <select class="form-select form-select-sm" name="moneda_venta" id="seg_sel_moneda_venta">
-                                            <option value="BOB">BOB</option>
-                                            <option value="USD">USD</option>
-                                            <option value="BRL">BRL</option>
-                                            <option value="ARS">ARS</option>
-                                            <option value="EUR">EUR</option>
-                                            <option value="PEN">PEN</option>
-                                            <option value="CLP">CLP</option>
-                                            <option value="PYG">PYG</option>
-                                            <option value="COP">COP</option>
+                                            @foreach($monedas as $moneda)
+                                                <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div class="col-md-4">
@@ -960,12 +1028,12 @@
                                     </label>
                                 </div>
                                 <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="entrega_parcial" id="seg_accion_parcial" required
-                                        onchange="accionLlegadaCambiada('entrega_parcial')">
+                                    <input class="form-check-input" type="radio" name="accion" value="div_carga" id="seg_accion_parcial" required
+                                        onchange="accionLlegadaCambiada('div_carga')">
                                     <label class="form-check-label" for="seg_accion_parcial">
                                         <i class="bi bi-pie-chart text-info"></i>
-                                        <strong>Entrega Parcial</strong>
-                                        <small class="d-block text-muted">Entrega parte de la carga a un cliente y el restante continúa en otro camión.</small>
+                                        <strong>Div. Carga</strong>
+                                        <small class="d-block text-muted">Entrega parte al cliente 1 y el restante continúa en otro camión al cliente 2. Se generan 2 tramos automáticamente.</small>
                                     </label>
                                 </div>
                                 <div class="form-check border rounded p-3">
@@ -1093,6 +1161,27 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+{{-- ===== MODAL HISTORIAL DE PAGOS DEL CAMIÓN ===== --}}
+<div class="modal fade" id="modalHistorialPagos" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Historial de Pagos — <span id="hist_camion_label"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" id="hist_body">
+                <div class="text-center py-5 text-muted" id="hist_loading">
+                    <div class="spinner-border spinner-border-sm me-2"></div> Cargando...
+                </div>
+                <div id="hist_contenido" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1445,7 +1534,7 @@ function validarFormLlegadaSeg() {
 
     let ok = peso && fecha && accion;
     if (accion === 'entregado')       ok = ok && cliente;
-    if (accion === 'entrega_parcial') ok = ok && cliente && tnParcial && destNuevo;
+    if (accion === 'div_carga') ok = ok && cliente && tnParcial && destNuevo;
 
     btn.disabled  = !ok;
     btn.className = ok ? 'btn btn-success' : 'btn btn-secondary';
@@ -1464,7 +1553,7 @@ function accionLlegadaCambiada(accion) {
     if (accion === 'entregado') {
         secCliente.classList.remove('d-none');
         secPrecio.classList.remove('d-none');
-    } else if (accion === 'entrega_parcial') {
+    } else if (accion === 'div_carga') {
         secCliente.classList.remove('d-none');
         secPrecio.classList.remove('d-none');
         secParcial.classList.remove('d-none');
@@ -1619,6 +1708,70 @@ function abrirModalTransbordoSeg(ccId, tramoPadreId, infoPadre, disponible, fech
     }
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalTransbordoSeg')).show();
+}
+
+function abrirHistorialPagos(ccId, camionLabel) {
+    document.getElementById('hist_camion_label').textContent = camionLabel;
+    document.getElementById('hist_loading').style.display = 'block';
+    document.getElementById('hist_contenido').style.display = 'none';
+    document.getElementById('hist_contenido').innerHTML = '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalHistorialPagos')).show();
+
+    fetch(`/api/pagos/camiones/${ccId}/detalle`)
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('hist_loading').style.display = 'none';
+            const cont = document.getElementById('hist_contenido');
+            if (!d.pagos || !d.pagos.length) {
+                cont.innerHTML = '<div class="alert alert-info m-3"><i class="bi bi-info-circle me-1"></i>Este contrato no tiene pagos registrados aún.</div>';
+                cont.style.display = 'block';
+                return;
+            }
+            const moneda    = d.moneda_flete ?? 'BOB';
+            const saldoClass = d.saldo_pendiente > 0 ? 'text-danger' : 'text-success';
+            const saldoIcon  = d.saldo_pendiente > 0 ? 'bi-exclamation-circle' : 'bi-check-circle';
+            let html = `
+            <div class="px-3 pt-3 pb-2">
+                <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                    <span class="small text-muted">Contrato: <strong>${d.contrato}</strong></span>
+                    <span class="small text-muted">Acordado: <strong>${moneda} ${parseFloat(d.monto_acordado||0).toFixed(2)}</strong></span>
+                    <span class="small text-success">Pagado: <strong>${moneda} ${parseFloat(d.total_pagado||0).toFixed(2)}</strong></span>
+                    <span class="small ${saldoClass}"><i class="bi ${saldoIcon} me-1"></i>Saldo: <strong>${moneda} ${parseFloat(d.saldo_pendiente||0).toFixed(2)}</strong></span>
+                </div>
+                <table class="table table-sm table-hover table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th class="text-end">Monto</th>
+                            <th>Método</th>
+                            <th>Receptor</th>
+                            <th>Cuenta origen</th>
+                            <th>Código</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            d.pagos.forEach(p => {
+                const origen = p.cuenta_origen ? p.cuenta_origen.titular : '—';
+                html += `<tr>
+                    <td class="small">${p.fecha}</td>
+                    <td><span class="badge bg-secondary">${p.tipo}</span></td>
+                    <td class="text-end small fw-semibold">${p.moneda_pago} ${parseFloat(p.monto).toFixed(2)}</td>
+                    <td class="small">${p.metodo}</td>
+                    <td class="small">${p.receptor ?? '—'}</td>
+                    <td class="small">${origen}</td>
+                    <td class="small text-muted">${p.codigo ?? '—'}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+            cont.innerHTML = html;
+            cont.style.display = 'block';
+        })
+        .catch(() => {
+            document.getElementById('hist_loading').style.display = 'none';
+            document.getElementById('hist_contenido').innerHTML = '<div class="alert alert-danger m-3">Error al cargar el historial.</div>';
+            document.getElementById('hist_contenido').style.display = 'block';
+        });
 }
 </script>
 @endsection

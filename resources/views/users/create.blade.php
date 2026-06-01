@@ -18,7 +18,53 @@
       <div class="col-lg-12">
         <div class="card">
           <div class="card-body">
-            <h5 class="card-title">Nuevo Usuario</h5>
+            <h5 class="card-title">Nuevo Usuario del Sistema</h5>
+            <p class="text-muted small mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Registre un nuevo usuario del sistema asociado a un empleado. Cada usuario tiene acceso según el rol asignado.
+                El empleado seleccionado no podrá ser modificado posteriormente para mantener la integridad de los registros de auditoría.
+            </p>
+
+            {{-- Indicadores de características --}}
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person-badge-fill text-primary me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Asociación</small>
+                            <strong class="small">Empleado del sistema</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-shield-lock-fill text-success me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Seguridad</small>
+                            <strong class="small">Validación en tiempo real</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-key-fill text-info me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Contraseña</small>
+                            <strong class="small">Mínimo 8 caracteres</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-magic text-warning me-2"></i>
+                        <div>
+                            <small class="text-muted d-block">Autocompletado</small>
+                            <strong class="small">Datos del empleado</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
            <!--CONTENIDO -->
            {!! Form::open(['route'=>'users.store','class'=>'form-horizontal']) !!}
                 @include('users._form',['texto' => 'Registrar','tipo'=>'1','texto_pass'=>'Contraseña','color'=>'primary'])

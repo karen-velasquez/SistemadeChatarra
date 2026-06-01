@@ -671,7 +671,7 @@ h6 {
     background-color: #101828;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 991px) {
     .sidebar {
         left: -280px;
     }
@@ -687,20 +687,20 @@ h6 {
     background-color: #aab7cf;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
     #main,
     #footer {
         margin-left: 280px;
     }
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 991px) {
     .toggle-sidebar .sidebar {
         left: 0;
     }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
     .toggle-sidebar #main,
     .toggle-sidebar #footer {
         margin-left: 0;
@@ -741,7 +741,7 @@ h6 {
     font-size: .9rem;
     font-weight: 600;
     color: #fff;
-    transition: background 0.3s, color 0.3s;
+    transition: background 0.2s, color 0.2s, transform 0.15s;
     background: #1a2d40;
     padding: 5px 10px;
     border-radius: 4px;
@@ -774,7 +774,8 @@ h6 {
 
 .sidebar-nav .nav-link:hover {
     color: #fff;
-    background: #38bdf8;
+    background: #2fa8d8;
+    transform: translateX(2px);
 }
 
 .sidebar-nav .nav-link:hover i {
@@ -810,8 +811,8 @@ h6 {
     font-size: 14px;
     font-weight: 500;
     color: #c8d8e8;
-    padding: 6px 0 6px 30px;
-    transition: 0.3s;
+    padding: 6px 10px 6px 30px;
+    transition: background 0.2s, color 0.2s;
     border-radius: 4px;
 }
 
@@ -821,23 +822,29 @@ h6 {
     line-height: 1;
     border-radius: 0;
     color: #c8d8e8;
+    transition: color 0.2s;
 }
 
 .sidebar-nav .nav-content a:hover {
     color: #fff;
+    background: #1e4976;
+    padding-left: 34px;
 }
 
 .sidebar-nav .nav-content a:hover i {
-    color: #38bdf8;
+    color: #7dd3fc;
 }
 
 .sidebar-nav .nav-content a.active {
     color: #fff;
     font-weight: 600;
+    background: #164e6e;
+    border-left: 3px solid #38bdf8;
+    padding-left: 27px;
 }
 
 .sidebar-nav .nav-content a.active i {
-    color: #fff;
+    color: #38bdf8;
     background-color: transparent;
 }
 
@@ -1814,4 +1821,16 @@ h6 {
         transform:translateY(0);
     }
 }
-    
+
+.bg-purple { background-color: #6f42c1 !important; color: #fff !important; }
+
+/* Fix: form inside modal-dialog-scrollable must inherit height so modal-body scrolls */
+.modal-dialog-scrollable .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+.modal-dialog-scrollable .modal-content > form > .modal-body {
+    overflow-y: auto;
+}

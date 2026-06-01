@@ -6,6 +6,7 @@ use App\Models\Camion;
 use App\Models\CamionConductor;
 use App\Models\CamionFoto;
 use App\Models\OperadorTransporte;
+use App\Models\Parametro;
 use App\Http\Requests\CamionRequest;
 use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
@@ -19,17 +20,23 @@ class CamionController extends Controller
 
     public function index()
     {
-        $camiones   = Camion::with(['propietario', 'fotos'])
+        $camiones   = Camion::with(['propietario', 'fotos', 'marca', 'tipoVehiculo', 'placaPais'])
                             ->whereNull('deleted_at')->get();
-        $operadores = OperadorTransporte::whereNull('deleted_at')->orderBy('nombre')->get();
-        $choferes   = OperadorTransporte::whereNull('deleted_at')
+        $operadores = OperadorTransporte::with(['ciPais', 'licenciaPais'])->whereNull('deleted_at')->orderBy('nombre')->get();
+        $choferes   = OperadorTransporte::with(['ciPais', 'licenciaPais'])
+                            ->whereNull('deleted_at')
                             ->whereIn('tipo_operador', ['chofer', 'ambos'])
                             ->whereNotNull('licencia_numero')
                             ->orderBy('nombre')->get();
         $asignaciones = CamionConductor::with(['camion', 'conductor'])
                             ->orderByDesc('fecha_inicio')->get();
 
-        return view('camiones.index', compact('camiones', 'operadores', 'choferes', 'asignaciones'));
+        $marcas = Parametro::where('tipo', 'camion_marca')->orderBy('valor')->get();
+        $tiposVehiculo = Parametro::where('tipo', 'camion_tipo')->orderBy('valor')->get();
+        $paises = Parametro::where('tipo', 'paises')->orderBy('valor')->get();
+        $paisesDocumento = Parametro::where('tipo', 'pais_documento')->get();
+
+        return view('camiones.index', compact('camiones', 'operadores', 'choferes', 'asignaciones', 'marcas', 'tiposVehiculo', 'paises', 'paisesDocumento'));
     }
 
     public function store(CamionRequest $request)
@@ -60,19 +67,19 @@ class CamionController extends Controller
     {
         $camion = Camion::with('fotos')->where('uuid', $uuid)->firstOrFail();
         return response()->json([
-            'id'            => $camion->id,
-            'placa'         => $camion->placa,
-            'placa_pais'    => $camion->placa_pais,
-            'tipo_vehiculo' => $camion->tipo_vehiculo,
-            'marca'         => $camion->marca,
-            'modelo'        => $camion->modelo,
-            'anio'          => $camion->anio,
-            'capacidad_kg'  => $camion->capacidad_kg,
-            'color'         => $camion->color,
-            'estado'        => $camion->estado,
-            'propietario_id'=> $camion->propietario_id,
-            'documento_ruat'=> $camion->documento_ruat,
-            'fotos'         => $camion->fotos,
+            'id'              => $camion->id,
+            'placa'           => $camion->placa,
+            'placa_pais_id'   => $camion->placa_pais_id,
+            'tipo_vehiculo_id'=> $camion->tipo_vehiculo_id,
+            'marca_id'        => $camion->marca_id,
+            'modelo'          => $camion->modelo,
+            'anio'            => $camion->anio,
+            'capacidad_kg'    => $camion->capacidad_kg,
+            'color'           => $camion->color,
+            'estado'          => $camion->estado,
+            'propietario_id'  => $camion->propietario_id,
+            'documento_ruat'  => $camion->documento_ruat,
+            'fotos'           => $camion->fotos,
         ]);
     }
 

@@ -14,7 +14,7 @@ class Banco extends Model
     protected $table = 'bancos';
 
     protected $fillable = [
-        'nombre', 'pais', 'codigo_swift', 'activo',
+        'nombre', 'pais_id', 'codigo_swift', 'codigo_banco', 'activo',
         'created_by', 'updated_by',
     ];
 
@@ -24,6 +24,11 @@ class Banco extends Model
     {
         parent::boot();
         static::creating(fn($m) => $m->uuid = Str::uuid()->toString());
+    }
+
+    public function pais()
+    {
+        return $this->belongsTo(Parametro::class, 'pais_id');
     }
 
     public function cuentas()

@@ -139,7 +139,7 @@
                                             <div>
                                                 <i class="bi bi-truck {{ $ccIcono }}"></i>
                                                 <strong>{{ $cc->camion->placa }}</strong>
-                                                <span class="text-muted ms-1">{{ $cc->camion->marca }} {{ $cc->camion->modelo }}</span>
+                                                <span class="text-muted ms-1">{{ $cc->camion->marca->valor ?? '-' }} {{ $cc->camion->modelo }}</span>
                                             </div>
                                             <div class="d-flex gap-2 align-items-center">
                                                 <span class="badge {{ $ccBadge }}">
@@ -284,15 +284,9 @@
                                         <div class="input-group">
                                             <select class="form-select flex-grow-0" style="width:90px;"
                                                 name="moneda_flete" id="moneda_flete">
-                                                <option value="BOB" selected>BOB</option>
-                                                <option value="USD">USD</option>
-                                                <option value="EUR">EUR</option>
-                                                <option value="BRL">BRL</option>
-                                                <option value="ARS">ARS</option>
-                                                <option value="PEN">PEN</option>
-                                                <option value="CLP">CLP</option>
-                                                <option value="PYG">PYG</option>
-                                                <option value="COP">COP</option>
+                                                @foreach($monedas as $moneda)
+                                                    <option value="{{ $moneda->valor }}" {{ $moneda->valor === 'BOB' ? 'selected' : '' }}>{{ $moneda->valor }}</option>
+                                                @endforeach
                                             </select>
                                             <input type="number" step="0.01" min="0"
                                                 class="form-control @error('monto_acordado') is-invalid @enderror"
@@ -448,12 +442,12 @@
                                     </label>
                                 </div>
                                 <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="entrega_parcial" id="accion_entrega_parcial" required
-                                        onchange="accionCamionCambiada('entrega_parcial')">
-                                    <label class="form-check-label" for="accion_entrega_parcial">
+                                    <input class="form-check-input" type="radio" name="accion" value="div_carga" id="accion_div_carga" required
+                                        onchange="accionCamionCambiada('div_carga')">
+                                    <label class="form-check-label" for="accion_div_carga">
                                         <i class="bi bi-pie-chart text-info"></i>
-                                        <strong>Entrega Parcial</strong>
-                                        <small class="d-block text-muted">Entrega parte de la carga a un cliente y el restante continúa en otro camión.</small>
+                                        <strong>Div. Carga</strong>
+                                        <small class="d-block text-muted">Entrega parte al cliente 1 y el restante continúa en otro camión al cliente 2. Se generan 2 tramos automáticamente.</small>
                                     </label>
                                 </div>
                                 <div class="form-check border rounded p-3">
@@ -788,8 +782,8 @@ function validarFormLlegada() {
     if (!btn) return;
 
     let ok = peso && fecha && accion;
-    if (accion === 'entregado')       ok = ok && cliente;
-    if (accion === 'entrega_parcial') ok = ok && cliente && tnParcial && destNuevo;
+    if (accion === 'entregado')  ok = ok && cliente;
+    if (accion === 'div_carga') ok = ok && cliente && tnParcial && destNuevo;
 
     btn.disabled  = !ok;
     btn.className = ok ? 'btn btn-success' : 'btn btn-secondary';
@@ -811,7 +805,7 @@ function accionCamionCambiada(accion) {
         secCliente.classList.remove('d-none');
         secPrecio.classList.remove('d-none');
         calcTotalVenta();
-    } else if (accion === 'entrega_parcial') {
+    } else if (accion === 'div_carga') {
         secCliente.classList.remove('d-none');
         secPrecio.classList.remove('d-none');
         secParcial.classList.remove('d-none');

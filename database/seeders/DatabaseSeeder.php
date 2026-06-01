@@ -30,5 +30,22 @@ class DatabaseSeeder extends Seeder
 
         // 7. Contratos (dependen de clientes y proveedores)
         $this->call(ContratosTableSeeder::class);
+
+        // 8. Bancos bolivianos predefinidos
+        $this->call(BancosBoliviaSeeder::class);
+
+        // 9. Empleados
+        $this->call(EmpleadosTableSeeder::class);
+
+        // DATOS DE PRUEBA COMENTADOS TEMPORALMENTE
+        // Descomentar cuando se actualicen los seeders con los nuevos campos
+        // $this->call(ContratoCamionesTableSeeder::class);
+        // $this->call(TramosTableSeeder::class);
+        // $this->call(EmpresasTableSeeder::class);
+        // $this->call(CuentasBancariasTableSeeder::class);
+        // $this->call(PagosCamionTableSeeder::class);
+        // $this->call(PagosProveedorTableSeeder::class);
+        // $this->call(PagosClienteTableSeeder::class);
+        // $this->call(MovimientosTableSeeder::class);
     }
 }

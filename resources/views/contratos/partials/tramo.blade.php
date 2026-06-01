@@ -4,7 +4,7 @@
         'Transbordando'  => 'warning text-dark',
         'Transbordado'   => 'info text-dark',
         'Entregado'      => 'success',
-        'Entrega Parcial'=> 'info text-dark',
+        'Div. Carga'     => 'warning text-dark',
         'Desactivado'    => 'secondary',
     ];
     $estadoIcono = [
@@ -12,7 +12,7 @@
         'Transbordando'  => 'bi-arrow-left-right',
         'Transbordado'   => 'bi-check2-all',
         'Entregado'      => 'bi-check-circle',
-        'Entrega Parcial'=> 'bi-pie-chart',
+        'Div. Carga'     => 'bi-pie-chart',
         'Desactivado'    => 'bi-slash-circle',
     ];
     $estadoBorde = [
@@ -20,7 +20,7 @@
         'Transbordando'  => 'border-warning',
         'Transbordado'   => 'border-info',
         'Entregado'      => 'border-success',
-        'Entrega Parcial'=> 'border-info',
+        'Div. Carga'     => 'border-warning',
         'Desactivado'    => 'border-secondary',
     ];
     $color  = $estadoColor[$tramo->estado]  ?? 'secondary';
@@ -28,15 +28,30 @@
     $borde  = $estadoBorde[$tramo->estado]  ?? 'border-secondary';
     $hijos  = $tramo->tramosHijos;
     $indent = $nivel * 20;
+
+    // Estado general de la carga (considera hijos)
+    $estadoCargaGeneral = $tramo->estado;
+    if ($hijos->isNotEmpty()) {
+        $todosEntregados = $hijos->every(fn($h) => in_array($h->estado, ['Entregado', 'Desactivado']));
+        $estadoCargaGeneral = $todosEntregados ? 'Entregado' : 'En proceso';
+    }
+    $mostrarEstadoCarga = $hijos->isNotEmpty() && $estadoCargaGeneral !== $tramo->estado;
 @endphp
 
 <div class="border rounded p-2 mb-2 {{ $nivel > 0 ? 'border-start border-3 ' . $borde : '' }}"
      style="margin-left: {{ $indent }}px; position: relative;">
 
-    {{-- Badge de estado: siempre arriba a la derecha --}}
-    <span class="badge bg-{{ $color }}" style="position: absolute; top: 8px; right: 8px;">
-        <i class="bi {{ $icono }}"></i> {{ $tramo->estado }}
-    </span>
+    {{-- Badges de estado: arriba a la derecha --}}
+    <div class="d-flex gap-1" style="position: absolute; top: 8px; right: 8px;">
+        @if($mostrarEstadoCarga)
+            <span class="badge {{ $estadoCargaGeneral === 'Entregado' ? 'bg-success' : 'bg-secondary' }}">
+                <i class="bi bi-box-seam"></i> Carga: {{ $estadoCargaGeneral }}
+            </span>
+        @endif
+        <span class="badge bg-{{ $color }}">
+            <i class="bi {{ $icono }}"></i> {{ $tramo->estado }}
+        </span>
+    </div>
 
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2" style="padding-right: 110px;">
 
@@ -56,7 +71,7 @@
             <strong>{{ $tramo->destino }}</strong>
 
             <span class="ms-2 text-muted small">
-                <i class="bi bi-truck"></i> {{ $tramo->camion->placa }} {{ $tramo->camion->marca }}
+                <i class="bi bi-truck"></i> {{ $tramo->camion->placa }} {{ $tramo->camion->marca->valor ?? '-' }}
                 @if($tramo->conductor)
                     &nbsp;·&nbsp;<i class="bi bi-person"></i> {{ $tramo->conductor->nombre_completo }}
                 @endif
@@ -110,12 +125,14 @@
                     @endif
 
                     {{-- Nota de entrega PDF: si está entregado o transbordado --}}
+                    @can('contratos.index')
                     @if(in_array($tramo->estado, ['Entregado', 'Transbordado']))
                         <a href="{{ route('tramo.nota-entrega', $tramo->uuid) }}"
                             class="btn btn-sm btn-outline-success" target="_blank">
                             <i class="bi bi-file-earmark-pdf"></i> Nota de entrega
                         </a>
                     @endif
+                    @endcan
 
                     {{-- Desactivar: solo en tramos hijos, sin hijos activos propios, y solo en ruta --}}
                     @php $tieneHijosActivos = $tramo->tramosHijos()->where('activo', true)->exists(); @endphp

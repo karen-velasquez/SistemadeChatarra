@@ -15,9 +15,10 @@ class Empleado extends Model
 
     protected $fillable = [
         'nombre',
-        'apellido',
+        'apellido_paterno',
+        'apellido_materno',
         'ci',
-        'cargo',
+        'cargo_id',
         'telefono',
         'email',
         'activo',
@@ -37,6 +38,61 @@ class Empleado extends Model
 
     public function getNombreCompletoAttribute(): string
     {
-        return $this->nombre . ' ' . $this->apellido;
+        return $this->nombre . ' ' . $this->apellido_paterno . ' ' . $this->apellido_materno;
+    }
+
+    // Relación con Parametro (Cargo)
+    public function cargo()
+    {
+        return $this->belongsTo(Parametro::class, 'cargo_id');
+    }
+
+    // Relación polimórfica - cuentas bancarias
+    public function cuentasBancarias()
+    {
+        return $this->morphMany(CuentaBancaria::class, 'titular');
+    }
+
+    // Relación con Usuario
+    public function usuario()
+    {
+        return $this->hasOne(User::class, 'empleado_id');
+    }
+
+    /**
+     * Verifica si el empleado está siendo utilizado en otras tablas
+     * @return array ['enUso' => bool, 'mensaje' => string, 'detalles' => array]
+     */
+    public function verificarUso()
+    {
+        $enUso = false;
+        $mensaje = '';
+        $detalles = [];
+
+        // Verificar cuentas bancarias
+        $cuentasCount = $this->cuentasBancarias()->count();
+        if ($cuentasCount > 0) {
+            $enUso = true;
+            $detalles[] = "{$cuentasCount} cuenta(s) bancaria(s)";
+        }
+
+        // Verificar usuario asociado
+        if ($this->usuario) {
+            $enUso = true;
+            $detalles[] = "usuario del sistema ({$this->usuario->email})";
+        }
+
+        // Aquí se pueden agregar más validaciones según otras relaciones
+        // Por ejemplo: pagos, contratos, etc.
+
+        if ($enUso) {
+            $mensaje = "No se puede eliminar a '{$this->nombre_completo}' porque está siendo utilizado por: " . implode(', ', $detalles) . ".";
+        }
+
+        return [
+            'enUso' => $enUso,
+            'mensaje' => $mensaje,
+            'detalles' => $detalles,
+        ];
     }
 }

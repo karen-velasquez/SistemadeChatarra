@@ -18,7 +18,7 @@ class ClienteRequest extends FormRequest
     {
         return [
             'nombre'=>'required',
-            'pais'=>'required',
+            'pais_id'=>'required|exists:parametros,id',
             'nit' => [
                 'required',
                 'numeric',

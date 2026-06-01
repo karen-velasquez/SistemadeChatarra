@@ -23,9 +23,9 @@ class ProveedorRequest extends FormRequest
     public function rules(): array
     {
         return [
-           
+
             'nombre'=>'required',
-            'pais'=>'required',
+            'pais_id'=>'required|exists:parametros,id',
             'nit'=>[
                 'required',
                 'numeric',

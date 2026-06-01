@@ -39,6 +39,9 @@ class CamionConductorController extends Controller
         $camiones = Camion::with([
             'propietario',
             'conductorActual.conductor',
+            'marca',
+            'tipoVehiculo',
+            'placaPais',
         ])->whereNull('deleted_at')->get()->map(function ($camion) {
             return [
                 'uuid'             => $camion->uuid,
@@ -92,6 +95,9 @@ class CamionConductorController extends Controller
         $camion = Camion::with([
             'propietario',
             'conductores' => fn($q) => $q->whereNull('fecha_fin'),
+            'marca',
+            'tipoVehiculo',
+            'placaPais',
             'conductores.conductor',
         ])->where('uuid', $uuid)->firstOrFail();
 

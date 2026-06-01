@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Empleado;
+use App\Models\Parametro;
 use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -15,37 +16,42 @@ class EmpleadoController extends Controller
 
     public function index()
     {
-        $empleados = Empleado::whereNull('deleted_at')->orderBy('apellido')->orderBy('nombre')->get();
-        return view('empleados.index', compact('empleados'));
+        $empleados = Empleado::with('cargo')->whereNull('deleted_at')->orderBy('apellido_paterno')->orderBy('nombre')->get();
+        $cargos = Parametro::tipo('cargo_empleados')->whereNull('deleted_at')->orderBy('valor')->get();
+        return view('empleados.index', compact('empleados', 'cargos'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'nombre'   => 'required|string|max:100',
-            'apellido' => 'required|string|max:100',
-            'ci'       => 'required|string|max:20',
-            'cargo'    => 'required|string|max:100',
-            'telefono' => 'nullable|string|max:20',
-            'email'    => 'nullable|email|max:150',
+            'nombre'           => 'required|string|max:100',
+            'apellido_paterno' => 'required|string|max:100',
+            'apellido_materno' => 'required|string|max:100',
+            'ci'               => 'required|string|max:20',
+            'cargo_id'         => 'required|exists:parametros,id',
+            'telefono'         => 'nullable|string|max:20',
+            'email'            => 'nullable|email|max:150',
         ], [
-            'nombre.required'   => 'El nombre es obligatorio.',
-            'apellido.required' => 'El apellido es obligatorio.',
-            'ci.required'       => 'El CI es obligatorio.',
-            'cargo.required'    => 'El cargo es obligatorio.',
-            'email.email'       => 'El correo no tiene un formato válido.',
+            'nombre.required'           => 'El nombre es obligatorio.',
+            'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
+            'apellido_materno.required' => 'El apellido materno es obligatorio.',
+            'ci.required'               => 'El CI es obligatorio.',
+            'cargo_id.required'         => 'El cargo es obligatorio.',
+            'cargo_id.exists'           => 'El cargo seleccionado no es válido.',
+            'email.email'               => 'El correo no tiene un formato válido.',
         ]);
 
         Empleado::create([
-            'nombre'     => $request->nombre,
-            'apellido'   => $request->apellido,
-            'ci'         => $request->ci ?: null,
-            'cargo'      => $request->cargo ?: null,
-            'telefono'   => $request->telefono ?: null,
-            'email'      => $request->email ?: null,
-            'activo'     => true,
-            'created_by' => auth()->id(),
-            'updated_by' => auth()->id(),
+            'nombre'           => $request->nombre,
+            'apellido_paterno' => $request->apellido_paterno,
+            'apellido_materno' => $request->apellido_materno,
+            'ci'               => $request->ci ?: null,
+            'cargo_id'         => $request->cargo_id,
+            'telefono'         => $request->telefono ?: null,
+            'email'            => $request->email ?: null,
+            'activo'           => true,
+            'created_by'       => auth()->id(),
+            'updated_by'       => auth()->id(),
         ]);
 
         Alert::success('Éxito', 'Empleado registrado correctamente.');
@@ -57,28 +63,32 @@ class EmpleadoController extends Controller
         $empleado = Empleado::where('uuid', $uuid)->firstOrFail();
 
         $request->validate([
-            'nombre'   => 'required|string|max:100',
-            'apellido' => 'required|string|max:100',
-            'ci'       => 'required|string|max:20',
-            'cargo'    => 'required|string|max:100',
-            'telefono' => 'nullable|string|max:20',
-            'email'    => 'nullable|email|max:150',
+            'nombre'           => 'required|string|max:100',
+            'apellido_paterno' => 'required|string|max:100',
+            'apellido_materno' => 'required|string|max:100',
+            'ci'               => 'required|string|max:20',
+            'cargo_id'         => 'required|exists:parametros,id',
+            'telefono'         => 'nullable|string|max:20',
+            'email'            => 'nullable|email|max:150',
         ], [
-            'nombre.required'   => 'El nombre es obligatorio.',
-            'apellido.required' => 'El apellido es obligatorio.',
-            'ci.required'       => 'El CI es obligatorio.',
-            'cargo.required'    => 'El cargo es obligatorio.',
-            'email.email'       => 'El correo no tiene un formato válido.',
+            'nombre.required'           => 'El nombre es obligatorio.',
+            'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
+            'apellido_materno.required' => 'El apellido materno es obligatorio.',
+            'ci.required'               => 'El CI es obligatorio.',
+            'cargo_id.required'         => 'El cargo es obligatorio.',
+            'cargo_id.exists'           => 'El cargo seleccionado no es válido.',
+            'email.email'               => 'El correo no tiene un formato válido.',
         ]);
 
         $empleado->update([
-            'nombre'     => $request->nombre,
-            'apellido'   => $request->apellido,
-            'ci'         => $request->ci ?: null,
-            'cargo'      => $request->cargo ?: null,
-            'telefono'   => $request->telefono ?: null,
-            'email'      => $request->email ?: null,
-            'updated_by' => auth()->id(),
+            'nombre'           => $request->nombre,
+            'apellido_paterno' => $request->apellido_paterno,
+            'apellido_materno' => $request->apellido_materno,
+            'ci'               => $request->ci ?: null,
+            'cargo_id'         => $request->cargo_id,
+            'telefono'         => $request->telefono ?: null,
+            'email'            => $request->email ?: null,
+            'updated_by'       => auth()->id(),
         ]);
 
         Alert::success('Éxito', 'Empleado actualizado correctamente.');
@@ -88,12 +98,29 @@ class EmpleadoController extends Controller
     public function toggleActivo($uuid)
     {
         $empleado = Empleado::where('uuid', $uuid)->firstOrFail();
+
+        // Cambiar estado del empleado
+        $nuevoEstado = !$empleado->activo;
         $empleado->update([
-            'activo'     => !$empleado->activo,
+            'activo'     => $nuevoEstado,
             'updated_by' => auth()->id(),
         ]);
 
+        // Si el empleado tiene un usuario asociado, sincronizar el estado
+        if ($empleado->usuario) {
+            $empleado->usuario->update([
+                'estado' => $nuevoEstado,
+            ]);
+        }
+
         $msg = $empleado->activo ? 'Empleado activado.' : 'Empleado desactivado.';
+
+        // Agregar mensaje adicional si también se actualizó el usuario
+        if ($empleado->usuario) {
+            $msgUsuario = $nuevoEstado ? ' Su usuario del sistema también fue activado.' : ' Su usuario del sistema también fue desactivado.';
+            $msg .= $msgUsuario;
+        }
+
         Alert::success('Listo', $msg);
         return redirect()->route('empleados.index');
     }
@@ -101,6 +128,15 @@ class EmpleadoController extends Controller
     public function destroy($uuid)
     {
         $empleado = Empleado::where('uuid', $uuid)->firstOrFail();
+
+        // Verificar si el empleado está siendo utilizado
+        $verificacion = $empleado->verificarUso();
+
+        if ($verificacion['enUso']) {
+            Alert::warning('No se puede eliminar', $verificacion['mensaje']);
+            return redirect()->route('empleados.index');
+        }
+
         $empleado->delete();
         Alert::success('Éxito', 'Empleado eliminado.');
         return redirect()->route('empleados.index');

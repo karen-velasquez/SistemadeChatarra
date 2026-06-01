@@ -23,15 +23,15 @@ class TramoController extends Controller
         $request->validate([
             'peso_llegada'         => 'required|numeric|min:0.001|max:' . $tramo->peso_salida,
             'fecha_llegada'        => 'required|date|after_or_equal:' . $tramo->fecha_salida->format('Y-m-d'),
-            'accion'               => 'required|in:entregado,frontera,transbordo,entrega_parcial',
-            'cliente_id'           => 'required_if:accion,entregado,entrega_parcial|nullable|exists:clientes,id',
+            'accion'               => 'required|in:entregado,frontera,transbordo,div_carga',
+            'cliente_id'           => 'required_if:accion,entregado,div_carga|nullable|exists:clientes,id',
             'precio_por_tonelada'  => 'nullable|numeric|min:0',
             'moneda_venta'         => 'nullable|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:60',
             'observaciones_llegada'=> 'nullable|string|max:500',
-            // Campos entrega parcial
-            'tn_parcial'              => 'required_if:accion,entrega_parcial|nullable|numeric|min:0.001',
-            'destino_nuevo_tramo'     => 'required_if:accion,entrega_parcial|nullable|string|max:150',
+            // Campos división de carga
+            'tn_parcial'              => 'required_if:accion,div_carga|nullable|numeric|min:0.001',
+            'destino_nuevo_tramo'     => 'required_if:accion,div_carga|nullable|string|max:150',
             'camion_nuevo_id'         => 'nullable|exists:camiones,id',
             'conductor_nuevo_id'      => 'nullable|exists:operadores_transporte,id',
             'fecha_salida_nuevo_tramo'=> 'nullable|date',
@@ -44,7 +44,7 @@ class TramoController extends Controller
             'fecha_llegada.after_or_equal'    => 'La fecha de llegada no puede ser anterior a la fecha de salida (' . $tramo->fecha_salida->format('d/m/Y') . ').',
             'accion.required'                 => 'Debe indicar qué ocurrió cuando llegó la carga.',
             'cliente_id.required_if'          => 'Debe seleccionar el cliente al que se entregó la carga.',
-            'tn_parcial.required_if'          => 'Debe indicar las toneladas entregadas parcialmente.',
+            'tn_parcial.required_if'          => 'Debe indicar las toneladas entregadas al primer cliente.',
             'tn_parcial.min'                  => 'Las toneladas entregadas deben ser mayores a 0.',
             'destino_nuevo_tramo.required_if' => 'Debe indicar el destino del nuevo tramo.',
             'camion_nuevo_id.required_if'     => 'Debe seleccionar el camión para el nuevo tramo.',
@@ -54,59 +54,86 @@ class TramoController extends Controller
             'descuento_porcentaje.max'        => 'El descuento no puede superar el 60%.',
         ]);
 
-        $esParcial = $request->accion === 'entrega_parcial';
+        $esDivision = $request->accion === 'div_carga';
 
         $nuevoEstado = match($request->accion) {
-            'entregado'       => 'Entregado',
-            'entrega_parcial' => 'Entrega Parcial',
-            'frontera'        => 'Transbordando',
-            'transbordo'      => 'Transbordando',
+            'entregado'  => 'Entregado',
+            'div_carga'  => 'Div. Carga',
+            'frontera'   => 'Transbordando',
+            'transbordo' => 'Transbordando',
         };
 
         $contratoUuidLlegada = $tramo->contratoCamion->contrato->uuid;
         $desdeSegimiento = $request->input('origen') === 'seguimiento';
 
-        // Validar entrega parcial
-        if ($esParcial) {
+        // Validar división de carga
+        if ($esDivision) {
             $tnParcial   = (float) $request->tn_parcial;
             $pesoLlegada = (float) $request->peso_llegada;
             if ($tnParcial <= 0 || $tnParcial >= $pesoLlegada) {
-                Alert::error('Error', 'Las TN entregadas deben ser mayor a 0 y menores al total que llegó (' . $pesoLlegada . ' t).');
+                Alert::error('Error', 'Las TN entregadas al cliente 1 deben ser mayor a 0 y menores al total que llegó (' . $pesoLlegada . ' t).');
                 return $desdeSegimiento
                     ? redirect()->route('seguimiento.index')
                     : redirect()->route('contratos.camiones', $contratoUuidLlegada);
             }
         }
 
-        // Para entrega parcial: peso_llegada del padre = TN entregadas al cliente
-        $pesoLlegadaPadre = $esParcial ? (float) $request->tn_parcial : (float) $request->peso_llegada;
-
+        // El padre registra el peso total que llegó y queda como Div. Carga (nodo de distribución)
+        // o como Entregado/Transbordando según la acción
         $tramo->update([
-            'peso_llegada'         => $pesoLlegadaPadre,
+            'peso_llegada'         => (float) $request->peso_llegada,
             'fecha_llegada'        => $request->fecha_llegada,
             'estado'               => $nuevoEstado,
-            'cliente_id'           => in_array($request->accion, ['entregado', 'entrega_parcial']) ? $request->cliente_id : null,
-            'precio_por_tonelada'  => in_array($nuevoEstado, ['Entregado', 'Entrega Parcial']) ? ($request->precio_por_tonelada ?: null) : null,
-            'moneda_venta'         => in_array($nuevoEstado, ['Entregado', 'Entrega Parcial']) ? ($request->moneda_venta ?: 'BOB') : null,
+            'cliente_id'           => $request->accion === 'entregado' ? $request->cliente_id : null,
+            'precio_por_tonelada'  => $nuevoEstado === 'Entregado' ? ($request->precio_por_tonelada ?: null) : null,
+            'moneda_venta'         => $nuevoEstado === 'Entregado' ? ($request->moneda_venta ?: 'BOB') : null,
             'descuento_porcentaje' => $request->descuento_porcentaje ?: null,
             'observaciones_llegada'=> $request->observaciones_llegada,
         ]);
 
-        // Crear tramo hijo con el restante
-        if ($esParcial) {
-            $tnRestante  = round((float) $request->peso_llegada - (float) $request->tn_parcial, 3);
-            $camionNuevo = $request->camion_nuevo_id ?: $tramo->camion_id;
+        // División de carga: generar dos hijos automáticamente
+        if ($esDivision) {
+            $tnCliente1 = (float) $request->tn_parcial;
+            $tnCliente2 = round((float) $request->peso_llegada - $tnCliente1, 3);
+            $camionNuevo    = $request->camion_nuevo_id ?: $tramo->camion_id;
             $conductorNuevo = $request->conductor_nuevo_id ?: $tramo->conductor_id;
+            $monedaFlete    = $tramo->contratoCamion->moneda_flete ?? 'BOB';
+            $fechaSalida    = $request->fecha_salida_nuevo_tramo ?? $request->fecha_llegada;
 
-            // El nuevo tramo tiene su propio flete independiente
-            $ccParcial = ContratoCamion::create([
-                'contrato_id'      => $tramo->contratoCamion->contrato_id,
+            $cc = $tramo->contratoCamion;
+
+            // Hijo 1 — hereda el CC del padre (incluye el flete acordado)
+            Tramo::create([
+                'contrato_camion_id'   => $tramo->contrato_camion_id,
+                'tramo_padre_id'       => $tramo->id,
+                'camion_id'            => $tramo->camion_id,
+                'conductor_id'         => $tramo->conductor_id,
+                'origen'               => $tramo->origen,
+                'destino'              => $tramo->destino,
+                'tipo_tramo'           => $tramo->tipo_tramo,
+                'peso_salida'          => $tnCliente1,
+                'peso_llegada'         => $tnCliente1,
+                'fecha_salida'         => $tramo->fecha_salida,
+                'fecha_llegada'        => $request->fecha_llegada,
+                'estado'               => 'Entregado',
+                'cliente_id'           => $request->cliente_id,
+                'precio_por_tonelada'  => $request->precio_por_tonelada ?: null,
+                'moneda_venta'         => $request->moneda_venta ?: 'BOB',
+                'descuento_porcentaje' => $request->descuento_porcentaje ?: null,
+                'observaciones_llegada'=> 'División de carga — Entrega cliente 1',
+                'created_by'           => auth()->id(),
+                'updated_by'           => auth()->id(),
+            ]);
+
+            // Hijo 2 — nuevo CC propio con flete vacío (el usuario lo confirmará después)
+            $cc2 = ContratoCamion::create([
+                'contrato_id'      => $cc->contrato_id,
                 'camion_id'        => $camionNuevo,
                 'conductor_id'     => $conductorNuevo,
-                'toneladas'        => $tnRestante,
+                'toneladas'        => $tnCliente2,
                 'monto_acordado'   => null,
-                'moneda_flete'     => $tramo->contratoCamion->moneda_flete ?? 'BOB',
-                'fecha_asignacion' => $request->fecha_salida_nuevo_tramo ?? $request->fecha_llegada,
+                'moneda_flete'     => $monedaFlete,
+                'fecha_asignacion' => $fechaSalida,
                 'estado_entrega'   => 'Pendiente',
                 'activo'           => true,
                 'created_by'       => auth()->id(),
@@ -114,27 +141,30 @@ class TramoController extends Controller
             ]);
 
             Tramo::create([
-                'contrato_camion_id' => $ccParcial->id,
+                'contrato_camion_id' => $cc2->id,
                 'tramo_padre_id'     => $tramo->id,
                 'camion_id'          => $camionNuevo,
                 'conductor_id'       => $conductorNuevo,
                 'origen'             => $tramo->destino,
                 'destino'            => $request->destino_nuevo_tramo,
                 'tipo_tramo'         => $request->tipo_tramo_nuevo ?? $tramo->tipo_tramo,
-                'peso_salida'        => $tnRestante,
-                'fecha_salida'       => $request->fecha_salida_nuevo_tramo ?? $request->fecha_llegada,
+                'peso_salida'        => $tnCliente2,
+                'fecha_salida'       => $fechaSalida,
                 'estado'             => 'En ruta',
                 'created_by'         => auth()->id(),
                 'updated_by'         => auth()->id(),
             ]);
 
-            Alert::success('Entrega Parcial', "Se entregaron {$request->tn_parcial} t al cliente. Nuevo tramo creado con {$tnRestante} t restantes.");
+            // Recalcular el padre por si ambos hijos ya estuvieran entregados
+            $this->recalcularEstadoPadre($tramo->id);
+
+            Alert::success('División de Carga', "Se generaron 2 tramos: {$tnCliente1} t entregadas al cliente 1 y {$tnCliente2} t en ruta al destino siguiente.");
             return $desdeSegimiento
                 ? redirect()->route('seguimiento.index')
                 : redirect()->route('contratos.camiones', $contratoUuidLlegada);
         }
 
-        // Si fue entregado, recalcular hacia arriba (puede subir un padre "Entrega Parcial" a "Entregado")
+        // Si fue entregado, recalcular hacia arriba (puede subir un padre "Div. Carga" a "Entregado")
         if ($nuevoEstado === 'Entregado') {
             $this->recalcularEstadoPadre($tramo->tramo_padre_id);
 
@@ -253,7 +283,7 @@ class TramoController extends Controller
             ->where('uuid', $uuid)
             ->firstOrFail();
 
-        abort_if(!in_array($tramo->estado, ['Entregado', 'Transbordado', 'Entrega Parcial']), 403, 'El tramo aún no ha sido completado.');
+        abort_if(!in_array($tramo->estado, ['Entregado', 'Transbordado', 'Div. Carga']), 403, 'El tramo aún no ha sido completado.');
 
         $pdf = Pdf::loadView('contratos.partials.nota-entrega-pdf', compact('tramo'))
             ->setPaper('a4', 'portrait');
@@ -303,8 +333,8 @@ class TramoController extends Controller
         $padre = Tramo::find($tramoPadreId);
         if (!$padre) return;
 
-        // Si el padre es "Entrega Parcial", verificar si el hijo ya fue entregado
-        if ($padre->estado === 'Entrega Parcial') {
+        // Si el padre es "Div. Carga", marcar Entregado cuando todos los hijos estén entregados
+        if ($padre->estado === 'Div. Carga') {
             $hijosPendientes = $padre->tramosHijos()
                 ->whereNotIn('estado', ['Entregado', 'Desactivado'])
                 ->count();

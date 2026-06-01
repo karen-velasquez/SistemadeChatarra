@@ -16,8 +16,10 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
             $table->string('name');
             $table->string('email')->unique();
+            $table->unsignedBigInteger('empleado_id')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->string('avatar')->nullable();
             $table->boolean('estado')->default(true)->comment('TRUE = Activo, FALSE = Inactivo');
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
@@ -25,6 +27,9 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
+
+            // Foreign keys (se agregan después de que empleados exista)
+            // $table->foreign('empleado_id')->references('id')->on('empleados')->onDelete('set null');
         });
     }
 

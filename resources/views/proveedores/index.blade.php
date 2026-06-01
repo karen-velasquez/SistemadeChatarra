@@ -49,7 +49,7 @@
                                                 <tr>
                                                      <td class="text-left">{{$e->nombre}}</td>
                                                     <td class="text-left">{{$e->nit}}</td>
-                                                    <td class="text-left">{{$e->pais}}</td>
+                                                    <td class="text-left">{{$e->pais->valor ?? '-'}}</td>
                                                       <td>
                                                         @forelse($e->contacts->where('tipo','telefono') as $index => $contacto)
                                                             <span class="badge bg-primary">{{ $contacto->valor }}</span><br>
@@ -126,7 +126,7 @@ function editarProveedor(proveedor) {
     document.getElementById('formProveedor').action = baseUrl + '/proveedores/' + proveedor.id;
     document.getElementById('prov_nombre').value = proveedor.nombre ?? '';
     document.getElementById('prov_nit').value = proveedor.nit ?? '';
-    document.getElementById('prov_pais').value = proveedor.pais ?? '';
+    document.getElementById('prov_pais').value = proveedor.pais_id ?? '';
     document.getElementById('prov_email').value = proveedor.email ?? '';
     document.getElementById('prov_tipo_producto').value = proveedor.tipo_producto ?? '';
 

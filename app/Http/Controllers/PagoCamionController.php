@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LotePago;
 use App\Models\PagoCamion;
 use App\Models\ContratoCamion;
 use App\Models\CuentaBancaria;
+use App\Models\CuentaEmpresa;
+use App\Models\Empresa;
+use App\Models\Movimiento;
 use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -19,10 +23,12 @@ class PagoCamionController extends Controller
     {
         $pagos = PagoCamion::with([
                 'contratoCamion.contrato',
-                'contratoCamion.camion',
+                'contratoCamion.camion.marca',
+                'contratoCamion.camion.tipoVehiculo',
+                'contratoCamion.camion.placaPais',
                 'contratoCamion.conductor',
                 'contratoCamion.camion.propietario',
-                'cuentaOrigen.titular',
+                'cuentaOrigen.empresa',
                 'cuentaDestino.banco',
                 'receptor',
             ])
@@ -44,7 +50,7 @@ class PagoCamionController extends Controller
             'fecha_pago'         => 'required|date',
             'receptor_type'      => 'nullable|in:conductor,propietario',
             'receptor_id'        => 'nullable|integer',
-            'cuenta_origen_id'   => 'nullable|exists:cuentas_bancarias,id',
+            'cuenta_origen_id'   => 'nullable|exists:cuentas_empresa,id',
             'cuenta_destino_id'  => 'nullable|exists:cuentas_bancarias,id',
             'metodo_pago'        => 'required|in:efectivo,transferencia,qr,cheque',
             'codigo_seguimiento' => 'nullable|string|max:100',
@@ -68,7 +74,9 @@ class PagoCamionController extends Controller
             $receptorType = 'App\Models\OperadorTransporte';
         }
 
-        PagoCamion::create([
+        $cc = ContratoCamion::with(['camion', 'conductor'])->findOrFail($request->contrato_camion_id);
+
+        $pago = PagoCamion::create([
             'contrato_camion_id' => $request->contrato_camion_id,
             'tipo_pago'          => $request->tipo_pago,
             'monto'              => $request->monto,
@@ -85,6 +93,35 @@ class PagoCamionController extends Controller
             'created_by'         => auth()->id(),
             'updated_by'         => auth()->id(),
         ]);
+
+        // Registrar egreso en tesorería si se seleccionó cuenta origen de empresa
+        if ($request->cuenta_origen_id) {
+            $conceptoDetalle = ($cc->camion->placa ?? 'Camión');
+            if ($cc->contrato) {
+                $conceptoDetalle .= ' - Proveedor: ' . ($cc->contrato->proveedor->nombre ?? '');
+                if ($cc->contrato->numero_contrato) {
+                    $conceptoDetalle .= ' (Contrato ' . $cc->contrato->numero_contrato . ')';
+                }
+            }
+
+            Movimiento::create([
+                'cuenta_empresa_id'  => $request->cuenta_origen_id,
+                'tipo'               => 'egreso',
+                'categoria'          => 'pago_camion',
+                'monto'              => $request->monto,
+                'moneda'             => $request->moneda_pago,
+                'tipo_cambio'        => $request->tipo_cambio,
+                'monto_bolivianos'   => $request->monto * $request->tipo_cambio,
+                'fecha'              => $request->fecha_pago,
+                'concepto'           => 'Pago flete: ' . $conceptoDetalle,
+                'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
+                'observaciones'      => $request->observaciones,
+                'origen_type'        => PagoCamion::class,
+                'origen_id'          => $pago->id,
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
+            ]);
+        }
 
         Alert::success('Éxito', 'Pago registrado correctamente.');
         return redirect()->route('seguimiento.index');
@@ -122,8 +159,14 @@ class PagoCamionController extends Controller
     public function destroy($uuid)
     {
         $pago = PagoCamion::where('uuid', $uuid)->firstOrFail();
+
+        // Eliminar movimiento de tesorería asociado
+        Movimiento::where('origen_type', PagoCamion::class)
+            ->where('origen_id', $pago->id)
+            ->each(fn($m) => $m->delete());
+
         $pago->delete();
-        Alert::success('Éxito', 'Pago eliminado.');
+        Alert::success('Éxito', 'Pago eliminado y movimiento en tesorería revertido.');
         return redirect()->route('seguimiento.index');
     }
 
@@ -158,11 +201,13 @@ class PagoCamionController extends Controller
     {
         $cc = ContratoCamion::with([
             'contrato',
-            'camion',
+            'camion.marca',
+            'camion.tipoVehiculo',
+            'camion.placaPais',
             'conductor',
             'camion.propietario',
             'pagos.cuentaDestino.banco',
-            'pagos.cuentaOrigen.titular',
+            'pagos.cuentaOrigen.empresa',
             'tramos',
         ])->findOrFail($id);
 
@@ -201,10 +246,198 @@ class PagoCamionController extends Controller
                     'tipo_relacion'  => $p->cuentaDestino->tipo_relacion,
                 ] : null,
                 'cuenta_origen'   => $p->cuentaOrigen ? [
-                    'titular'        => $p->cuentaOrigen->titular?->nombre_completo ?? '—',
+                    'titular'        => $p->cuentaOrigen->empresa->nombre ?? '—',
                     'alias'          => $p->cuentaOrigen->alias,
                 ] : null,
             ]),
         ]);
     }
+
+    // Vista de pago masivo de camiones
+    public function pagoMasivoView()
+    {
+        $contratosConSaldo = ContratoCamion::with([
+                'contrato.proveedor',
+                'camion',
+                'conductor',
+                'pagos',
+                'tramos.cliente',
+            ])
+            ->whereHas('tramos', fn($q) => $q->where('estado', 'Entregado'))
+            ->whereNotNull('monto_acordado')
+            ->get()
+            ->filter(fn($cc) => $cc->saldo_pendiente > 0)
+            ->sortBy('fecha_asignacion');
+
+        // Recolectar IDs únicos de operadores (conductor + propietario) para cargar sus cuentas
+        $operadorIds = $contratosConSaldo->flatMap(function ($cc) {
+            $ids = [];
+            if ($cc->conductor_id) $ids[] = $cc->conductor_id;
+            if ($cc->camion?->propietario_id) $ids[] = $cc->camion->propietario_id;
+            return $ids;
+        })->unique()->values();
+
+        $cuentasPorOperador = CuentaBancaria::with('banco')
+            ->whereNull('deleted_at')
+            ->whereIn('titular_id', $operadorIds)
+            ->where('titular_type', 'App\Models\OperadorTransporte')
+            ->get()
+            ->groupBy('titular_id');
+
+        // Agrupar por proveedor y tomar máx 3 por proveedor
+        $porProveedor = $contratosConSaldo
+            ->groupBy(fn($cc) => $cc->contrato->proveedor_id ?? 0)
+            ->map(fn($grupo) => [
+                'proveedor' => $grupo->first()->contrato->proveedor,
+                'contratos' => $grupo->take(3)->values(),
+            ])
+            ->filter(fn($g) => $g['proveedor'])
+            ->values();
+
+        $empresas = Empresa::with('cuentas')->whereNull('deleted_at')->get();
+
+        return view('pagos.camiones.pago_masivo', compact('porProveedor', 'empresas', 'cuentasPorOperador'));
+    }
+
+    // Guardar pago masivo de camiones
+    public function pagoMasivoStore(Request $request)
+    {
+        $request->validate([
+            'contrato_camion_ids'  => 'required|array|min:1',
+            'contrato_camion_ids.*'=> 'exists:contrato_camiones,id',
+            'cuenta_origen_id'     => 'required|exists:cuentas_empresa,id',
+            'fecha_pago'           => 'required|date',
+            'metodo_pago'          => 'required|in:transferencia,qr',
+            'codigo_seguimiento'   => 'nullable|string|max:100',
+            'cuenta_destino'       => 'nullable|array',
+            'cuenta_destino.*'     => 'nullable|exists:cuentas_bancarias,id',
+            'observaciones'        => 'nullable|string|max:500',
+        ], [
+            'contrato_camion_ids.required' => 'Debe seleccionar al menos un camión.',
+            'cuenta_origen_id.required'    => 'Debe seleccionar la cuenta desde donde se realiza el pago.',
+        ]);
+
+        $cuenta     = CuentaEmpresa::findOrFail($request->cuenta_origen_id);
+        $monedaPago = $cuenta->moneda;
+        $tipoCambio = 1;
+
+        $contratosChk = ContratoCamion::with('pagos')
+            ->whereIn('id', $request->contrato_camion_ids)
+            ->get();
+        $totalAPagar = $contratosChk->sum(fn($cc) => max(0, $cc->saldo_pendiente));
+
+        if ($cuenta->saldo_actual < $totalAPagar) {
+            return back()
+                ->withInput()
+                ->withErrors(['cuenta_origen_id' =>
+                    'Saldo insuficiente. La cuenta "' . $cuenta->nombre_cuenta . '" tiene ' .
+                    $cuenta->moneda . ' ' . number_format($cuenta->saldo_actual, 2) .
+                    ' y el total a pagar es ' . $cuenta->moneda . ' ' . number_format($totalAPagar, 2) . '.'
+                ]);
+        }
+
+        $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
+        $codigoLote = $prefijo . '-' . strtoupper(bin2hex(random_bytes(4)));
+
+        $lote = LotePago::create([
+            'tipo'               => 'camion',
+            'codigo_provisional' => $codigoLote,
+            'fecha_pago'         => $request->fecha_pago,
+            'metodo_pago'        => $request->metodo_pago,
+            'cuenta_origen_id'   => $request->cuenta_origen_id,
+            'observaciones'      => $request->observaciones ?: null,
+            'created_by'         => auth()->id(),
+        ]);
+
+        $contratos      = ContratoCamion::with(['contrato.proveedor', 'camion', 'pagos'])
+            ->whereIn('id', $request->contrato_camion_ids)
+            ->get();
+        $cuentaDestino  = $request->input('cuenta_destino', []);
+
+        $lineas = [];
+
+        foreach ($contratos as $cc) {
+            $saldo = $cc->saldo_pendiente;
+            if ($saldo <= 0) continue;
+
+            $proveedor  = $cc->contrato->proveedor->nombre ?? '—';
+            $placa      = $cc->camion->placa ?? '—';
+            $contrato   = $cc->contrato->numero_contrato ?? '—';
+            $ctaDestId  = $cuentaDestino[$cc->id] ?? null;
+
+            // Obtener cuenta destino, receptor y label para el resumen
+            $ctaDestLabel  = '—';
+            $receptorType  = null;
+            $receptorId    = null;
+            if ($ctaDestId) {
+                $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
+                if ($ctaDest) {
+                    $ctaDestLabel = ($ctaDest->nombre_titular_cuenta ? $ctaDest->nombre_titular_cuenta . ' — ' : '')
+                        . ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta
+                        . ($ctaDest->alias ? ' (' . $ctaDest->alias . ')' : '');
+
+                    if ($ctaDest->titular_id && $ctaDest->titular_type) {
+                        $receptorType = $ctaDest->titular_type;
+                        $receptorId   = $ctaDest->titular_id;
+                    }
+                }
+            }
+
+            $pago = PagoCamion::create([
+                'lote_pago_id'       => $lote->id,
+                'contrato_camion_id' => $cc->id,
+                'tipo_pago'          => 'pago_final',
+                'monto'              => $saldo,
+                'moneda_pago'        => $monedaPago,
+                'tipo_cambio'        => $tipoCambio,
+                'fecha_pago'         => $request->fecha_pago,
+                'metodo_pago'        => $request->metodo_pago,
+                'codigo_seguimiento' => $codigoLote,
+                'cuenta_origen_id'   => $request->cuenta_origen_id,
+                'cuenta_destino_id'  => $ctaDestId ?: null,
+                'receptor_type'      => $receptorType,
+                'receptor_id'        => $receptorId,
+                'observaciones'      => $request->observaciones ?: null,
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
+            ]);
+
+            Movimiento::create([
+                'lote_pago_id'       => $lote->id,
+                'cuenta_empresa_id'  => $request->cuenta_origen_id,
+                'tipo'               => 'egreso',
+                'categoria'          => 'pago_camion',
+                'monto'              => $saldo,
+                'moneda'             => $monedaPago,
+                'tipo_cambio'        => $tipoCambio,
+                'monto_bolivianos'   => $saldo * $tipoCambio,
+                'fecha'              => $request->fecha_pago,
+                'concepto'           => 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')',
+                'codigo_seguimiento' => $codigoLote,
+                'observaciones'      => $request->observaciones ?: null,
+                'origen_type'        => PagoCamion::class,
+                'origen_id'          => $pago->id,
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
+            ]);
+
+            $lineas[] = [
+                'proveedor'     => $proveedor,
+                'camion'        => $placa,
+                'contrato'      => $contrato,
+                'cuenta_destino'=> $ctaDestLabel,
+                'monto'         => $monedaPago . ' ' . number_format($saldo, 2),
+            ];
+        }
+
+        session()->flash('pago_masivo_camion_resumen', [
+            'codigo' => $codigoLote,
+            'metodo' => $request->metodo_pago,
+            'lineas' => $lineas,
+        ]);
+
+        Alert::success('Éxito', 'Pago masivo de camiones registrado correctamente.');
+        return redirect()->route('pagos.camiones.pago_masivo');
+    }
+
 }

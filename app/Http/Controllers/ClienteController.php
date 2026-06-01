@@ -18,15 +18,15 @@ class ClienteController extends Controller
     }
 
     public function index()
-    {        
-        $clientes = Cliente::with('contacts')->whereNull('deleted_at')->orderby('created_at','desc')->get();
+    {
+        $clientes = Cliente::with(['contacts', 'pais'])->whereNull('deleted_at')->orderby('created_at','desc')->get();
         $paises = Parametro::where('tipo','paises')->get();
         return view('clientes.index',compact('clientes','paises'));
     }
-      
+
  public function create()
 {
-    $clientes = Cliente::with('contacts')->get();
+    $clientes = Cliente::with(['contacts', 'pais'])->get();
     $paises = Parametro::where('tipo','paises')->get();
     return view('clientes.index', ['clientes' => $clientes,'paises' => $paises,'abrirModal' => 'create']);
 }
@@ -68,15 +68,15 @@ public function store(ClienteRequest $request)
  
     public function edit($uuid)
     {
-        $cliente=Cliente::with('contacts')->where('uuid',$uuid)->firstOrFail();
-        $clientes = Cliente::with('contacts')->get();
+        $cliente=Cliente::with(['contacts', 'pais'])->where('uuid',$uuid)->firstOrFail();
+        $clientes = Cliente::with(['contacts', 'pais'])->get();
         $paises=Parametro::where('tipo','paises')->get();
-        return view('clientes.index', ['clientes' => $clientes,'paises' => $paises,'abrirModal' => 'edit','clienteEditar' => $cliente]);    
+        return view('clientes.index', ['clientes' => $clientes,'paises' => $paises,'abrirModal' => 'edit','clienteEditar' => $cliente]);
     }
 
     public function update(ClienteRequest $request, Cliente $cliente)
     {
-        $cliente->update($request->only(['nombre','nit','pais','email']));
+        $cliente->update($request->only(['nombre','nit','pais_id','email']));
         $ids = [];
         foreach ($request->telefonos ?? [] as $tel) {
             if (!$tel) continue;

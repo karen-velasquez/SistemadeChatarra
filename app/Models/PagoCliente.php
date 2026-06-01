@@ -6,6 +6,7 @@ use Illuminate\Support\Str;
 use Wildside\Userstamps\Userstamps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\CuentaEmpresa;
 
 class PagoCliente extends Model
 {
@@ -53,7 +54,7 @@ class PagoCliente extends Model
 
     public function cuentaDestino()
     {
-        return $this->belongsTo(CuentaBancaria::class, 'cuenta_destino_id');
+        return $this->belongsTo(CuentaEmpresa::class, 'cuenta_destino_id');
     }
 
     public function getTipoPagoLabelAttribute(): string

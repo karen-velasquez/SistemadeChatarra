@@ -148,15 +148,19 @@
                                     </div>
                                 </td>
                                 <td class="text-center">
+                                    @can('pagos_proveedores.index')
                                     <button class="btn btn-sm btn-outline-primary"
                                         onclick="verDetalle({{ $c->id }})" title="Ver pagos">
                                         <i class="bi bi-eye"></i>
                                     </button>
+                                    @endcan
+                                    @can('pagos_proveedores.create')
                                     <button class="btn btn-sm btn-outline-success"
                                         onclick="abrirModalPago({{ $c->id }}, '{{ addslashes($c->numero_contrato) }} — {{ addslashes($c->proveedor->nombre ?? '') }}', {{ $saldo }}, '{{ $mon }}', {{ $c->proveedor_id ?? 'null' }})"
                                         title="Registrar pago">
                                         <i class="bi bi-plus-circle"></i>
                                     </button>
+                                    @endcan
                                 </td>
                             </tr>
                             @endforeach
@@ -301,18 +305,21 @@
                                 placeholder="Ej: TRX-20260512-001">
                         </div>
 
-                        {{-- Cuenta origen (empleado) --}}
+                        {{-- Cuenta origen (tesorería empresa) --}}
                         <div class="col-md-6">
-                            <label class="form-label">Cuenta Origen (Empleado)</label>
+                            <label class="form-label">Cuenta Origen (Tesorería)</label>
                             <select class="form-select" name="cuenta_origen_id">
                                 <option value="">-- Efectivo / Sin cuenta --</option>
-                                @foreach($cuentasEmpresa as $cta)
-                                    <option value="{{ $cta->id }}">
-                                        {{ $cta->titular?->nombre_completo ?? '—' }} —
-                                        {{ $cta->banco->nombre }} {{ $cta->numero_cuenta }}
-                                        @if($cta->alias) ({{ $cta->alias }}) @endif
-                                        [{{ $cta->moneda }}]
-                                    </option>
+                                @foreach($empresas as $empresa)
+                                    <optgroup label="{{ $empresa->nombre }}">
+                                        @foreach($empresa->cuentas as $cta)
+                                            <option value="{{ $cta->id }}">
+                                                {{ $cta->nombre_cuenta }}
+                                                @if($cta->banco) — {{ $cta->banco }} @endif
+                                                [{{ $cta->moneda }}]
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                         </div>
@@ -431,6 +438,10 @@
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script>
+// Permisos del usuario
+const canEditPago = {{ auth()->user()->can('pagos_proveedores.edit') ? 'true' : 'false' }};
+const canDeletePago = {{ auth()->user()->can('pagos_proveedores.destroy') ? 'true' : 'false' }};
+
 function filtrarPorProveedor(proveedorId) {
     const filas = document.querySelectorAll('#tabla_pagos_prov tbody tr');
     let visibles = 0;
@@ -661,16 +672,16 @@ function verDetalle(contratoId) {
                                 ${destLine}
                             </div>
                             <div class="d-flex flex-column gap-1">
-                                <button class="btn btn-sm btn-outline-primary border-0"
+                                ${canEditPago ? `<button class="btn btn-sm btn-outline-primary border-0"
                                     onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo_raw}',${p.monto},'${p.moneda_pago}',${p.tipo_cambio},'${p.fecha_raw}','${p.metodo_raw}','${p.codigo||''}')"
                                     title="Editar">
                                     <i class="bi bi-pencil"></i>
-                                </button>
-                                <a href="/pagos/proveedores/${p.uuid}/destroy"
+                                </button>` : ''}
+                                ${canDeletePago ? `<a href="/pagos/proveedores/${p.uuid}/destroy"
                                    class="btn btn-sm btn-outline-danger border-0"
                                    onclick="return confirm('¿Eliminar este pago?')" title="Eliminar">
                                    <i class="bi bi-trash"></i>
-                                </a>
+                                </a>` : ''}
                             </div>
                         </div>
                     </div>`;

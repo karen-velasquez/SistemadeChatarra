@@ -50,7 +50,7 @@
                                 <tr>
                                     <td>{{ $c->nombre }}</td>
                                     <td>{{ $c->nit }}</td>
-                                    <td>{{ $c->pais }}</td>
+                                    <td>{{ $c->pais->valor ?? '-' }}</td>
                                     <td>
                                         @forelse($c->contacts->where('tipo','telefono') as $index => $contacto)
                                             <span class="badge bg-primary">{{ $contacto->valor }}</span><br>
@@ -117,7 +117,7 @@ function editarCliente(cliente) {
     document.getElementById('formCliente').action = baseUrl + '/clientes/' + cliente.id;
     document.getElementById('cli_nombre').value = cliente.nombre ?? '';
     document.getElementById('cli_nit').value = cliente.nit ?? '';
-    document.getElementById('cli_pais').value = cliente.pais ?? '';
+    document.getElementById('cli_pais_id').value = cliente.pais_id ?? '';
     document.getElementById('cli_email').value = cliente.email ?? '';
     const telContainer = document.getElementById('telefonos-container');
     const dirContainer = document.getElementById('direcciones-container');

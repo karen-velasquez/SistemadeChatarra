@@ -19,9 +19,9 @@ class ProveedorController extends Controller
     }
 
     public function index()
-    {   
-        $paises=Parametro::where('tipo','paises')->get();      
-        $proveedores = Proveedor::with('contacts')->whereNull('deleted_at')->orderby('created_at','desc')->get();     
+    {
+        $paises=Parametro::where('tipo','paises')->get();
+        $proveedores = Proveedor::with(['contacts', 'pais'])->whereNull('deleted_at')->orderby('created_at','desc')->get();
         return view('proveedores.index',compact('proveedores','paises'));
     }
       
@@ -78,7 +78,7 @@ class ProveedorController extends Controller
 
     public function update(ProveedorRequest $request, Proveedor $proveedor)
         {
-        $proveedor->update($request->only(['nombre','nit','pais','email','tipo_producto']));
+        $proveedor->update($request->only(['nombre','nit','pais_id','email','tipo_producto']));
         $ids = [];
         foreach ($request->telefonos ?? [] as $tel) {
             if (!$tel) continue;

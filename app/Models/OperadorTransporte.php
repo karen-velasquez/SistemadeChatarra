@@ -18,15 +18,16 @@ class OperadorTransporte extends Model implements Auditable
 
     protected $fillable = [
         'nombre',
-        'apellido',
+        'apellido_paterno',
+        'apellido_materno',
         'ci',
-        'ci_pais',
+        'ci_pais_id',
         'telefono',
         'email',
         'direccion',
         'tipo_operador',
         'licencia_numero',
-        'licencia_pais',
+        'licencia_pais_id',
         'licencia_vencimiento',
         'estado',
         'doc_carnet',
@@ -46,6 +47,16 @@ class OperadorTransporte extends Model implements Auditable
         static::creating(function ($model) {
             $model->uuid = Str::uuid()->toString();
         });
+    }
+
+    public function ciPais()
+    {
+        return $this->belongsTo(Parametro::class, 'ci_pais_id');
+    }
+
+    public function licenciaPais()
+    {
+        return $this->belongsTo(Parametro::class, 'licencia_pais_id');
     }
 
     // Camiones de los que es propietario
@@ -75,6 +86,7 @@ class OperadorTransporte extends Model implements Auditable
     // Nombre completo
     public function getNombreCompletoAttribute(): string
     {
-        return $this->nombre . ' ' . $this->apellido;
+        $apellidos = trim($this->apellido_paterno . ' ' . ($this->apellido_materno ?? ''));
+        return $this->nombre . ' ' . $apellidos;
     }
 }

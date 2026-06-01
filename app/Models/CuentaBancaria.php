@@ -15,7 +15,9 @@ class CuentaBancaria extends Model
 
     protected $fillable = [
         'banco_id', 'tipo_titular', 'titular_id', 'titular_type',
-        'numero_cuenta', 'moneda', 'alias', 'nombre_titular_cuenta', 'tipo_relacion', 'activo',
+        'numero_cuenta', 'moneda', 'alias',
+        'nombre_titular', 'apellido_paterno_titular', 'apellido_materno_titular',
+        'nro_documento', 'email_notificacion', 'sucursal_departamento', 'tipo_relacion', 'activo',
         'created_by', 'updated_by',
     ];
 
@@ -40,13 +42,44 @@ class CuentaBancaria extends Model
         return $this->morphTo();
     }
 
-    public function getNombreTitularAttribute(): string
+    public function getNombreTitularDisplayAttribute(): string
     {
+        $nombreManual = $this->attributes['nombre_titular'] ?? null;
+
+        if ($nombreManual) {
+            $ap = trim(($this->attributes['apellido_paterno_titular'] ?? '') . ' ' . ($this->attributes['apellido_materno_titular'] ?? ''));
+            return trim($nombreManual . ' ' . $ap);
+        }
+
         return match($this->tipo_titular) {
             'proveedor' => $this->titular?->nombre ?? '—',
             'operador'  => $this->titular?->nombre_completo ?? '—',
             'empleado'  => $this->titular?->nombre_completo ?? '—',
             'cliente'   => $this->titular?->nombre ?? '—',
+            default     => '—',
+        };
+    }
+
+    // Formato para Excel: APELLIDO_PATERNO APELLIDO_MATERNO NOMBRE
+    public function getNombreTitularExcelAttribute(): string
+    {
+        $nombreManual = $this->attributes['nombre_titular'] ?? null;
+
+        if ($nombreManual) {
+            return trim(
+                ($this->attributes['apellido_paterno_titular'] ?? '') . ' ' .
+                ($this->attributes['apellido_materno_titular'] ?? '') . ' ' .
+                $nombreManual
+            );
+        }
+
+        $t = $this->titular;
+        return match($this->tipo_titular) {
+            'operador', 'empleado' => $t
+                ? trim(($t->apellido_paterno ?? '') . ' ' . ($t->apellido_materno ?? '') . ' ' . ($t->nombre ?? ''))
+                : '—',
+            'proveedor' => $t?->nombre ?? '—',
+            'cliente'   => $t?->nombre ?? '—',
             default     => '—',
         };
     }

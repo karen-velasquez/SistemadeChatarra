@@ -104,7 +104,7 @@
 
 {{-- PESOS --}}
 @php
-    $esParcial    = $tramo->estado === 'Entrega Parcial';
+    $esParcial    = $tramo->estado === 'Div. Carga';
     $tramoHijo    = $esParcial ? $tramo->tramosHijos()->orderBy('id')->first() : null;
     $totalLlego   = $esParcial
         ? round((float)$tramo->peso_llegada + (float)optional($tramoHijo)->peso_salida, 3)
@@ -160,7 +160,7 @@
             <div class="section-title">Datos del Camión</div>
             <table class="info">
                 <tr><td class="label">Placa:</td><td>{{ $tramo->camion->placa }}</td></tr>
-                <tr><td class="label">Marca / Modelo:</td><td>{{ $tramo->camion->marca }} {{ $tramo->camion->modelo }}</td></tr>
+                <tr><td class="label">Marca / Modelo:</td><td>{{ $tramo->camion->marca->valor ?? '-' }} {{ $tramo->camion->modelo }}</td></tr>
                 @if($tramo->camion->color)
                 <tr><td class="label">Color:</td><td>{{ $tramo->camion->color }}</td></tr>
                 @endif
@@ -217,7 +217,7 @@
             <td class="label">Estado:</td>
             <td colspan="3">
                 @if($esParcial)
-                    <span class="badge badge-info">Entrega Parcial</span>
+                    <span class="badge badge-info">Div. Carga</span>
                 @else
                     <span class="badge badge-success">Entregado</span>
                 @endif

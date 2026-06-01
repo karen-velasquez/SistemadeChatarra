@@ -12,9 +12,6 @@
             </ol>
             </nav>
         </div>
-        @can('permisos.create')
-            <a href="{{route('permisos.create')}}" class="btn btn-primary" title="Crea un nuevo rol con sus permisos">Agregar Nuevo</a>
-        @endcan
     </div>
  </div>
         
@@ -24,19 +21,21 @@
             <div class="card">
                 <div class="card-body">
                 <h5 class="card-title">Permisos Registrados</h5>
-                <p class="text-muted small mb-3">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Los permisos son las acciones específicas que se pueden habilitar o restringir dentro del sistema (ver, crear, editar, eliminar).
-                    Se agrupan por módulo y se asignan a los roles para controlar con precisión el acceso de cada usuario.
-                </p>
+                <div class="alert alert-info border-0 d-flex align-items-start gap-2 py-2 px-3 mb-3">
+                    <i class="bi bi-info-circle-fill mt-1"></i>
+                    <div class="small">
+                        <strong>Vista de solo lectura.</strong> Los permisos son las acciones específicas que se pueden habilitar o restringir dentro del sistema (ver, crear, editar, eliminar).
+                        Se agrupan por módulo y se asignan a los roles para controlar con precisión el acceso de cada usuario.
+                        <br><strong>Nota:</strong> Los permisos son administrados directamente en la base de datos por el equipo de desarrollo.
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover table-bordered table-sm">
-                        <thead >
+                        <thead class="table-light">
                             <tr>
                                 <th class="text-center">Nombre del acceso o ruta</th>
                                 <th class="text-center">Descripción</th>
                                 <th class="text-center">Grupo</th>
-                                <th class="text-center">Opciones</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -44,19 +43,8 @@
                                 <tr>
                                     <td class="fw-bold">{{ $p->name }}</td>
                                     <td class="text-center">{{ $p->descripcion }}</td>
-                                    <td class="text-center">{{$p->grupo}}</td>
                                     <td class="text-center">
-                                      <div class="btn-group">
-                                            <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>
-                                            <ul class="dropdown-menu">
-                                                @can('proveedores.edit')
-                                                <li><a class="dropdown-item" href="{{ route('permisos.edit',$p->id) }}"> <i class="bi bi-pencil"></i> Modificar</a></li>
-                                                @endcan
-                                                @can('proveedores.destroy')
-                                                <li><a class="dropdown-item text-danger" href="{{ route('proveedores.destroy', $p->id) }}" onclick="return confirm('¿Eliminar este cliente?')"><i class="bi bi-trash"></i> Eliminar</a></li>
-                                                @endcan
-                                            </ul>
-                                        </div>
+                                        <span class="badge bg-primary">{{$p->grupo}}</span>
                                     </td>
                                 </tr>
                                 @endforeach

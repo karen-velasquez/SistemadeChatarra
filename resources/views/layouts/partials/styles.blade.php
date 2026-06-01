@@ -17,5 +17,5 @@
 <link href="{{ asset('assets/vendor/select2/select2.min.css') }}" rel="stylesheet">
 
 <!-- Template Main CSS File -->
-<link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
+<link href="{{ asset('assets/css/style.css') }}?v={{ filemtime(public_path('assets/css/style.css')) }}" rel="stylesheet">
 <link href="{{ asset('assets/vendor/datatables/datatables.min.css')}}" rel="stylesheet">

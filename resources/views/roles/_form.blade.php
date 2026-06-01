@@ -7,7 +7,7 @@
             <div class="row mb-1">
                 <div class="col-lg-12 col-md-12 col-xs-12">
                     <label for="name" class="">Nombre rol<span class="text-danger text-bold">(*)</span></label>
-                    <input type="text" class="form-control @error('name') error @enderror" name="name" id="name" value="{{ old('name',$role->name) }}">
+                    <input type="text" class="form-control text-uppercase @error('name') error @enderror" name="name" id="name" value="{{ old('name',$role->name) }}" oninput="this.value = this.value.toUpperCase()">
                     @error('name')
                         <label class="error">{{ $message }}</label>
                     @enderror

@@ -28,6 +28,8 @@ class Contrato extends Model implements Auditable
         'monto_total',
         'moneda',
         'estado',
+        'envios_cerrados',
+        'envios_cerrados_at',
         'documento_pdf',
         'created_by',
         'updated_by',
@@ -35,10 +37,12 @@ class Contrato extends Model implements Auditable
     ];
 
     protected $casts = [
-        'fecha_inicio'       => 'date',
-        'fecha_fin'          => 'date',
-        'monto_total'        => 'decimal:2',
-        'toneladas_contrato' => 'decimal:3',
+        'fecha_inicio'        => 'date',
+        'fecha_fin'           => 'date',
+        'monto_total'         => 'decimal:2',
+        'toneladas_contrato'  => 'decimal:3',
+        'envios_cerrados'     => 'boolean',
+        'envios_cerrados_at'  => 'datetime',
     ];
 
     protected static function boot()
@@ -112,6 +116,18 @@ class Contrato extends Model implements Auditable
         return (float) $this->contratoCamiones()->sum('toneladas');
     }
 
+    // Toneladas declaradas por el proveedor (suma peso_salida de tramos raíz — camiones padre)
+    public function getToneladasDeclaradasAttribute(): float
+    {
+        $total = 0;
+        foreach ($this->contratoCamiones as $cc) {
+            $total += $cc->tramos()
+                ->whereDoesntHave('tramoPadre')
+                ->sum('peso_salida');
+        }
+        return (float) $total;
+    }
+
     // Toneladas realmente entregadas al cliente (suma peso_llegada de tramos finales Entregado)
     public function getToneladasEntregadasAttribute(): float
     {
@@ -119,7 +135,7 @@ class Contrato extends Model implements Auditable
         foreach ($this->contratoCamiones as $cc) {
             $total += $cc->tramos()
                 ->whereDoesntHave('tramosHijos')
-                ->whereIn('estado', ['Entregado', 'Entrega Parcial'])
+                ->where('estado', 'Entregado')
                 ->sum('peso_llegada');
         }
         return (float) $total;
@@ -143,6 +159,13 @@ class Contrato extends Model implements Auditable
     {
         if (!$this->toneladas_contrato || $this->toneladas_contrato == 0) return 0;
         return min(100, round(($this->toneladas_entregadas / $this->toneladas_contrato) * 100, 1));
+    }
+
+    // Diferencia entre toneladas declaradas por el proveedor y las llegadas al cliente
+    // Negativo = merma (proveedor debe), Positivo = excedente
+    public function getDiferenciaLiquidacionAttribute(): float
+    {
+        return round($this->toneladas_entregadas - $this->toneladas_declaradas, 3);
     }
 
     // Clientes únicos a los que se entregó carga en este contrato
