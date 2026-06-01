@@ -99,7 +99,6 @@ class ParametrosTableSeeder extends Seeder
         Parametro::create(['tipo' => 'camion_marca', 'descripcion' => 'Ford', 'valor' => 'FORD']);
         Parametro::create(['tipo' => 'camion_marca', 'descripcion' => 'Chevrolet', 'valor' => 'CHEVROLET']);
         Parametro::create(['tipo' => 'camion_marca', 'descripcion' => 'JAC', 'valor' => 'JAC']);
-        Parametro::create(['tipo' => 'camion_marca', 'descripcion' => 'Otro', 'valor' => 'OTRO']);
 
         // Tipos de Vehículo (Camiones)
         Parametro::create(['tipo' => 'camion_tipo', 'descripcion' => 'Camión Tracto', 'valor' => 'TRACTO']);

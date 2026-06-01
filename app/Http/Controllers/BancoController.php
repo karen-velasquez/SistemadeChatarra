@@ -140,7 +140,10 @@ class BancoController extends Controller
 
         // Verificar si el banco es de Bolivia
         $banco = Banco::with('pais')->find($request->banco_id);
-        $sucursalDepartamento = ($banco && $banco->pais && $banco->pais->valor === 'BOLIVIA') ? $request->sucursal_departamento : null;
+        $sucursalDepartamento = null;
+        if ($banco && $banco->pais) {
+            $sucursalDepartamento = ($banco->pais->valor === 'BOLIVIA') ? $request->sucursal_departamento : null;
+        }
 
         // Generar alias automáticamente si no se proporciona
         $alias = $request->alias;
@@ -256,7 +259,10 @@ class BancoController extends Controller
 
         // Verificar si el banco es de Bolivia
         $banco = Banco::with('pais')->find($request->banco_id);
-        $sucursalDepartamento = ($banco && $banco->pais && $banco->pais->valor === 'BOLIVIA') ? $request->sucursal_departamento : null;
+        $sucursalDepartamento = null;
+        if ($banco && $banco->pais) {
+            $sucursalDepartamento = ($banco->pais->valor === 'BOLIVIA') ? $request->sucursal_departamento : null;
+        }
 
         // Generar alias automáticamente si no se proporciona
         $alias = $request->alias;

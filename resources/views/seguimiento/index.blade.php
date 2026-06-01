@@ -154,7 +154,7 @@
                                     </td>
                                     <td>
                                         <strong>{{ $t->camion->placa }}</strong>
-                                        <small class="text-muted d-block">{{ $t->camion->marca }} {{ $t->camion->modelo }}</small>
+                                        <small class="text-muted d-block">{{ $t->camion->marca->valor ?? '-' }} {{ $t->camion->modelo }}</small>
                                     </td>
                                     <td>
                                         @if($t->conductor)
@@ -207,7 +207,7 @@
                                                 </li>
                                                 @if($t->contratoCamion->monto_acordado)
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $t->contratoCamion->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}',{{ $t->contratoCamion->saldo_pendiente }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $t->contratoCamion->camion->propietario_id ?? 'null' }},'{{ addslashes($t->contratoCamion->camion->propietario?->nombre_completo ?? '') }}')">
+                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $t->contratoCamion->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}',{{ $t->contratoCamion->saldo_pendiente }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $t->contratoCamion->camion->propietario_id ?? 'null' }},'{{ addslashes($t->contratoCamion->camion->propietario?->nombre_completo ?? '') }}')">
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
@@ -229,7 +229,7 @@
                                                 @endcan
                                                 @can('pagos_camiones.index')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}')">
                                                         <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
                                                     </button>
                                                 </li>
@@ -284,7 +284,7 @@
                                     </td>
                                     <td>
                                         <strong>{{ $t->camion->placa }}</strong>
-                                        <small class="text-muted d-block">{{ $t->camion->marca }} {{ $t->camion->modelo }}</small>
+                                        <small class="text-muted d-block">{{ $t->camion->marca->valor ?? '-' }} {{ $t->camion->modelo }}</small>
                                     </td>
                                     <td>
                                         @if($t->conductor)
@@ -343,7 +343,7 @@
                                                 @endif
                                                 @if($t->contratoCamion->monto_acordado)
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $t->contratoCamion->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}',{{ $t->contratoCamion->saldo_pendiente }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $t->contratoCamion->camion->propietario_id ?? 'null' }},'{{ addslashes($t->contratoCamion->camion->propietario?->nombre_completo ?? '') }}')">
+                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $t->contratoCamion->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}',{{ $t->contratoCamion->saldo_pendiente }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $t->contratoCamion->camion->propietario_id ?? 'null' }},'{{ addslashes($t->contratoCamion->camion->propietario?->nombre_completo ?? '') }}')">
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
@@ -365,7 +365,7 @@
                                                 @endcan
                                                 @can('pagos_camiones.index')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}')">
                                                         <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
                                                     </button>
                                                 </li>
@@ -416,7 +416,7 @@
                                     </td>
                                     <td>
                                         <strong>{{ $t->camion->placa }}</strong>
-                                        <small class="text-muted d-block">{{ $t->camion->marca }} {{ $t->camion->modelo }}</small>
+                                        <small class="text-muted d-block">{{ $t->camion->marca->valor ?? '-' }} {{ $t->camion->modelo }}</small>
                                     </td>
                                     <td>
                                         @if($t->conductor)
@@ -463,7 +463,7 @@
                                                 @can('contratos.edit')
                                                 @if($t->contratoCamion->monto_acordado)
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $t->contratoCamion->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}',{{ $t->contratoCamion->saldo_pendiente }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $t->contratoCamion->camion->propietario_id ?? 'null' }},'{{ addslashes($t->contratoCamion->camion->propietario?->nombre_completo ?? '') }}')">
+                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $t->contratoCamion->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}',{{ $t->contratoCamion->saldo_pendiente }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $t->contratoCamion->camion->propietario_id ?? 'null' }},'{{ addslashes($t->contratoCamion->camion->propietario?->nombre_completo ?? '') }}')">
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
@@ -490,7 +490,7 @@
                                                 @endcan
                                                 @can('pagos_camiones.index')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}')">
                                                         <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
                                                     </button>
                                                 </li>
@@ -545,7 +545,7 @@
                                     </td>
                                     <td>
                                         <strong>{{ $t->camion->placa }}</strong>
-                                        <small class="text-muted d-block">{{ $t->camion->marca }} {{ $t->camion->modelo }}</small>
+                                        <small class="text-muted d-block">{{ $t->camion->marca->valor ?? '-' }} {{ $t->camion->modelo }}</small>
                                     </td>
                                     <td>{{ $t->conductor?->nombre_completo ?? '—' }}</td>
                                     <td>
@@ -599,7 +599,7 @@
                                                 @if($cc->monto_acordado)
                                                 @if($cc->saldo_pendiente > 0)
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $cc->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}',{{ $cc->saldo_pendiente }},'{{ $cc->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $cc->camion->propietario_id ?? 'null' }},'{{ addslashes($cc->camion->propietario?->nombre_completo ?? '') }}')">
+                                                    <button class="dropdown-item" onclick="abrirModalPagoSeg({{ $cc->id }},'{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}',{{ $cc->saldo_pendiente }},'{{ $cc->moneda_flete ?? 'BOB' }}',{{ $t->conductor_id ?? 'null' }},'{{ addslashes($t->conductor?->nombre_completo ?? '') }}',{{ $cc->camion->propietario_id ?? 'null' }},'{{ addslashes($cc->camion->propietario?->nombre_completo ?? '') }}')">
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
@@ -631,7 +631,7 @@
                                                 @endcan
                                                 @can('pagos_camiones.index')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca) }}')">
+                                                    <button class="dropdown-item" onclick="abrirHistorialPagos({{ $t->contratoCamion->id }}, '{{ addslashes($t->camion->placa) }} — {{ addslashes($t->camion->marca->valor ?? '-') }}')">
                                                         <i class="bi bi-clock-history text-secondary me-2"></i> Ver historial de pagos
                                                     </button>
                                                 </li>
@@ -1113,7 +1113,7 @@
                                 <option value="">-- Seleccione --</option>
                                 @foreach($camionesDisponibles as $cam)
                                     <option value="{{ $cam->id }}" data-uuid="{{ $cam->uuid }}">
-                                        {{ $cam->placa }} — {{ $cam->marca }} {{ $cam->modelo }}
+                                        {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }}
                                     </option>
                                 @endforeach
                             </select>

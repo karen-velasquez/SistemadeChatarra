@@ -210,7 +210,7 @@
                                             <option value="">-- Busque por placa o marca --</option>
                                             @foreach($camionesDisponibles as $cam)
                                                 <option value="{{ $cam->id }}" data-uuid="{{ $cam->uuid }}" data-capacidad="{{ $cam->capacidad_kg }}">
-                                                    {{ $cam->placa }} — {{ $cam->marca }} {{ $cam->modelo }} ({{ number_format($cam->capacidad_kg / 1000, 3) }} t cap.)
+                                                    {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }} ({{ number_format($cam->capacidad_kg / 1000, 3) }} t cap.)
                                                 </option>
                                             @endforeach
                                         </select>
@@ -529,7 +529,7 @@
                                 <option value="">-- Seleccione --</option>
                                 @foreach($camionesDisponibles as $cam)
                                     <option value="{{ $cam->id }}" data-uuid="{{ $cam->uuid }}">
-                                        {{ $cam->placa }} — {{ $cam->marca }} {{ $cam->modelo }}
+                                        {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }}
                                     </option>
                                 @endforeach
                             </select>

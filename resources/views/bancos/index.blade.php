@@ -312,7 +312,7 @@
                             <select class="form-select" name="banco_id" id="sel_banco_cuenta" required disabled onchange="cambiarBancoCuenta(this)">
                                 <option value="">-- Seleccione --</option>
                                 @foreach($bancos as $b)
-                                    <option value="{{ $b->id }}" data-pais="{{ $b->pais }}">{{ $b->nombre }} ({{ $b->pais }})</option>
+                                    <option value="{{ $b->id }}" data-pais="{{ $b->pais->valor ?? '' }}">{{ $b->nombre }} ({{ $b->pais->valor ?? '-' }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -742,7 +742,7 @@ function cambiarBancoCuenta(sel) {
     const opt = sel.options[sel.selectedIndex];
     const pais = opt ? opt.dataset.pais : '';
     const selSucursal = document.getElementById('sel_sucursal');
-    if (pais === 'Bolivia') {
+    if (pais.toUpperCase() === 'BOLIVIA') {
         selSucursal.disabled = false;
         selSucursal.required = true;
     } else {

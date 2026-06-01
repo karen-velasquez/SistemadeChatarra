@@ -13,11 +13,6 @@
                 </ol>
             </nav>
         </div>
-        @can('parametros.create')
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalParametro" onclick="resetModal()">
-            <i class="bi bi-plus-lg"></i> Nuevo Parámetro
-        </button>
-        @endcan
     </div>
 </div>
 
@@ -29,6 +24,10 @@
                 <i class="bi bi-sliders me-1"></i>
                 Configuración de valores parametrizables del sistema organizados por tipo. Los parámetros permiten gestionar catálogos como cargos de empleados, lugares, países, sucursales bancarias, entre otros. Los parámetros en uso no pueden ser eliminados para mantener la integridad de los datos.
             </p>
+            <div class="alert alert-info border-0 mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Nota:</strong> Los parámetros del sistema son gestionados desde los seeders y la base de datos. Solo puede editar la descripción de parámetros existentes. Para agregar nuevos tipos o valores, contacte al administrador del sistema.
+            </div>
             <div class="row g-2">
                 <div class="col-md-4">
                     <div class="d-flex align-items-center">
@@ -85,9 +84,9 @@
                         <tr>
                             <th>Valor</th>
                             <th>Descripción</th>
-                            @canany(['parametros.edit','parametros.destroy'])
-                            <th class="text-center" style="width:100px">Acciones</th>
-                            @endcanany
+                            @can('parametros.edit')
+                            <th class="text-center" style="width:80px">Acciones</th>
+                            @endcan
                         </tr>
                     </thead>
                     <tbody>
@@ -105,31 +104,14 @@
                                 @endif
                             </td>
                             <td>{{ $p->descripcion ?? '—' }}</td>
-                            @canany(['parametros.edit','parametros.destroy'])
+                            @can('parametros.edit')
                             <td class="text-center">
-                                @can('parametros.edit')
                                 <button class="btn btn-sm btn-outline-secondary"
                                         onclick="editarParametro('{{ $p->uuid }}')">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                @endcan
-                                @can('parametros.destroy')
-                                @if($verificacion['enUso'])
-                                    <button class="btn btn-sm btn-secondary" disabled
-                                            title="{{ $verificacion['mensaje'] }}"
-                                            style="opacity: 0.5; cursor: not-allowed;">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                @else
-                                    <a href="{{ route('parametros.destroy', $p->uuid) }}"
-                                       class="btn btn-sm btn-outline-danger"
-                                       onclick="return confirm('¿Eliminar este parámetro?')">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
-                                @endif
-                                @endcan
                             </td>
-                            @endcanany
+                            @endcan
                         </tr>
                         @endforeach
                     </tbody>
@@ -146,53 +128,40 @@
     @endforelse
 </section>
 
-{{-- MODAL PARÁMETRO --}}
+{{-- MODAL EDITAR DESCRIPCIÓN --}}
 <div class="modal fade" id="modalParametro" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-sliders"></i> <span id="tituloModal">Nuevo Parámetro</span></h5>
+                <h5 class="modal-title"><i class="bi bi-sliders"></i> Editar Descripción del Parámetro</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="formParametro" method="POST" action="{{ route('parametros.store') }}">
+            <form id="formParametro" method="POST">
                 @csrf
-                <input type="hidden" name="_method" id="methodParametro" value="POST">
+                @method('PUT')
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label">Tipo / Grupo <span class="text-danger">(*)</span></label>
-                            <select name="tipo" id="tipo" class="form-select" required onchange="toggleNuevoTipo(); validarFormularioParametro()">
-                                <option value="">-- Seleccione un tipo --</option>
-                                @foreach($tipos as $t)
-                                    <option value="{{ $t }}">{{ $t }}</option>
-                                @endforeach
-                                <option value="__NUEVO__">+ Crear nuevo tipo</option>
-                            </select>
-                            <input type="text" name="tipo_nuevo" id="tipo_nuevo"
-                                   class="form-control mt-2"
-                                   style="display: none; text-transform: lowercase;"
-                                   placeholder="Ej: cargo_vendedores, tipo_documentos"
-                                   oninput="this.value = this.value.toLowerCase().replace(/\s+/g, '_'); validarFormularioParametro()">
-                            <div class="form-text">Categoría a la que pertenece este parámetro.</div>
+                            <label class="form-label">Tipo / Grupo</label>
+                            <input type="text" id="tipo" class="form-control" disabled>
+                            <div class="form-text">El tipo no puede ser modificado.</div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Valor <span class="text-danger">(*)</span></label>
-                            <input type="text" name="valor" id="valor" class="form-control text-uppercase"
-                                   required placeholder="Ej: ADMINISTRADOR, CONTADOR"
-                                   oninput="this.value = this.value.toUpperCase(); validarFormularioParametro()">
-                            <div class="form-text">Nombre o valor principal del parámetro.</div>
+                            <label class="form-label">Valor</label>
+                            <input type="text" id="valor" class="form-control" disabled>
+                            <div class="form-text">El valor no puede ser modificado.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Descripción</label>
                             <input type="text" name="descripcion" id="descripcion" class="form-control"
                                    placeholder="Información adicional (opcional)">
-                            <div class="form-text">Detalles adicionales sobre este parámetro.</div>
+                            <div class="form-text">Puede actualizar la descripción del parámetro.</div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnGuardar" disabled>Registrar</button>
+                    <button type="submit" class="btn btn-primary">Actualizar</button>
                 </div>
             </form>
         </div>
@@ -217,92 +186,20 @@
 }
 </style>
 <script>
-function resetModal() {
-    document.getElementById('tituloModal').innerText   = 'Nuevo Parámetro';
-    document.getElementById('btnGuardar').innerText    = 'Registrar';
-    document.getElementById('methodParametro').value   = 'POST';
-    document.getElementById('formParametro').action    = '{{ route("parametros.store") }}';
-    document.getElementById('formParametro').reset();
-    document.getElementById('tipo_nuevo').style.display = 'none';
-    document.getElementById('tipo_nuevo').removeAttribute('required');
-    document.getElementById('btnGuardar').disabled = true;
-}
-
-function validarFormularioParametro() {
-    const tipoSelect = document.getElementById('tipo');
-    const tipoNuevo = document.getElementById('tipo_nuevo');
-    const valor = document.getElementById('valor');
-    const btnGuardar = document.getElementById('btnGuardar');
-
-    let tipoValido = false;
-
-    // Verificar si seleccionó un tipo existente o está creando uno nuevo
-    if (tipoSelect.value === '__NUEVO__') {
-        tipoValido = tipoNuevo.value.trim() !== '';
-    } else {
-        tipoValido = tipoSelect.value !== '';
-    }
-
-    // El formulario es válido si tiene tipo Y valor
-    const formularioValido = tipoValido && valor.value.trim() !== '';
-
-    btnGuardar.disabled = !formularioValido;
-}
-
 function editarParametro(uuid) {
     fetch('/parametros/' + uuid + '/edit')
         .then(r => r.json())
         .then(p => {
-            document.getElementById('tituloModal').innerText  = 'Editar Parámetro';
-            document.getElementById('btnGuardar').innerText   = 'Actualizar';
-            document.getElementById('methodParametro').value  = 'PUT';
-            document.getElementById('formParametro').action   = '/parametros/' + uuid;
-            document.getElementById('tipo').value             = p.tipo ?? '';
-            document.getElementById('descripcion').value      = p.descripcion ?? '';
-            document.getElementById('valor').value            = p.valor ?? '';
-            document.getElementById('tipo_nuevo').style.display = 'none';
-            document.getElementById('tipo_nuevo').removeAttribute('required');
-            validarFormularioParametro(); // Validar al cargar datos de edición
+            document.getElementById('formParametro').action = '/parametros/' + uuid;
+            document.getElementById('tipo').value           = p.tipo ?? '';
+            document.getElementById('valor').value          = p.valor ?? '';
+            document.getElementById('descripcion').value    = p.descripcion ?? '';
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParametro')).show();
         });
 }
 
-function toggleNuevoTipo() {
-    const tipoSelect = document.getElementById('tipo');
-    const tipoNuevoInput = document.getElementById('tipo_nuevo');
-
-    if (tipoSelect.value === '__NUEVO__') {
-        tipoNuevoInput.style.display = 'block';
-        tipoNuevoInput.setAttribute('required', 'required');
-        tipoNuevoInput.focus();
-    } else {
-        tipoNuevoInput.style.display = 'none';
-        tipoNuevoInput.removeAttribute('required');
-        tipoNuevoInput.value = '';
-    }
-}
-
-// Interceptar el submit para manejar el nuevo tipo
+// Sincronizar el estado de aria-expanded con los collapse
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('formParametro');
-    form.addEventListener('submit', function(e) {
-        const tipoSelect = document.getElementById('tipo');
-        const tipoNuevoInput = document.getElementById('tipo_nuevo');
-
-        if (tipoSelect.value === '__NUEVO__') {
-            if (tipoNuevoInput.value.trim() === '') {
-                e.preventDefault();
-                alert('Por favor ingrese el nombre del nuevo tipo.');
-                tipoNuevoInput.focus();
-                return false;
-            }
-            // Reemplazar el valor del select con el valor del input
-            tipoSelect.removeAttribute('required');
-            tipoNuevoInput.name = 'tipo';
-        }
-    });
-
-    // Sincronizar el estado de aria-expanded con los collapse
     document.querySelectorAll('.collapse').forEach(collapse => {
         collapse.addEventListener('shown.bs.collapse', function() {
             const header = document.querySelector(`[data-bs-target="#${this.id}"]`);

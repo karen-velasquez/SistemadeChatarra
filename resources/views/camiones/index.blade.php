@@ -448,7 +448,7 @@
                                 placeholder="Ej: 25.5"
                                 autocomplete="off"
                                 required>
-                            <small id="capacidad_hint" class="text-muted">Entre 3.5 t y 35 t — máximo 3 decimales.</small>
+                            <small id="capacidad_hint" class="text-muted">Mínimo 3.5 tn — máximo 3 decimales.</small>
                             @error('capacidad_tn')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
@@ -1182,7 +1182,6 @@
         const capInput = document.getElementById('cam_capacidad');
         const capHint  = document.getElementById('capacidad_hint');
         const capMin   = 3.5;
-        const capMax   = 35;
 
         capInput.addEventListener('keydown', function (e) {
             const teclaControl = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key);
@@ -1190,7 +1189,6 @@
             if (!/[0-9.]/.test(e.key)) { e.preventDefault(); return; }
             if (e.key === '.' && this.value.includes('.')) { e.preventDefault(); return; }
             const partes = (this.value + e.key).split('.');
-            if (parseInt(partes[0] || '0') > capMax) { e.preventDefault(); return; }
             if (partes[1] !== undefined && partes[1].length >= 3 && e.key !== '.') { e.preventDefault(); return; }
         });
 
@@ -1200,29 +1198,23 @@
             if (partes.length > 2) val = partes[0] + '.' + partes.slice(1).join('');
             if (partes[1] !== undefined && partes[1].length > 3)
                 val = partes[0] + '.' + partes[1].substring(0, 3);
-            if (parseFloat(partes[0] || '0') > capMax)
-                val = String(capMax) + (partes[1] !== undefined ? '.' + partes[1] : '');
             this.value = val;
 
             const num = parseFloat(val);
             if (val === '' || isNaN(num)) {
                 this.classList.remove('is-invalid', 'is-valid');
                 capHint.className   = 'text-muted';
-                capHint.textContent = 'Entre 3.5 t y 35 t — máximo 3 decimales.';
+                capHint.textContent = 'Mínimo 3.5 tn — máximo 3 decimales.';
                 return;
             }
             if (num < capMin) {
                 this.classList.add('is-invalid'); this.classList.remove('is-valid');
                 capHint.className   = 'text-danger';
-                capHint.textContent = '⚠ La capacidad mínima es 3.5 t.';
-            } else if (num > capMax) {
-                this.classList.add('is-invalid'); this.classList.remove('is-valid');
-                capHint.className   = 'text-danger';
-                capHint.textContent = '⚠ La capacidad máxima es 35 t.';
+                capHint.textContent = '⚠ La capacidad mínima es 3.5 tn.';
             } else {
                 this.classList.remove('is-invalid'); this.classList.add('is-valid');
                 capHint.className   = 'text-success';
-                capHint.textContent = '✓ Capacidad válida (' + (num * 1000).toLocaleString() + ' kg)';
+                capHint.textContent = '✓ Capacidad válida (' + num.toFixed(3) + ' tn)';
             }
         });
     });
