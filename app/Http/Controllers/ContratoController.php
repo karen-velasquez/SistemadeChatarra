@@ -178,7 +178,32 @@ class ContratoController extends Controller
             'contratoCamiones.tramos.tramosHijos.camion.tipoVehiculo',
             'contratoCamiones.tramos.tramosHijos.camion.placaPais',
             'contratoCamiones.tramos.tramosHijos.conductor',
+            'contratoCamiones.tramos.tramoPadre',
         ])->where('uuid', $uuid)->firstOrFail();
+
+        // Filtrar ContratoCamiones que NO son hijos de una división de carga
+        // Un ContratoCamion es "hijo de división" si TODOS sus tramos tienen un padre con estado "Div. Carga"
+        $contrato->setRelation('contratoCamiones', $contrato->contratoCamiones->filter(function($cc) {
+            // Si no tiene tramos, mantenerlo
+            if ($cc->tramos->isEmpty()) {
+                return true;
+            }
+
+            // Verificar si TODOS los tramos de este CC tienen un padre con "Div. Carga"
+            $todosHijosDivision = $cc->tramos->every(function($tramo) {
+                // Si el tramo no tiene padre, no es hijo de división
+                if (!$tramo->tramo_padre_id) {
+                    return false;
+                }
+
+                // Verificar si el padre tiene estado "Div. Carga"
+                $tramoPadre = $tramo->tramoPadre;
+                return $tramoPadre && $tramoPadre->estado === 'Div. Carga';
+            });
+
+            // Si todos los tramos son hijos de división, excluir este ContratoCamion
+            return !$todosHijosDivision;
+        }));
 
         $camionesDisponibles = Camion::with(['conductorActual.conductor', 'marca', 'tipoVehiculo', 'placaPais'])
             ->whereNull('deleted_at')

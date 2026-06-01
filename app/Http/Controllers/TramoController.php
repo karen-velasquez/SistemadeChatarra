@@ -164,13 +164,16 @@ class TramoController extends Controller
                 : redirect()->route('contratos.camiones', $contratoUuidLlegada);
         }
 
-        // Si fue entregado, recalcular hacia arriba (puede subir un padre "Div. Carga" a "Entregado")
+        // Si fue entregado, recalcular hacia arriba
         if ($nuevoEstado === 'Entregado') {
             $this->recalcularEstadoPadre($tramo->tramo_padre_id);
 
             $cc = $tramo->contratoCamion;
+            // Verificar si todos los tramos hojas (sin hijos) están entregados
+            // Excluir tramos con "Div. Carga" porque son nodos de distribución, no entregas finales
             $todosEntregados = $cc->tramos()
                 ->whereDoesntHave('tramosHijos')
+                ->where('estado', '!=', 'Div. Carga')
                 ->whereNotIn('estado', ['Entregado', 'Desactivado'])
                 ->doesntExist();
 
@@ -333,23 +336,21 @@ class TramoController extends Controller
         $padre = Tramo::find($tramoPadreId);
         if (!$padre) return;
 
-        // Si el padre es "Div. Carga", marcar Entregado cuando todos los hijos estén entregados
+        // Si el padre es "Div. Carga", mantener ese estado sin importar los hijos
+        // Los tramos con división de carga permanecen en ese estado como nodo de distribución
         if ($padre->estado === 'Div. Carga') {
-            $hijosPendientes = $padre->tramosHijos()
-                ->whereNotIn('estado', ['Entregado', 'Desactivado'])
-                ->count();
-            if ($hijosPendientes === 0) {
-                $padre->update(['estado' => 'Entregado']);
-            }
-        } else {
-            $hijosActivos = $padre->tramosHijos()->where('activo', true)->count();
+            // No hacer nada, mantener el estado "Div. Carga"
+            return;
+        }
 
-            if ($hijosActivos === 0) {
-                $padre->update(['estado' => 'Transbordando']);
-            } else {
-                $disponible = round((float) $padre->peso_llegada - (float) $padre->tramosHijos()->where('activo', true)->sum('peso_salida'), 3);
-                $padre->update(['estado' => $disponible <= 0 ? 'Transbordado' : 'Transbordando']);
-            }
+        // Para otros estados (Transbordando, Transbordado), recalcular según los hijos
+        $hijosActivos = $padre->tramosHijos()->where('activo', true)->count();
+
+        if ($hijosActivos === 0) {
+            $padre->update(['estado' => 'Transbordando']);
+        } else {
+            $disponible = round((float) $padre->peso_llegada - (float) $padre->tramosHijos()->where('activo', true)->sum('peso_salida'), 3);
+            $padre->update(['estado' => $disponible <= 0 ? 'Transbordado' : 'Transbordando']);
         }
 
         // Subir al siguiente nivel
