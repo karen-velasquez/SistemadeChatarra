@@ -242,6 +242,98 @@
         </div>
     </div>
 </div>
+
+<!--Ranking -->
+<div class="col-md-12 mt-4">
+    <div class="section-card p-4">
+        <h5 class="panel-title mb-4">
+            <i class="bi bi-trophy me-1"></i> Ranking de Toneladas Vendidas
+        </h5>
+
+        <form method="GET" action="{{ route('home') }}" class="row g-3 mb-4">
+            <div class="col-md-3">
+                <label class="form-label">Fecha desde</label>
+                <input type="date" name="fecha_inicio" class="form-control"
+                       value="{{ request('fecha_inicio') }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Fecha hasta</label>
+                <input type="date" name="fecha_fin" class="form-control"
+                       value="{{ request('fecha_fin') }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Proveedor</label>
+                <select name="proveedor_id" class="form-select">
+                    <option value="">Todos los proveedores</option>
+                    @foreach($proveedoresRanking as $proveedor)
+                        <option value="{{ $proveedor->id }}"
+                            {{ request('proveedor_id') == $proveedor->id ? 'selected' : '' }}>
+                            {{ $proveedor->nombre }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Cliente</label>
+                <select name="cliente_id" class="form-select">
+                    <option value="">Todos los clientes</option>
+                    @foreach($clientesRanking as $cliente)
+                        <option value="{{ $cliente->id }}"
+                            {{ request('cliente_id') == $cliente->id ? 'selected' : '' }}>
+                            {{ $cliente->nombre }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-md-12 d-flex gap-2 justify-content-end">
+                <a href="{{ route('home') }}" class="btn btn-secondary">
+                    Limpiar
+                </a>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Proveedor</th>
+                        <th>Cliente</th>
+                        <th class="text-end">Toneladas vendidas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rankingToneladas as $index => $item)
+                        <tr>
+                            <td>
+                                <span class="badge bg-dark">{{ $index + 1 }}</span>
+                            </td>
+                            <td>{{ $item->proveedor_nombre ?? 'Sin proveedor' }}</td>
+                            <td>{{ $item->cliente_nombre ?? 'Sin cliente' }}</td>
+                            <td class="text-end">
+                                <strong>{{ number_format($item->total_toneladas, 2) }} TN</strong>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                No hay toneladas vendidas con los filtros seleccionados.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 @endsection
 @section('scripts')
 

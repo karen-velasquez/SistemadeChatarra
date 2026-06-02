@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Contrato;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Cliente;
 use App\Models\Proveedor;
+use App\Models\Contrato;
 use App\Models\GastoExtra;
 use App\Models\CuentaBancaria;
 use App\Models\PagoProveedor;
@@ -14,7 +17,7 @@ use Carbon\Carbon;
 
 class HomeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $inicioMes = Carbon::now()->startOfMonth();
         $finMes = Carbon::now()->endOfMonth();
@@ -40,8 +43,55 @@ class HomeController extends Controller
         $pagosPendientes = GastoExtra::with('contrato.proveedor')->whereNull('deleted_at')->where('estado', 'pendiente')->orderBy('fecha', 'asc')->take(5)->get();
         $gastosPorCategoria = GastoExtra::whereNull('deleted_at')->where('estado', 'pagado')->selectRaw('categoria, SUM(monto_bolivianos) as total')->groupBy('categoria')->orderByDesc('total')->take(5)->get();
         $ultimosPagos = GastoExtra::with('contrato.proveedor')->whereNull('deleted_at')->where('estado', 'pagado')->latest()->take(5)->get();
+        ///Ranking
+    $proveedoresRanking = Proveedor::orderBy('nombre')->get();
+$clientesRanking = Cliente::orderBy('nombre')->get();
 
-        return view('home', compact('contratosActivos','proveedoresRegistrados','cuentasActivas','gastosExtrasPagadosMes','gastosExtrasPendientesMes','gastosPendientesTotal','pagosPendientesCantidad','pagosProveedorPagadosMes','pagosProveedorPendientesMes','cobrosClientesPagadosMes','cobrosClientesPendientesMes','pagosCamionesPagadosMes','pagosCamionesPendientesMes','camionesTransbordado','camionesEnRuta','camionesDescargado','camionesPendiente','contratosRecientes','pagosPendientes','gastosPorCategoria','ultimosPagos'
-        ));
-    }
+$rankingToneladas = DB::table('tramos as t')
+    ->join('contrato_camiones as cc', 'cc.id', '=', 't.contrato_camion_id')
+    ->join('contratos as c', 'c.id', '=', 'cc.contrato_id')
+    ->join('proveedors as p', 'p.id', '=', 'c.proveedor_id')
+    ->leftJoin('clientes as cl', 'cl.id', '=', 't.cliente_id')
+    ->select(
+        'p.id as proveedor_id',
+        'p.nombre as proveedor_nombre',
+        'cl.id as cliente_id',
+        DB::raw("COALESCE(cl.nombre, 'Sin cliente') as cliente_nombre"),
+        DB::raw("
+            SUM(
+                COALESCE(
+                    t.peso_llegada,
+                    t.peso_salida,
+                    t.peso_declarado,
+                    cc.toneladas,
+                    0
+                )
+            ) as total_toneladas
+        ")
+    )
+    ->whereNull('t.deleted_at')
+    ->whereNull('c.deleted_at')
+    ->when($request->fecha_inicio, function ($query) use ($request) {
+        $query->whereDate('t.fecha_llegada', '>=', $request->fecha_inicio);
+    })
+    ->when($request->fecha_fin, function ($query) use ($request) {
+        $query->whereDate('t.fecha_llegada', '<=', $request->fecha_fin);
+    })
+    ->when($request->proveedor_id, function ($query) use ($request) {
+        $query->where('c.proveedor_id', $request->proveedor_id);
+    })
+    ->when($request->cliente_id, function ($query) use ($request) {
+        $query->where('t.cliente_id', $request->cliente_id);
+    })
+    ->groupBy(
+        'p.id',
+        'p.nombre',
+        'cl.id',
+        'cl.nombre'
+    )
+    ->orderByDesc('total_toneladas')
+    ->get();
+            //
+                return view('home', compact('proveedoresRanking', 'clientesRanking', 'rankingToneladas', 'contratosActivos', 'proveedoresRegistrados', 'cuentasActivas', 'gastosExtrasPagadosMes', 'gastosExtrasPendientesMes', 'gastosPendientesTotal', 'pagosPendientesCantidad', 'pagosProveedorPagadosMes', 'pagosProveedorPendientesMes', 'cobrosClientesPagadosMes', 'cobrosClientesPendientesMes', 'pagosCamionesPagadosMes', 'pagosCamionesPendientesMes', 'camionesTransbordado', 'camionesEnRuta', 'camionesDescargado', 'camionesPendiente', 'contratosRecientes', 'pagosPendientes', 'gastosPorCategoria', 'ultimosPagos'));
+            }
 }
