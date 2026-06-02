@@ -21,7 +21,7 @@ class TramoController extends Controller
         $tramo = Tramo::where('uuid', $uuid)->firstOrFail();
 
         $request->validate([
-            'peso_llegada'         => 'required|numeric|min:0.001|max:' . $tramo->peso_salida,
+            'peso_llegada'         => 'required|numeric|min:0.001',
             'fecha_llegada'        => 'required|date|after_or_equal:' . $tramo->fecha_salida->format('Y-m-d'),
             'accion'               => 'required|in:entregado,frontera,transbordo,div_carga',
             'cliente_id'           => 'required_if:accion,entregado,div_carga|nullable|exists:clientes,id',
@@ -39,7 +39,6 @@ class TramoController extends Controller
         ], [
             'peso_llegada.required'           => 'Debe ingresar el peso que llegó al destino.',
             'peso_llegada.min'                => 'El peso debe ser mayor a 0.',
-            'peso_llegada.max'                => 'El peso de llegada (' . $request->peso_llegada . ' t) no puede ser mayor al peso de salida (' . $tramo->peso_salida . ' t).',
             'fecha_llegada.required'          => 'Debe ingresar la fecha en que llegó la carga.',
             'fecha_llegada.after_or_equal'    => 'La fecha de llegada no puede ser anterior a la fecha de salida (' . $tramo->fecha_salida->format('d/m/Y') . ').',
             'accion.required'                 => 'Debe indicar qué ocurrió cuando llegó la carga.',

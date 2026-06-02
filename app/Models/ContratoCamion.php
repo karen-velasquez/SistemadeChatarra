@@ -83,30 +83,49 @@ class ContratoCamion extends Model
             ->sum('peso_llegada');
     }
 
-    // Estado de entrega calculado dinámicamente basado en tramos hoja
+    // Estado de entrega calculado dinámicamente basado en los tramos hoja del árbol.
+    // Recorre el árbol de tramos descendientes (los hijos pueden vivir en otros
+    // ContratoCamion por transbordo) y revisa el estado de las hojas reales.
     public function getEstadoEntregaCalculadoAttribute(): string
     {
-        // Si no hay tramos, usar el valor de la base de datos
-        if ($this->tramos->isEmpty()) {
+        // Tramos raíz de este ContratoCamion (sin padre dentro de la cadena propia)
+        $tramosRaiz = $this->tramos->whereNull('tramo_padre_id');
+
+        // Si no hay tramos raíz, usar el valor de la base de datos
+        if ($tramosRaiz->isEmpty()) {
             return $this->attributes['estado_entrega'] ?? 'Pendiente';
         }
 
-        // Obtener todos los tramos hoja (sin hijos) excluyendo "Div. Carga" (que es un nodo organizador)
-        $tramosHoja = $this->tramos->filter(function($tramo) {
-            return $tramo->tramosHijos->isEmpty() && $tramo->estado !== 'Div. Carga';
-        });
+        // Recolectar todas las hojas reales del árbol descendiente
+        $hojas = collect();
+        foreach ($tramosRaiz as $raiz) {
+            $this->recolectarHojas($raiz, $hojas);
+        }
 
-        // Si no hay tramos hoja, usar valor de BD
-        if ($tramosHoja->isEmpty()) {
+        // Si no se encontraron hojas, usar valor de BD
+        if ($hojas->isEmpty()) {
             return $this->attributes['estado_entrega'] ?? 'Pendiente';
         }
 
-        // Verificar si todos los tramos hoja están entregados o desactivados
-        $todosEntregados = $tramosHoja->every(function($tramo) {
+        // Todas las hojas deben estar entregadas o desactivadas
+        $todosEntregados = $hojas->every(function($tramo) {
             return in_array($tramo->estado, ['Entregado', 'Desactivado']);
         });
 
         return $todosEntregados ? 'Entregado' : 'Pendiente';
+    }
+
+    // Recorre recursivamente un tramo y acumula sus hojas (tramos sin hijos)
+    private function recolectarHojas(Tramo $tramo, $hojas): void
+    {
+        $hijos = $tramo->tramosHijos;
+        if ($hijos->isEmpty()) {
+            $hojas->push($tramo);
+            return;
+        }
+        foreach ($hijos as $hijo) {
+            $this->recolectarHojas($hijo, $hojas);
+        }
     }
 
     // Descuento en monto: se toma el mayor descuento_porcentaje registrado en tramos finales

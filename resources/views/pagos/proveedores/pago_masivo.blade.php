@@ -313,10 +313,60 @@ $cuentasJs = $cuentasPorProveedor->map(fn($grupo) => $grupo->map(fn($c) => [
     'email_notificacion'=> $c->email_notificacion ?? '',
 ])->values());
 
+// Serializa un tramo individual al formato que consume el modal
+$_serializarTramo = function($t) {
+    return [
+        'origen'           => $t->origen ?? '—',
+        'destino'          => $t->destino ?? '—',
+        'estado'           => $t->estado ?? '—',
+        'fecha_salida'     => $t->fecha_salida?->format('d/m/Y') ?? '—',
+        'fecha_llegada'    => $t->fecha_llegada?->format('d/m/Y') ?? '—',
+        'peso_salida'      => (float) $t->peso_salida,
+        'peso_llegada'     => (float) $t->peso_llegada,
+        'cliente_nombre'   => $t->cliente?->nombre ?? null,
+        'es_hijo'          => !is_null($t->tramo_padre_id),
+        'estado_carga'     => (function() use ($t) {
+            // Si no tiene hijos, el estado de la carga = su propio estado
+            if ($t->tramosHijos->isEmpty()) return $t->estado;
+            // Si tiene hijos, verificar si todos los tramos finales están entregados
+            $todosEntregados = $t->tramosHijos->every(function($hijo) {
+                if ($hijo->tramosHijos->isEmpty()) {
+                    return in_array($hijo->estado, ['Entregado', 'Desactivado']);
+                }
+                return in_array($hijo->estado, ['Entregado', 'Desactivado']);
+            });
+            return $todosEntregados ? 'Entregado' : 'En proceso';
+        })(),
+        'flete_acordado'   => (float) ($t->contratoCamion->monto_acordado ?? 0),
+        'flete_pagado'     => (float) ($t->contratoCamion->total_pagado ?? 0),
+        'flete_moneda'     => $t->contratoCamion->moneda_flete ?? 'BOB',
+        'moneda_venta'     => $t->moneda_venta ?? 'BOB',
+        'deuda_cliente'    => (float) $t->monto_deuda_cliente,
+        'cobrado_cliente'  => (float) $t->total_cobrado_cliente,
+        'pct_cobrado'      => $t->monto_deuda_cliente > 0
+                                ? round($t->total_cobrado_cliente / $t->monto_deuda_cliente * 100, 1)
+                                : 0,
+    ];
+};
+
+// Aplana el árbol de tramos: recorre cada tramo y sus hijos (que pueden vivir
+// en otros ContratoCamion por transbordo/división) en orden jerárquico.
+$_aplanarTramos = function($tramos) use (&$_aplanarTramos, $_serializarTramo) {
+    $resultado = collect();
+    foreach ($tramos as $t) {
+        $resultado->push($_serializarTramo($t));
+        $hijos = $t->tramosHijos->sortBy('id');
+        if ($hijos->isNotEmpty()) {
+            $resultado = $resultado->merge($_aplanarTramos($hijos));
+        }
+    }
+    return $resultado;
+};
+
 $camionesJs = $contratos->keyBy('id')->map(fn($ct) => [
     'numero'  => $ct->numero_contrato ?? '#'.$ct->id,
     'moneda'  => $ct->moneda ?? 'BOB',
-    // Solo CCs raíz: excluir CCs cuyos tramos son TODOS hijos (generados por Div. Carga)
+    // Solo CCs raíz: excluir CCs cuyos tramos son TODOS hijos (generados por Div. Carga/transbordo)
     'camiones' => $ct->contratoCamiones->filter(fn($cc) =>
         $cc->tramos->isEmpty() || $cc->tramos->contains(fn($t) => is_null($t->tramo_padre_id))
     )->map(fn($cc) => [
@@ -329,39 +379,9 @@ $camionesJs = $contratos->keyBy('id')->map(fn($ct) => [
         'saldo'          => (float) $cc->saldo_pendiente,
         'moneda_flete'   => $cc->moneda_flete ?? 'BOB',
         'pct_pagado'     => $cc->monto_neto > 0 ? round($cc->total_pagado / $cc->monto_neto * 100, 1) : 0,
-        'tramos'         => $cc->tramos->map(fn($t) => [
-            'origen'           => $t->origen ?? '—',
-            'destino'          => $t->destino ?? '—',
-            'estado'           => $t->estado ?? '—',
-            'fecha_salida'     => $t->fecha_salida?->format('d/m/Y') ?? '—',
-            'fecha_llegada'    => $t->fecha_llegada?->format('d/m/Y') ?? '—',
-            'peso_salida'      => (float) $t->peso_salida,
-            'peso_llegada'     => (float) $t->peso_llegada,
-            'cliente_nombre'   => $t->cliente?->nombre ?? null,
-            'es_hijo'          => !is_null($t->tramo_padre_id),
-            'estado_carga'     => (function() use ($t) {
-                // Si no tiene hijos, el estado de la carga = su propio estado
-                if ($t->tramosHijos->isEmpty()) return $t->estado;
-                // Si tiene hijos, verificar recursivamente si todos los tramos finales están entregados
-                $todosEntregados = $t->tramosHijos->every(function($hijo) {
-                    if ($hijo->tramosHijos->isEmpty()) {
-                        return in_array($hijo->estado, ['Entregado', 'Desactivado']);
-                    }
-                    // hijo con sus propios hijos — simplificar: ver estado del hijo
-                    return in_array($hijo->estado, ['Entregado', 'Desactivado']);
-                });
-                return $todosEntregados ? 'Entregado' : 'En proceso';
-            })(),
-            'flete_acordado'   => (float) ($t->contratoCamion->monto_acordado ?? 0),
-            'flete_pagado'     => (float) ($t->contratoCamion->total_pagado ?? 0),
-            'flete_moneda'     => $t->contratoCamion->moneda_flete ?? 'BOB',
-            'moneda_venta'     => $t->moneda_venta ?? 'BOB',
-            'deuda_cliente'    => (float) $t->monto_deuda_cliente,
-            'cobrado_cliente'  => (float) $t->total_cobrado_cliente,
-            'pct_cobrado'      => $t->monto_deuda_cliente > 0
-                                    ? round($t->total_cobrado_cliente / $t->monto_deuda_cliente * 100, 1)
-                                    : 0,
-        ])->values()->all(),
+        // Partir de los tramos raíz del CC y aplanar todo el árbol descendiente,
+        // incluyendo los hijos generados por transbordo o división de carga.
+        'tramos'         => $_aplanarTramos($cc->tramos->whereNull('tramo_padre_id'))->values()->all(),
     ])->values()->all(),
 ]);
 @endphp

@@ -940,7 +940,7 @@
                             <input type="number" step="0.001" min="0.001" class="form-control"
                                 name="peso_llegada" id="inp_peso_llegada" required placeholder="Toneladas reales pesadas"
                                 oninput="calcularRestanteParcial()">
-                            <small class="text-muted">Máximo permitido: <strong id="llegada_peso_max"></strong> t</small>
+                            <small class="text-muted">Carga estipulada en el origen: <strong id="llegada_peso_max"></strong> t</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Fecha de llegada <span class="text-danger">(*)</span></label>
@@ -1477,11 +1477,8 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     document.querySelectorAll('input[name="accion"]').forEach(r => r.checked = false);
 
     const inp = document.getElementById('inp_peso_llegada');
-    inp.max   = pesoSalida;
+    inp.removeAttribute('max');
     inp.value = '';
-    inp.oninput = function () {
-        if (parseFloat(this.value) > parseFloat(pesoSalida)) this.value = pesoSalida;
-    };
 
     document.getElementById('inp_fecha_llegada').min   = fechaSalida;
     document.getElementById('inp_fecha_llegada').value = fechaSalida;

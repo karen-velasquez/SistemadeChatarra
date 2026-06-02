@@ -25,7 +25,6 @@
     ];
     $color  = $estadoColor[$tramo->estado]  ?? 'secondary';
     $icono  = $estadoIcono[$tramo->estado]  ?? 'bi-circle';
-    $borde  = $estadoBorde[$tramo->estado]  ?? 'border-secondary';
     $hijos  = $tramo->tramosHijos;
     $indent = $nivel * 20;
 
@@ -36,6 +35,10 @@
         $estadoCargaGeneral = $todosEntregados ? 'Entregado' : 'En proceso';
     }
     $mostrarEstadoCarga = $hijos->isNotEmpty() && $estadoCargaGeneral !== $tramo->estado;
+
+    // El borde debe reflejar el estado general de la carga si hay hijos
+    $estadoParaBorde = ($hijos->isNotEmpty() && $estadoCargaGeneral === 'Entregado') ? 'Entregado' : $tramo->estado;
+    $borde = $estadoBorde[$estadoParaBorde] ?? 'border-secondary';
 @endphp
 
 <div class="border rounded p-2 mb-2 {{ $nivel > 0 ? 'border-start border-3 ' . $borde : '' }}"

@@ -345,7 +345,7 @@
                             <input type="number" step="0.001" min="0.001" class="form-control"
                                 name="peso_llegada" id="inp_peso_llegada" required placeholder="Toneladas reales pesadas"
                                 oninput="calcTotalVenta(); calcRestanteCam();">
-                            <small class="text-muted">Máximo permitido: <strong id="llegada_peso_max"></strong> t</small>
+                            <small class="text-muted">Carga estipulada en el origen: <strong id="llegada_peso_max"></strong> t</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Fecha de llegada <span class="text-danger">(*)</span></label>
@@ -362,6 +362,34 @@
                                     <option value="{{ $cli->id }}">{{ $cli->nombre }} @if($cli->nit) — NIT: {{ $cli->nit }} @endif</option>
                                 @endforeach
                             </select>
+                        </div>
+
+                        {{-- Sección entrega parcial (división de carga) --}}
+                        <div class="col-12 d-none" id="sec_parcial_cam">
+                            <div class="border rounded-3 p-3 bg-light">
+                                <h6 class="fw-semibold mb-3"><i class="bi bi-pie-chart text-info"></i> Datos de la entrega parcial</h6>
+                                <div class="alert alert-info py-2 mb-3">
+                                    <small><i class="bi bi-info-circle"></i> El campo <strong>"Peso al llegar"</strong> arriba indica el total que llegó. Ingresa abajo cuántas toneladas se entregan ahora a este cliente — el resto continuará en un nuevo tramo.</small>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">TN entregadas a este cliente <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.001" min="0.001" class="form-control"
+                                            name="tn_parcial" id="cam_inp_tn_parcial"
+                                            placeholder="0.000" oninput="calcRestanteCam(); calcTotalVenta()">
+                                        <small class="text-muted">TN para el nuevo tramo: <strong id="cam_lbl_tn_restante">—</strong></small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="destino_nuevo_tramo"
+                                            maxlength="150" placeholder="Ciudad / punto de entrega">
+                                    </div>
+                                </div>
+                                <input type="hidden" name="camion_nuevo_id" id="cam_hidden_camion">
+                                <input type="hidden" name="conductor_nuevo_id" id="cam_hidden_conductor">
+                                <input type="hidden" name="fecha_salida_nuevo_tramo" id="cam_hidden_fecha">
+                                <input type="hidden" name="tipo_tramo_nuevo" id="cam_hidden_tipo_tramo">
+                            </div>
                         </div>
 
                         {{-- Precio de venta al cliente --}}
@@ -397,35 +425,7 @@
                                         <div id="lbl_total_venta" class="form-control form-control-sm bg-white text-success fw-semibold">—</div>
                                     </div>
                                 </div>
-                                <small class="text-muted mt-1 d-block">Basado en el peso de llegada ingresado arriba.</small>
-                            </div>
-                        </div>
-
-                        {{-- Sección entrega parcial --}}
-                        <div class="col-12 d-none" id="sec_parcial_cam">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <h6 class="fw-semibold mb-3"><i class="bi bi-pie-chart text-info"></i> Datos de la entrega parcial</h6>
-                                <div class="alert alert-info py-2 mb-3">
-                                    <small><i class="bi bi-info-circle"></i> El campo <strong>"Peso al llegar"</strong> arriba indica el total que llegó. Ingresa abajo cuántas toneladas se entregan ahora a este cliente — el resto continuará en un nuevo tramo.</small>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">TN entregadas a este cliente <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.001" min="0.001" class="form-control"
-                                            name="tn_parcial" id="cam_inp_tn_parcial"
-                                            placeholder="0.000" oninput="calcRestanteCam()">
-                                        <small class="text-muted">TN para el nuevo tramo: <strong id="cam_lbl_tn_restante">—</strong></small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="destino_nuevo_tramo"
-                                            maxlength="150" placeholder="Ciudad / punto de entrega">
-                                    </div>
-                                </div>
-                                <input type="hidden" name="camion_nuevo_id" id="cam_hidden_camion">
-                                <input type="hidden" name="conductor_nuevo_id" id="cam_hidden_conductor">
-                                <input type="hidden" name="fecha_salida_nuevo_tramo" id="cam_hidden_fecha">
-                                <input type="hidden" name="tipo_tramo_nuevo" id="cam_hidden_tipo_tramo">
+                                <small class="text-muted mt-1 d-block" id="precio_venta_base_msg">Basado en el peso de llegada ingresado arriba.</small>
                             </div>
                         </div>
 
@@ -733,10 +733,9 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     document.querySelectorAll('input[name="accion"]').forEach(r => r.checked = false);
 
     const inp = document.getElementById('inp_peso_llegada');
-    inp.max   = pesoSalida;
+    inp.removeAttribute('max');
     inp.value = '';
     inp.oninput = function () {
-        if (parseFloat(this.value) > parseFloat(pesoSalida)) this.value = pesoSalida;
         calcTotalVenta();
     };
 
@@ -918,10 +917,23 @@ function confirmarToggleTramo(url, placa, ruta, activo) {
 }
 
 function calcTotalVenta() {
-    const peso   = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
+    const accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
     const precio = parseFloat(document.getElementById('inp_precio_ton').value) || 0;
     const lbl    = document.getElementById('lbl_total_venta');
-    lbl.textContent = (peso > 0 && precio > 0) ? (peso * precio).toFixed(2) : '—';
+    const msg    = document.getElementById('precio_venta_base_msg');
+
+    // En división de carga, el precio se aplica solo a las TN entregadas a este cliente.
+    // En entrega normal, se aplica al peso total de llegada.
+    let toneladas;
+    if (accion === 'div_carga') {
+        toneladas = parseFloat(document.getElementById('cam_inp_tn_parcial').value) || 0;
+        if (msg) msg.textContent = 'Basado en las TN entregadas a este cliente.';
+    } else {
+        toneladas = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
+        if (msg) msg.textContent = 'Basado en el peso de llegada ingresado arriba.';
+    }
+
+    lbl.textContent = (toneladas > 0 && precio > 0) ? (toneladas * precio).toFixed(2) : '—';
 }
 
 // Validación del botón Asignar Camión
