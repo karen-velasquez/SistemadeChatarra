@@ -14,8 +14,21 @@
             </nav>
         </div>
         <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"📄 Bienvenido al módulo <b>Contratos</b>. Aquí registras y haces seguimiento a las compras y ventas de chatarra. Te muestro cómo está organizado."},
+                        {"element":"#datos","intro":"📑 Esta es la lista de todos los contratos registrados. Cada fila es un contrato con su proveedor, clientes, fechas y montos.","position":"top"},
+                        {"element":"#datos thead th:nth-child(2)","intro":"🏷️ La columna <b>Tipo</b> indica si el contrato es <b>Nacional</b> (dentro del país) o <b>Internacional</b>.","position":"bottom"},
+                        {"element":"#datos thead th:nth-child(7)","intro":"⚖️ En <b>Toneladas</b> verás una barra de avance: en verde lo ya entregado y en celeste lo que está en tránsito.","position":"bottom"},
+                        {"element":"#datos thead th:nth-child(8)","intro":"💲 El <b>Monto al Proveedor</b> es lo que se le pagará. Si dice <i>Envíos cerrados</i>, ese contrato ya no admite cambios.","position":"bottom"},
+                        {"element":"#datos tbody tr:first-child .btn-group","intro":"⚙️ Con el botón <b>Opciones</b> de cada fila gestionas sus camiones, ves el detalle, editas o eliminas el contrato.","position":"left"},
+                        {"element":"#btnNuevoContrato","intro":"➕ Para crear un contrato nuevo, usa este botón <b>Nuevo Contrato</b>. ¡Eso es todo!","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
             @can('contratos.create')
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalContrato" onclick="resetModalContrato()">
+            <button type="button" id="btnNuevoContrato" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalContrato" onclick="resetModalContrato()">
                 <i class="bi bi-plus-lg"></i> Nuevo Contrato
             </button>
             @endcan
@@ -203,7 +216,26 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-file-earmark-text"></i> <span id="tituloContrato">Nuevo Contrato</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalContrato"
+                            data-steps='[
+                                {"intro":"📝 Este es el formulario para registrar un <b>contrato</b>. Te explico qué va en cada campo. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#numero_contrato_display","intro":"🔢 El <b>N° de Contrato</b> se genera <b>automáticamente</b>. No necesitas escribirlo.","position":"bottom"},
+                                {"element":"#tipo_contrato","intro":"🌎 Elige el <b>Tipo</b>: <b>Nacional</b> (dentro del país) o <b>Internacional</b>.","position":"bottom"},
+                                {"element":"#proveedor_id","intro":"📦 Selecciona el <b>Proveedor</b> al que le compras la chatarra. La lista viene de tus proveedores registrados.","position":"bottom"},
+                                {"element":"#fecha_inicio","intro":"📅 <b>Fecha de Inicio</b> del contrato. Es obligatoria.","position":"bottom"},
+                                {"element":"#fecha_fin","intro":"📅 <b>Fecha de Fin</b> (opcional): hasta cuándo rige el contrato.","position":"bottom"},
+                                {"element":"#toneladas_contrato","intro":"⚖️ <b>Total de Toneladas</b> pactadas en el contrato. Acepta decimales (ej: 500.000).","position":"top"},
+                                {"element":"#monto_total","intro":"💲 <b>Monto total a pagar</b> al proveedor. A la izquierda eliges la <b>moneda</b> (BOB, USD, etc.).","position":"top"},
+                                {"element":"#documento_pdf","intro":"📎 Adjunta el <b>PDF del contrato</b> firmado como respaldo (opcional, máx. 30 MB).","position":"top"},
+                                {"element":"#btnContrato","intro":"💾 Cuando todo esté listo, pulsa <b>Registrar</b> para guardar el contrato.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formContrato" method="POST" action="{{ route('contratos.store') }}" enctype="multipart/form-data">
                 @csrf

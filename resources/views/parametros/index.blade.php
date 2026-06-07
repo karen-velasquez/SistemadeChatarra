@@ -13,6 +13,15 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"⚙️ Los <b>Parámetros</b> son los catálogos que usa todo el sistema: cargos de empleados, países, monedas, marcas de camión, sucursales bancarias, etc."},
+                    {"element":"#param-nota","intro":"⚠️ <b>Importante</b>: los parámetros se crean desde la base de datos. Aquí solo puedes <b>editar la descripción</b> de los existentes. Para agregar nuevos, contacta al administrador.","position":"bottom"},
+                    {"element":"#param-primer-grupo","intro":"🗂️ Los parámetros se agrupan por <b>tipo</b>. Haz clic en el encabezado de un grupo para <b>desplegar</b> sus valores. Dentro verás el Valor y la Descripción de cada uno; los que dicen <b>En uso</b> están siendo usados por otros registros. Con el botón ✏️ de cada fila puedes editar solo su <b>descripción</b>.","position":"bottom"}
+                ]'>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -24,7 +33,7 @@
                 <i class="bi bi-sliders me-1"></i>
                 Configuración de valores parametrizables del sistema organizados por tipo. Los parámetros permiten gestionar catálogos como cargos de empleados, lugares, países, sucursales bancarias, entre otros. Los parámetros en uso no pueden ser eliminados para mantener la integridad de los datos.
             </p>
-            <div class="alert alert-info border-0 mb-3">
+            <div class="alert alert-info border-0 mb-3" id="param-nota">
                 <i class="bi bi-info-circle me-2"></i>
                 <strong>Nota:</strong> Los parámetros del sistema son gestionados desde los seeders y la base de datos. Solo puede editar la descripción de parámetros existentes. Para agregar nuevos tipos o valores, contacte al administrador del sistema.
             </div>
@@ -61,7 +70,7 @@
     </div>
 
     @forelse($parametros as $tipo => $items)
-    <div class="card mb-3">
+    <div class="card mb-3" @if($loop->first) id="param-primer-grupo" @endif>
         <div class="card-header bg-transparent fw-bold"
              style="cursor: pointer;"
              data-bs-toggle="collapse"

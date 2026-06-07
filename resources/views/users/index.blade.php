@@ -12,9 +12,23 @@
             </ol>
             </nav>
         </div>
-           @can('users.create')
-            <a href="{{route('users.create')}}" class="btn btn-primary" title="Crea un nuevo rol con sus permisos"> Agregar Nuevo</a>
+           <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"👤 Aquí administras las <b>cuentas de acceso</b> al sistema. Cada usuario tiene un <b>rol</b> que define qué puede hacer."},
+                        {"element":"#datos","intro":"📋 La lista de usuarios: el empleado vinculado, su nombre, el correo con el que entra, su rol y si está activo.","position":"top"},
+                        {"element":"#datos thead th:nth-child(4)","intro":"🎭 El <b>Rol Asignado</b> determina los permisos del usuario. Los roles se gestionan en el submódulo Roles.","position":"bottom"},
+                        {"element":"#datos thead th:nth-child(5)","intro":"🚦 <b>Estado</b>: Activo o Inactivo. Un usuario inactivo no puede entrar al sistema ni editarse.","position":"bottom"},
+                        {"element":"#datos tbody tr:first-child td:last-child","intro":"⚙️ Acciones: ✏️ editar el usuario o 🗑 eliminarlo.","position":"left"},
+                        {"element":"#btnNuevoUsuario","intro":"➕ Con <b>Agregar Nuevo</b> creas una cuenta: eliges el empleado, su correo, contraseña y rol. Se abre en una página aparte.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('users.create')
+            <a href="{{route('users.create')}}" id="btnNuevoUsuario" class="btn btn-primary" title="Crea un nuevo usuario"> Agregar Nuevo</a>
             @endcan
+           </div>
         </div>
    
  </div><!-- End Page Title -->

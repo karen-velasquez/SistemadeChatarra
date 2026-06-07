@@ -13,13 +13,24 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"💼 <b>Tesorería General</b> es la vista consolidada del dinero de <b>todas</b> las empresas y cuentas. Los movimientos se generan solos al registrar pagos y cobros."},
+                    {"element":"#teso-resumen","intro":"📊 Estas tarjetas muestran el <b>saldo general</b> de todo el negocio, el total de <b>ingresos</b> (dinero que entró) y el total de <b>egresos</b> (dinero que salió).","position":"bottom"},
+                    {"element":"#teso-empresas","intro":"🏢 Cada tarjeta es una <b>empresa</b> con su saldo y número de cuentas. Pulsa <b>Ver cuentas</b> para entrar a una empresa y ver el detalle de sus cuentas.","position":"top"},
+                    {"element":"#teso-movimientos","intro":"📋 Los <b>últimos movimientos</b> de todas las cuentas: cada fila es un ingreso o egreso con su fecha, concepto, cuenta y monto.","position":"top"},
+                    {"element":"#teso-nota","intro":"✍️ ¿Quieres registrar un movimiento <b>manual</b> (un gasto o ajuste)? Entra a la cuenta específica desde <b>Empresas y Cuentas</b> y usa ahí el botón Registrar Movimiento.","position":"bottom"}
+                ]'>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
 <section class="section">
 
     {{-- Banner informativo --}}
-    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small">
+    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small" id="teso-nota">
         <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0"></i>
         <div>
             <strong>Tesorería General</strong> — Vista consolidada del dinero de todas las empresas y cuentas registradas.
@@ -30,7 +41,7 @@
     </div>
 
     {{-- Cards resumen --}}
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4" id="teso-resumen">
         <div class="col-12 col-sm-4">
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3 py-3">
@@ -79,7 +90,7 @@
     <h6 class="text-muted text-uppercase fw-semibold mb-3" style="font-size:0.75rem;letter-spacing:.08em">
         <i class="bi bi-building me-1"></i> Empresas
     </h6>
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4" id="teso-empresas">
         @forelse($empresas as $empresa)
         <div class="col-12 col-sm-6 col-xl-4">
             <div class="card border-0 shadow-sm h-100">
@@ -120,7 +131,7 @@
     </div>
 
     {{-- Últimos movimientos --}}
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm" id="teso-movimientos">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <h5 class="card-title mb-0">Últimos Movimientos</h5>

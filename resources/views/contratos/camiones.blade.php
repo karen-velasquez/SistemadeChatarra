@@ -14,9 +14,22 @@
                 </ol>
             </nav>
         </div>
-        <a href="{{ route('contratos.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"🚚 Esta es la pantalla de <b>Gestión de Camiones y Tramos</b> del contrato. Aquí asignas los camiones que transportan la chatarra y registras su recorrido. Te muestro cómo está organizada."},
+                        {"element":"#detalle-contrato","intro":"📋 A la izquierda ves el <b>detalle del contrato</b>: proveedor, fechas, monto y un gráfico con las toneladas <b>entregadas</b> (verde), <b>en ruta</b> (celeste) y <b>pendientes</b>.","position":"right"},
+                        {"element":"#camionesTab","intro":"🗂️ A la derecha hay dos pestañas: <b>Camiones y Tramos</b> (lo ya asignado) y <b>Asignar Camión</b> (para agregar uno nuevo).","position":"bottom"},
+                        {"element":"#pane-lista","intro":"📦 Aquí se listan los camiones asignados. Cada tarjeta muestra la placa, su estado (En ruta / Entregado) y los <b>tramos</b> del recorrido.","position":"top"},
+                        {"element":"#tab-asignar","intro":"➕ Para agregar un camión nuevo, entra a esta pestaña <b>Asignar Camión</b>. Ahí encontrarás otra guía ❓ que explica cada campo.","position":"bottom"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            <a href="{{ route('contratos.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
     </div>
 </div>
 
@@ -25,7 +38,7 @@
 
         {{-- ===== COLUMNA IZQUIERDA ===== --}}
         <div class="col-lg-4">
-            <div class="card">
+            <div class="card" id="detalle-contrato">
                 <div class="card-body">
                     <h5 class="card-title">Detalle del Contrato</h5>
                     <table class="table table-sm table-borderless">
@@ -108,7 +121,7 @@
                         </li>
                         @can('contratos.edit')
                         <li class="nav-item">
-                            <button class="nav-link @if($errors->any()) active @endif" data-bs-toggle="tab" data-bs-target="#pane-agregar" type="button">
+                            <button id="tab-asignar" class="nav-link @if($errors->any()) active @endif" data-bs-toggle="tab" data-bs-target="#pane-agregar" type="button">
                                 <i class="bi bi-plus-circle"></i> Asignar Camión
                             </button>
                         </li>
@@ -197,7 +210,24 @@
                                     </ul>
                                 </div>
                             @endif
-                            <p class="text-muted small"><i class="bi bi-info-circle"></i> Al asignar el camión se registra automáticamente el primer tramo de transporte.</p>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <p class="text-muted small"><i class="bi bi-info-circle"></i> Al asignar el camión se registra automáticamente el primer tramo de transporte.</p>
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                                        data-steps='[
+                                            {"intro":"📝 Vamos a asignar un <b>camión</b> a este contrato. Al guardar, se crea automáticamente su primer <b>tramo</b> de transporte. Te explico cada campo."},
+                                            {"element":"#cc_camion_id","intro":"🚛 <b>Camión</b>: búscalo por placa, marca o modelo. Solo aparecen los camiones <b>disponibles</b>, con su capacidad en toneladas.","position":"bottom"},
+                                            {"element":"#cc_conductor_id","intro":"👷 <b>Conductor</b>: se habilita al elegir el camión y muestra solo los conductores <b>relacionados</b> con esa unidad.","position":"bottom"},
+                                            {"element":"[name=\"origen\"]","intro":"📍 <b>Origen</b>: desde dónde sale la carga (ej: SÃO PAULO, BRASIL). Se escribe en mayúsculas automáticamente.","position":"top"},
+                                            {"element":"[name=\"destino\"]","intro":"🏁 <b>Destino</b>: a dónde va este tramo (ej: FRONTERA CORUMBÁ / LA PAZ).","position":"top"},
+                                            {"element":"[name=\"peso_declarado\"]","intro":"⚖️ <b>Peso declarado</b>: las toneladas que el proveedor dice que entrega en este camión.","position":"top"},
+                                            {"element":"[name=\"fecha_asignacion\"]","intro":"📅 <b>Fecha de Salida</b> del camión. Por defecto toma la fecha de hoy.","position":"top"},
+                                            {"element":"[name=\"monto_acordado\"]","intro":"💲 <b>Monto del flete</b> pactado con el transportista, con su moneda. Es opcional.","position":"top"},
+                                            {"element":"#btn_asignar_camion","intro":"✅ El botón <b>Asignar Camión</b> se activa cuando completas los campos obligatorios. ¡Y listo!","position":"top"}
+                                        ]'>
+                                    <i class="bi bi-question-circle"></i>
+                                </button>
+                            </div>
                             <form method="POST" action="{{ route('contrato-camion.store') }}">
                                 @csrf
                                 <input type="hidden" name="contrato_id" value="{{ $contrato->id }}">

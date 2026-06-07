@@ -13,6 +13,24 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                @if($contratos->isEmpty())
+                data-steps='[
+                    {"intro":"💵 Esta es la pantalla de <b>Pagos a Proveedores</b>. Aquí verás cada contrato con su total, lo pagado y el saldo, y podrás registrar pagos.<br><br>📭 Por ahora <b>no hay contratos con proveedor</b> registrados, así que no hay nada que mostrar todavía."}
+                ]'
+                @else
+                data-steps='[
+                    {"intro":"💵 Esta es la pantalla de <b>Pagos a Proveedores</b>. Controla, contrato por contrato, cuánto se le ha pagado a cada proveedor y cuánto falta. Te muestro cómo se usa."},
+                    {"element":"#filtro_proveedor","intro":"🔎 Usa este filtro para ver solo los contratos de <b>un proveedor</b>. El contador de la derecha te dice cuántos se muestran.","position":"bottom"},
+                    {"element":"#tabla_pagos_prov","intro":"📋 Cada fila es un contrato. Las filas en <b>verde</b> ya están totalmente pagadas (saldo 0).","position":"top"},
+                    {"element":"#tabla_pagos_prov thead th:nth-child(6)","intro":"💰 Fíjate en estas columnas: <b>Total acordado</b>, <b>Pagado</b> y <b>Saldo</b>. El saldo en rojo es lo que aún se le debe al proveedor.","position":"bottom"},
+                    {"element":"#tabla_pagos_prov thead th:nth-child(7)","intro":"📊 Esta columna muestra dos barras: el avance de <b>toneladas</b> (entregado/en ruta) y el avance del <b>pago</b> (% pagado).","position":"bottom"},
+                    {"element":"#col-acciones-pp","intro":"⚙️ En <b>Acciones</b>: el botón 👁 muestra el <b>detalle de pagos</b> del contrato, y el botón ➕ (verde) abre el formulario para <b>registrar un pago</b> nuevo.","position":"left"}
+                ]'
+                @endif>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -65,7 +83,7 @@
                                 <th class="text-end">Pagado</th>
                                 <th class="text-end">Saldo</th>
                                 <th>Toneladas / Pagado</th>
-                                <th>Acciones</th>
+                                <th id="col-acciones-pp">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -180,7 +198,26 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="bi bi-cash-coin"></i> Registrar Pago a Proveedor</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalPago"
+                            data-steps='[
+                                {"intro":"💳 Este formulario registra un <b>pago a un proveedor</b> por un contrato. Te explico cada parte. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#sec_seleccionar_contrato","intro":"📄 <b>Contrato</b>: elige a qué contrato corresponde el pago. Si abriste el modal desde el botón ➕ de una fila, ya viene seleccionado.","position":"bottom"},
+                                {"element":"[name=\"tipo_pago\"]","intro":"🏷️ <b>Tipo de Pago</b>: <b>Adelanto</b> (a cuenta) o <b>Pago Final</b> (saldo del contrato).","position":"bottom"},
+                                {"element":"#moneda_pago","intro":"💱 <b>Moneda</b> del pago. Si eliges una distinta de BOB, aparecerá el campo de <b>tipo de cambio</b> para convertir a bolivianos.","position":"bottom"},
+                                {"element":"#inp_monto","intro":"🔢 <b>Monto</b> que se paga. Si la moneda no es BOB, abajo verás el equivalente en bolivianos calculado automáticamente.","position":"bottom"},
+                                {"element":"[name=\"fecha_pago\"]","intro":"📅 <b>Fecha del pago</b>. Por defecto es hoy.","position":"top"},
+                                {"element":"#metodo_pago","intro":"🏦 <b>Método de Pago</b>: transferencia, QR o cheque. Si es transferencia, se habilita un campo para el código/N° de referencia.","position":"top"},
+                                {"element":"[name=\"cuenta_origen_id\"]","intro":"📤 <b>Cuenta Origen</b>: de qué cuenta de la empresa (tesorería) sale el dinero. Si fue en efectivo, déjala vacía.","position":"top"},
+                                {"element":"#sel_cuenta_destino","intro":"📥 <b>Cuenta Destino</b>: a qué cuenta del proveedor se le pagó. Se cargan según el proveedor del contrato.","position":"top"},
+                                {"element":"[name=\"observaciones\"]","intro":"📝 <b>Observaciones</b> (opcional): cualquier nota sobre el pago.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i> Ayuda
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('pagos.proveedores.store') }}">
                 @csrf

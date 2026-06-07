@@ -3,14 +3,33 @@
 @section('content')
 
 <div class="pagetitle">
-    <div>
-        <h1>LOTES DE PAGO MASIVO</h1>
-        <nav>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                <li class="breadcrumb-item active">Lotes de Pago</li>
-            </ol>
-        </nav>
+    <div class="d-flex flex-row align-items-center justify-content-between">
+        <div>
+            <h1>LOTES DE PAGO MASIVO</h1>
+            <nav>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
+                    <li class="breadcrumb-item active">Lotes de Pago</li>
+                </ol>
+            </nav>
+        </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                @if($lotes->isEmpty())
+                data-steps='[
+                    {"intro":"📦 Un <b>Lote de Pago</b> agrupa todos los pagos que generaste en un <b>pago masivo</b> (a proveedores o camiones).<br><br>📭 Aún no hay lotes. Aparecerán aquí cuando hagas un pago masivo desde Proveedores o Transporte."}
+                ]'
+                @else
+                data-steps='[
+                    {"intro":"📦 Cada <b>lote</b> agrupa los pagos de un pago masivo. Aquí registras el <b>código real</b> que te da el banco cuando confirma la transferencia, y se aplica a todos los pagos del lote."},
+                    {"element":"#lp-tabla","intro":"📋 La lista de lotes: fecha, tipo (proveedor o camión), cuenta de origen, método y los códigos.","position":"top"},
+                    {"element":"#lp-tabla thead th:nth-child(5)","intro":"🔖 El <b>código provisional</b> lo genera el sistema al crear el lote. El <b>código real</b> es el que confirma el banco después.","position":"bottom"},
+                    {"element":"#lp-tabla thead th:nth-child(7)","intro":"🚦 El <b>Estado</b>: <b>Pendiente</b> mientras no haya código real, <b>Confirmado</b> cuando lo registras.","position":"bottom"},
+                    {"element":"#lp-tabla tbody tr:first-child td:last-child","intro":"✏️ Con este botón <b>ingresas o editas el código real</b> del banco para ese lote.","position":"left"}
+                ]'
+                @endif>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -32,7 +51,7 @@
       </div>
     @else
     <div class="table-responsive">
-      <table class="table table-hover table-bordered table-sm align-middle">
+      <table id="lp-tabla" class="table table-hover table-bordered table-sm align-middle">
         <thead class="table-light">
           <tr>
             <th>Fecha</th>

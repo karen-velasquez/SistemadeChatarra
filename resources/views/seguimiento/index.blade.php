@@ -13,6 +13,22 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"📍 Esta pantalla monitorea en <b>tiempo real</b> dónde está cada carga en su recorrido. Cada fila es un <b>tramo</b> de transporte. Te muestro cómo leerla."},
+                    {"element":"#tarjetas-resumen","intro":"📊 Estas tarjetas resumen cuántas cargas hay en cada estado: <b>En ruta</b>, <b>Transbordando</b>, <b>Transbordado</b> y <b>Entregadas</b>.","position":"bottom"},
+                    {"element":"#filtro_proveedor_seg","intro":"🔎 Puedes <b>filtrar</b> las cargas por proveedor para enfocarte en uno solo.","position":"bottom"},
+                    {"element":"#segTabs","intro":"🗂️ Las pestañas separan las cargas según su <b>estado</b>. Te explico qué significa cada una.","position":"bottom"},
+                    {"element":"#segTabs button[data-bs-target=\"#pane-en-ruta\"]","intro":"🚛 <b>En ruta</b>: el camión va viajando hacia su destino. Todavía no ha llegado. Desde aquí registras su llegada.","position":"bottom"},
+                    {"element":"#segTabs button[data-bs-target=\"#pane-transbordando\"]","intro":"🔄 <b>Transbordando</b>: el camión llegó y su carga se está pasando a otro(s) camión(es) — por ejemplo en una frontera. Aún quedan toneladas por reasignar.","position":"bottom"},
+                    {"element":"#segTabs button[data-bs-target=\"#pane-transbordado\"]","intro":"✅ <b>Transbordado</b>: la carga ya se traspasó completamente a otros camiones y continúa su viaje en ellos.","position":"bottom"},
+                    {"element":"#segTabs button[data-bs-target=\"#pane-entregados\"]","intro":"🏁 <b>Entregados</b>: la carga llegó a su destino final y se entregó al cliente. Aquí ves el historial de entregas con su peso y descuentos.","position":"bottom"},
+                    {"element":"#tabla_en_ruta","intro":"📋 Dentro de cada pestaña, cada fila muestra el contrato, el camión, el conductor, la ruta (origen → destino), el peso y cuánto del flete se ha pagado.","position":"top"},
+                    {"element":"#tabla_en_ruta tbody tr:first-child td:last-child","intro":"⚙️ El botón <b>Opciones</b> de cada carga te deja <b>Registrar llegada</b>, registrar el pago del flete, asignar flete o ver el contrato.","position":"left"}
+                ]'>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -32,7 +48,7 @@
     </div>
 
     {{-- Tarjetas resumen --}}
-    <div class="row mb-4">
+    <div class="row mb-4" id="tarjetas-resumen">
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm text-center py-3">
                 <div style="font-size:2rem; color:#0d6efd;"><i class="bi bi-truck"></i></div>
@@ -924,7 +940,24 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Registrar Llegada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalLlegada"
+                            data-steps='[
+                                {"intro":"📍 Aquí registras qué pasó cuando el camión <b>llegó</b> a su destino. Es el paso clave del seguimiento. Te explico los campos."},
+                                {"element":"#inp_peso_llegada","intro":"⚖️ <b>Peso al llegar</b>: las toneladas reales pesadas al llegar. Puede diferir del peso de salida (merma).","position":"bottom"},
+                                {"element":"#inp_fecha_llegada","intro":"📅 <b>Fecha de llegada</b>. No puede ser anterior a la fecha de salida.","position":"bottom"},
+                                {"element":"#seg_accion_entregado","intro":"✅ <b>Entregado al cliente</b>: la carga llegó a su destino final. Pedirá el cliente y el precio de venta.","position":"right"},
+                                {"element":"#seg_accion_parcial","intro":"🥧 <b>Div. Carga</b>: entregas una parte a un cliente y el resto continúa en otro camión. Se crean 2 tramos automáticamente.","position":"right"},
+                                {"element":"#seg_accion_transbordo","intro":"🔄 <b>Transbordo</b>: la carga cambia de camión y continúa (típico en frontera o cambio de unidad).","position":"right"},
+                                {"element":"#seg_chk_descuento","intro":"➖ Opcional: aplica un <b>descuento</b> al pago del camionero (ej. por chatarra en mal estado o faltante).","position":"top"},
+                                {"element":"#btn_confirmar_llegada_seg","intro":"💾 El botón <b>Confirmar</b> se activa cuando completas todos los campos obligatorios según la acción elegida.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i> Ayuda
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" id="formLlegada" action="">
                 @csrf

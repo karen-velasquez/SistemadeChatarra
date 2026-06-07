@@ -14,11 +14,25 @@
                 </ol>
             </nav>
         </div>
-        @can('empresas.create')
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalPrestamo">
-            <i class="bi bi-plus-lg"></i> Nuevo Préstamo
-        </button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"🔁 Los <b>Préstamos Internos</b> son transferencias de dinero <b>entre cuentas de la empresa</b> (no a terceros). Al registrar uno, baja el saldo de la cuenta origen y sube el de la destino."},
+                        {"element":"#pi-resumen","intro":"📊 Resumen: total de préstamos, cuántos siguen <b>pendientes</b> de devolver y cuántos ya están <b>pagados</b>.","position":"bottom"},
+                        {"element":"#pi-tabla","intro":"📋 El historial: origen, destino, monto, cuánto se ha devuelto y cuánto queda pendiente.","position":"top"},
+                        {"element":"#pi-tabla thead th:nth-child(8)","intro":"🚦 El <b>Estado</b>: Pendiente, Parcial (devuelto en parte) o Pagado (devuelto del todo).","position":"bottom"},
+                        {"element":"#pi-tabla tbody tr:first-child td:last-child","intro":"↩️ Con el botón <b>Devolver</b> registras una devolución parcial o total de un préstamo pendiente.","position":"left"},
+                        {"element":"#btnNuevoPrestamo","intro":"➕ Con <b>Nuevo Préstamo</b> registras una transferencia entre cuentas. El formulario tiene su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('empresas.create')
+            <button id="btnNuevoPrestamo" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalPrestamo">
+                <i class="bi bi-plus-lg"></i> Nuevo Préstamo
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
@@ -36,7 +50,7 @@
     </div>
 
     {{-- Resumen --}}
-    <div class="row mb-4">
+    <div class="row mb-4" id="pi-resumen">
         <div class="col-12 col-sm-4">
             <div class="card border-0 shadow-sm text-center">
                 <div class="card-body pt-4">
@@ -68,7 +82,7 @@
         <div class="card-body">
             <h5 class="card-title mb-3">Historial de Préstamos</h5>
             <div class="table-responsive">
-                <table class="table table-hover table-sm table-bordered">
+                <table id="pi-tabla" class="table table-hover table-sm table-bordered">
                     <thead>
                         <tr>
                             <th>Fecha</th>
@@ -143,7 +157,22 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Nuevo Préstamo Interno</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalPrestamo"
+                            data-steps='[
+                                {"intro":"📝 Registra una transferencia entre dos cuentas de la empresa. Solo entre cuentas de la <b>misma moneda</b>. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#cuentaOrigen","intro":"📤 <b>Cuenta Origen</b>: la que <b>presta</b> el dinero. Muestra su saldo disponible. Elígela primero.","position":"bottom"},
+                                {"element":"#cuentaDestino","intro":"📥 <b>Cuenta Destino</b>: la que <b>recibe</b>. Solo aparecen cuentas de la misma moneda que la origen.","position":"bottom"},
+                                {"element":"#montoPrestamo","intro":"💲 <b>Monto</b> a prestar. No puede superar el saldo disponible de la cuenta origen.","position":"bottom"},
+                                {"element":"[name=\"fecha_prestamo\"]","intro":"📅 <b>Fecha</b> del préstamo. Opcionalmente, una fecha de vencimiento al lado.","position":"top"},
+                                {"element":"[name=\"concepto\"]","intro":"✏️ <b>Concepto</b>: el motivo del préstamo.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('prestamos_internos.store') }}">
                 @csrf

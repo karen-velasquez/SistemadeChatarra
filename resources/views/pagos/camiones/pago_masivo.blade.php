@@ -14,9 +14,29 @@
                 </ol>
             </nav>
         </div>
-        <a href="{{ route('pagos.camiones.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    @if($porProveedor->isEmpty())
+                    data-steps='[
+                        {"intro":"💸 El <b>Pago Masivo de Fletes</b> te permite pagar a varios transportistas a la vez.<br><br>📭 Por ahora <b>no hay fletes pendientes</b> con entregas realizadas, así que no hay nada que pagar."}
+                    ]'
+                    @else
+                    data-steps='[
+                        {"intro":"💸 El <b>Pago Masivo de Fletes</b> paga varios fletes de golpe. Se hace en <b>2 pasos</b>: primero eliges qué fletes pagar, luego a qué cuenta llega cada uno. Te guío por el Paso 1."},
+                        {"element":"#pm_cuenta","intro":"🏦 <b>Cuenta de origen</b>: de qué cuenta de la empresa sale el dinero. Muestra el saldo y avisa si no alcanza.","position":"bottom"},
+                        {"element":"#pm_fecha","intro":"📅 <b>Fecha de pago</b> de todo el lote.","position":"bottom"},
+                        {"element":"#pm_metodo","intro":"💳 <b>Método de pago</b> (transferencia o QR). Si es transferencia, podrás escribir un código.","position":"bottom"},
+                        {"element":"#zona-fletes","intro":"🚚 Los fletes pendientes <b>agrupados por proveedor</b>. Marca la casilla del proveedor para seleccionar todos sus fletes, o márcalos uno por uno.","position":"top"},
+                        {"element":"#zona-totales-flete","intro":"🧮 Abajo ves cuántos fletes seleccionaste y el <b>total a pagar</b>. Cuando esté listo, el botón <b>Siguiente</b> te lleva al Paso 2.","position":"top"}
+                    ]'
+                    @endif>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            <a href="{{ route('pagos.camiones.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
     </div>
 </div>
 
@@ -137,6 +157,7 @@
         </div>
     </div>
 
+    <div id="zona-fletes">
     @foreach($porProveedor as $grupo)
     <div class="card border mb-3">
         <div class="card-header bg-light d-flex align-items-center gap-2 py-2">
@@ -218,8 +239,9 @@
         </div>
     </div>
     @endforeach
+    </div>{{-- /zona-fletes --}}
 
-    <div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="d-flex justify-content-between align-items-center mt-3" id="zona-totales-flete">
         <div class="text-muted small">
             Fletes seleccionados: <strong id="res_cant">0</strong>
             &nbsp;|&nbsp; Total a pagar: <strong id="res_total" class="text-danger">BOB 0.00</strong>
@@ -240,7 +262,20 @@
 
 <div class="card">
 <div class="card-body">
-    <h5 class="card-title">Paso 2 — ¿A qué cuenta llega el dinero de cada flete?</h5>
+    <div class="d-flex justify-content-between align-items-start">
+        <h5 class="card-title">Paso 2 — ¿A qué cuenta llega el dinero de cada flete?</h5>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"📍 Estás en el <b>Paso 2</b>. Aquí defines a qué <b>cuenta bancaria</b> llega el pago de cada flete que seleccionaste antes."},
+                    {"element":"#p2_resumen","intro":"📋 Este resumen recuerda la cuenta de origen, la fecha, el método y el total del lote.","position":"bottom"},
+                    {"element":"#paso2_contenido","intro":"🏦 Los fletes aparecen agrupados por proveedor. Para cada uno, elige la <b>cuenta del conductor o propietario</b> donde se depositará el pago.","position":"top"},
+                    {"element":"#btn_pm_volver","intro":"↩️ Si necesitas cambiar montos o la selección, con <b>Volver al paso 1</b> regresas sin perder nada.","position":"right"},
+                    {"element":"#btn_registrar","intro":"✅ Cuando todos los fletes tengan cuenta asignada, este botón se activa y muestra un resumen final (exportable a Excel) antes de registrar los pagos.","position":"left"}
+                ]'>
+            <i class="bi bi-question-circle"></i>
+        </button>
+    </div>
     <p class="text-muted small mb-3">
         <i class="bi bi-bank me-1"></i>
         Para cada flete seleccione <strong>una cuenta bancaria</strong> a la que llegará el pago.
@@ -268,7 +303,7 @@
         <div id="paso2_contenido"></div>
 
         <div class="d-flex gap-3 mt-4">
-            <button type="button" class="btn btn-outline-secondary" onclick="volverAPaso1()">
+            <button type="button" id="btn_pm_volver" class="btn btn-outline-secondary" onclick="volverAPaso1()">
                 <i class="bi bi-arrow-left me-1"></i> Volver al paso 1
             </button>
             <button type="button" id="btn_registrar" class="btn btn-success ms-auto" disabled onclick="abrirConfirmacion()">

@@ -4,10 +4,22 @@
 <div class="container-fluid">
 
     <div class="mb-4">
-    <h1>Dashboard</h1>
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>Dashboard</h1>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"👋 ¡Bienvenido al Sistema de Gestión de Chatarra! Te muestro las partes principales del panel."},
+                    {"element":"#sidebar","intro":"📋 Este es el menú principal. Desde aquí navegas a Contratos, Proveedores, Transporte, Clientes y más.","position":"right"},
+                    {"element":".dash-card","intro":"📊 Estas tarjetas resumen los números clave del negocio: contratos activos, pagos del mes y gastos.","position":"bottom"},
+                    {"element":".nav-profile","intro":"👤 Aquí ves tu usuario. Puedes acceder a tus datos o cerrar sesión.","position":"left"}
+                ]'>
+            <i class="bi bi-question-circle"></i>
+        </button>
+    </div>
      <p class="text-muted small mb-3">
         <i class="bi bi-info-circle me-1"></i>Dashboard de Control para Gestión de Contratos, Pagos y Operaciones. Visualiza métricas clave, accesos rápidos a módulos principales y alertas para mantener un seguimiento eficiente de las actividades comerciales.
-    </p>    
+    </p>
     </div>
     <div class="row g-4 mb-4">
         <div class="col-md-3">

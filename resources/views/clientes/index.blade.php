@@ -14,9 +14,22 @@
             </nav>
         </div>
 
-        @can('clientes.create')
-        <button type="button" class="btn btn-primary MB-3" data-bs-toggle="modal" data-bs-target="#modalCliente" onclick="resetModalCliente()"> <i class="bi bi-plus-lg"></i> Nuevo Cliente</button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"👥 Bienvenido al módulo <b>Clientes</b>: las personas o empresas a las que la empresa <b>vende</b> chatarra. Aquí los registras y mantienes sus datos al día."},
+                        {"element":"#datos","intro":"📋 La lista de todos los clientes registrados, con su NIT, país, teléfonos, direcciones y email.","position":"top"},
+                        {"element":"#datos thead th:nth-child(4)","intro":"📞 En <b>Teléfonos</b> y <b>Direcciones</b> un mismo cliente puede tener varios; se muestran como etiquetas.","position":"bottom"},
+                        {"element":"#datos tbody tr:first-child .btn-group","intro":"⚙️ Con el botón <b>Opciones</b> de cada fila puedes <b>Modificar</b> o <b>Eliminar</b> el cliente.","position":"left"},
+                        {"element":"#btnNuevoCliente","intro":"➕ Para registrar uno nuevo, pulsa <b>Nuevo Cliente</b>. Se abrirá un formulario con su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('clientes.create')
+            <button type="button" id="btnNuevoCliente" class="btn btn-primary MB-3" data-bs-toggle="modal" data-bs-target="#modalCliente" onclick="resetModalCliente()"> <i class="bi bi-plus-lg"></i> Nuevo Cliente</button>
+            @endcan
+        </div>
     </div>
 </div>
 

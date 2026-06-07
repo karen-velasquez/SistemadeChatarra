@@ -12,9 +12,22 @@
             </ol>
             </nav>
         </div>
-        @can('roles.create')
-            <a href="{{route('roles.create')}}" class="btn btn-primary" title="Crea un nuevo rol con sus permisos">Agregar Nuevo</a>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"🎭 Un <b>Rol</b> agrupa un conjunto de permisos. En vez de dar permisos uno por uno a cada persona, le asignas un rol (ej: Administrador, Operador, Supervisor) y hereda todos sus permisos."},
+                        {"element":"#tabla_roles","intro":"📋 La lista de roles: su nombre, descripción y cuántos usuarios tienen ese rol asignado.","position":"top"},
+                        {"element":"#tabla_roles thead th:nth-child(4)","intro":"👥 Esta columna muestra cuántos <b>usuarios</b> usan cada rol. Si un rol está en uso, no se puede eliminar.","position":"bottom"},
+                        {"element":"#tabla_roles tbody tr:first-child td:last-child","intro":"⚙️ Acciones: 👁 ver los permisos del rol, ✏️ editarlo, 🗑 eliminarlo (si no está en uso).","position":"left"},
+                        {"element":"#btnNuevoRol","intro":"➕ Con <b>Agregar Nuevo</b> creas un rol y eliges qué permisos tendrá. Se abre en una página aparte.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('roles.create')
+                <a href="{{route('roles.create')}}" id="btnNuevoRol" class="btn btn-primary" title="Crea un nuevo rol con sus permisos">Agregar Nuevo</a>
+            @endcan
+        </div>
     </div>
  </div><!-- End Page Title -->
  <section class="section">

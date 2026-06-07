@@ -3,14 +3,34 @@
 @section('content')
 
 <div class="pagetitle">
-    <div>
-        <h1>HISTORIAL DE PAGOS A CAMIONES</h1>
-        <nav>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                <li class="breadcrumb-item active">Historial Pagos Camiones</li>
-            </ol>
-        </nav>
+    <div class="d-flex flex-row align-items-center justify-content-between">
+        <div>
+            <h1>HISTORIAL DE PAGOS A CAMIONES</h1>
+            <nav>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
+                    <li class="breadcrumb-item active">Historial Pagos Camiones</li>
+                </ol>
+            </nav>
+        </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                @if($pagos->isEmpty())
+                data-steps='[
+                    {"intro":"📜 Este es el <b>Historial de Pagos a Camiones</b>: aquí se listan todos los pagos de fletes a transportistas.<br><br>📭 Aún <b>no hay pagos registrados</b>. Los pagos se registran desde <b>Seguimiento de Cargas</b> (en las Opciones de cada camión); luego aparecerán aquí."}
+                ]'
+                @else
+                data-steps='[
+                    {"intro":"📜 Este es el <b>Historial de Pagos a Camiones</b>: todos los pagos de fletes, del más reciente al más antiguo. Es solo de <b>consulta</b>; los pagos se registran desde Seguimiento de Cargas."},
+                    {"element":"#filtro_camion","intro":"🚛 Filtra los pagos por <b>camión</b> para ver solo los de una placa.","position":"bottom"},
+                    {"element":"#filtro_tipo","intro":"🏷️ Filtra por <b>tipo de pago</b>: Adelanto, Flete o Pago Final.","position":"bottom"},
+                    {"element":"#tabla_historial","intro":"📋 Cada fila es un pago: fecha, camión, contrato, a quién se le pagó y con qué método.","position":"top"},
+                    {"element":"#tabla_historial thead th:nth-child(6)","intro":"💱 La columna <b>Monto</b> muestra la moneda original; <b>En BOB</b> muestra el equivalente en bolivianos (con su tipo de cambio) cuando el pago fue en otra moneda.","position":"bottom"},
+                    {"element":"#tabla_historial thead th:nth-child(9)","intro":"👤 <b>Receptor</b>: a quién se pagó (conductor o propietario) y su cuenta. <b>Pagado por</b>: de qué cuenta de la empresa salió el dinero.","position":"bottom"}
+                ]'
+                @endif>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 

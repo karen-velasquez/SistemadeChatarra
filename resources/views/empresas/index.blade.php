@@ -13,11 +13,24 @@
                 </ol>
             </nav>
         </div>
-        @can('empresas.create')
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEmpresa" onclick="resetModal()">
-            <i class="bi bi-plus-lg"></i> Nueva Empresa
-        </button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"🏢 En <b>Gestión de Empresas</b> administras las empresas del grupo y sus cuentas bancarias o de efectivo. Cada cuenta lleva un saldo que se actualiza solo con los pagos."},
+                        {"element":"#emp-cards-resumen","intro":"📊 Resumen global: total de empresas, total de cuentas y el saldo general de todo el grupo.","position":"bottom"},
+                        {"element":"#emp-grid","intro":"🏢 Cada tarjeta es una <b>empresa</b> con su saldo y sus cuentas. Haz clic en una cuenta para ver sus movimientos.","position":"top"},
+                        {"element":"#emp-grid .btn-group:first-child","intro":"⚙️ El menú de <b>opciones</b> (tres puntos) de cada empresa: ver movimientos, agregar una cuenta, ver información, editar o eliminar.","position":"left"},
+                        {"element":"#btnNuevaEmpresa","intro":"➕ Con <b>Nueva Empresa</b> registras una empresa nueva. El formulario tiene su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('empresas.create')
+            <button id="btnNuevaEmpresa" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEmpresa" onclick="resetModal()">
+                <i class="bi bi-plus-lg"></i> Nueva Empresa
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
@@ -39,7 +52,7 @@
         $saldoTotal    = $empresas->sum(fn($e) => $e->cuentas->sum('saldo_actual'));
         $totalCuentas  = $empresas->sum(fn($e) => $e->cuentas->count());
     @endphp
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4" id="emp-cards-resumen">
         <div class="col-12 col-sm-4">
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3 py-3">
@@ -87,7 +100,7 @@
     </div>
 
     {{-- Cards por empresa --}}
-    <div class="row g-3">
+    <div class="row g-3" id="emp-grid">
         @forelse($empresas as $empresa)
         @php
             $saldoEmpresa   = $empresa->cuentas->sum('saldo_actual');
@@ -329,7 +342,23 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-building"></i> <span id="tituloModal">Nueva Empresa</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalEmpresa"
+                            data-steps='[
+                                {"intro":"📝 Registra una empresa del grupo. Los campos con <span style=\"color:#dc3545\">*</span> son obligatorios; el botón Registrar se activa al completarlos."},
+                                {"element":"#nombre","intro":"🏢 <b>Nombre</b> de la empresa (ej: Empresa Ejemplo S.R.L.).","position":"bottom"},
+                                {"element":"#nit","intro":"🔢 <b>NIT / RUC</b>: el documento tributario. Solo números.","position":"bottom"},
+                                {"element":"#razon_social","intro":"📄 <b>Razón Social</b>: el nombre legal completo de la empresa.","position":"bottom"},
+                                {"element":"#telefono","intro":"📞 <b>Teléfono</b> (opcional): elige el país y escribe el número.","position":"top"},
+                                {"element":"#email","intro":"✉️ <b>Email</b> (opcional): se valida el formato.","position":"top"},
+                                {"element":"#btnGuardar","intro":"💾 Pulsa <b>Registrar</b> para guardar la empresa. Luego podrás agregarle cuentas.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formEmpresa" method="POST" action="{{ route('empresas.store') }}">
                 @csrf
