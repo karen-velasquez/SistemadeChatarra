@@ -13,7 +13,10 @@ use App\Models\PagoProveedor;
 use App\Models\PagoCamion;
 use App\Models\PagoCliente;
 use App\Models\Tramo;
+use App\Models\Movimiento;
+use App\Models\CuentaEmpresa;
 use Carbon\Carbon;
+
 
 class HomeController extends Controller
 {
@@ -43,55 +46,40 @@ class HomeController extends Controller
         $pagosPendientes = GastoExtra::with('contrato.proveedor')->whereNull('deleted_at')->where('estado', 'pendiente')->orderBy('fecha', 'asc')->take(5)->get();
         $gastosPorCategoria = GastoExtra::whereNull('deleted_at')->where('estado', 'pagado')->selectRaw('categoria, SUM(monto_bolivianos) as total')->groupBy('categoria')->orderByDesc('total')->take(5)->get();
         $ultimosPagos = GastoExtra::with('contrato.proveedor')->whereNull('deleted_at')->where('estado', 'pagado')->latest()->take(5)->get();
-        ///Ranking
-    $proveedoresRanking = Proveedor::orderBy('nombre')->get();
-$clientesRanking = Cliente::orderBy('nombre')->get();
-
-$rankingToneladas = DB::table('tramos as t')
-    ->join('contrato_camiones as cc', 'cc.id', '=', 't.contrato_camion_id')
-    ->join('contratos as c', 'c.id', '=', 'cc.contrato_id')
-    ->join('proveedors as p', 'p.id', '=', 'c.proveedor_id')
-    ->leftJoin('clientes as cl', 'cl.id', '=', 't.cliente_id')
-    ->select(
-        'p.id as proveedor_id',
-        'p.nombre as proveedor_nombre',
-        'cl.id as cliente_id',
-        DB::raw("COALESCE(cl.nombre, 'Sin cliente') as cliente_nombre"),
-        DB::raw("
-            SUM(
-                COALESCE(
-                    t.peso_llegada,
-                    t.peso_salida,
-                    t.peso_declarado,
-                    cc.toneladas,
-                    0
-                )
-            ) as total_toneladas
-        ")
-    )
-    ->whereNull('t.deleted_at')
-    ->whereNull('c.deleted_at')
-    ->when($request->fecha_inicio, function ($query) use ($request) {
-        $query->whereDate('t.fecha_llegada', '>=', $request->fecha_inicio);
-    })
-    ->when($request->fecha_fin, function ($query) use ($request) {
-        $query->whereDate('t.fecha_llegada', '<=', $request->fecha_fin);
-    })
-    ->when($request->proveedor_id, function ($query) use ($request) {
-        $query->where('c.proveedor_id', $request->proveedor_id);
-    })
-    ->when($request->cliente_id, function ($query) use ($request) {
-        $query->where('t.cliente_id', $request->cliente_id);
-    })
-    ->groupBy(
-        'p.id',
-        'p.nombre',
-        'cl.id',
-        'cl.nombre'
-    )
-    ->orderByDesc('total_toneladas')
-    ->get();
-            //
-                return view('home', compact('proveedoresRanking', 'clientesRanking', 'rankingToneladas', 'contratosActivos', 'proveedoresRegistrados', 'cuentasActivas', 'gastosExtrasPagadosMes', 'gastosExtrasPendientesMes', 'gastosPendientesTotal', 'pagosPendientesCantidad', 'pagosProveedorPagadosMes', 'pagosProveedorPendientesMes', 'cobrosClientesPagadosMes', 'cobrosClientesPendientesMes', 'pagosCamionesPagadosMes', 'pagosCamionesPendientesMes', 'camionesTransbordado', 'camionesEnRuta', 'camionesDescargado', 'camionesPendiente', 'contratosRecientes', 'pagosPendientes', 'gastosPorCategoria', 'ultimosPagos'));
-            }
+        $proveedoresRanking = Proveedor::orderBy('nombre')->get();
+        $clientesRanking = Cliente::orderBy('nombre')->get();
+        $inicioMes = now()->startOfMonth()->format('Y-m-d');
+        $finMes = now()->endOfMonth()->format('Y-m-d');
+        $contratosActivos = Contrato::whereNull('deleted_at')->where('estado', 'Activo')->count();
+        $contratosConcluidos = Contrato::whereNull('deleted_at')->where('estado', 'Concluido')->count();
+        $proveedoresActivos = Proveedor::whereNull('deleted_at')->count();
+        $clientesActivos = Cliente::whereNull('deleted_at')->count();
+        $saldoTesoreria = CuentaEmpresa::whereNull('deleted_at')->sum('saldo_actual');
+        $capitalInicial = CuentaEmpresa::whereNull('deleted_at')->sum('saldo_inicial');
+        $ingresosMes = Movimiento::whereNull('deleted_at')->where('tipo', 'ingreso')->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $egresosMes = Movimiento::whereNull('deleted_at')->where('tipo', 'egreso')->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $cobrosClientesMes = Movimiento::whereNull('deleted_at')->where('tipo', 'ingreso')->whereIn('categoria', ['pago_cliente', 'anticipo_cliente'])->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $pagosProveedorPagadosMes = Movimiento::whereNull('deleted_at')->where('tipo', 'egreso')->where('categoria', 'pago_proveedor')->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $pagosCamionMes = Movimiento::whereNull('deleted_at')->where('tipo', 'egreso')->where('categoria', 'pago_camion')->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $gastosExtrasPagadosMes = GastoExtra::whereNull('deleted_at')->where('estado', 'PAGADO')->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $gastosExtrasPendientesMes = GastoExtra::whereNull('deleted_at')->where('estado', 'PENDIENTE')->whereBetween('fecha', [$inicioMes, $finMes])->sum('monto_bolivianos');
+        $utilidadMes = $cobrosClientesMes - $pagosProveedorPagadosMes - $pagosCamionMes - $gastosExtrasPagadosMes;
+        $pagosProveedorPendientesMes = Contrato::whereNull('deleted_at')->get()->sum(function ($contrato) {return $contrato->saldo_pendiente_proveedor ?? 0;});
+        $camionesTransbordado = Tramo::whereNull('deleted_at')->where('estado', 'Transbordando')->count();
+        $camionesEnRuta = Tramo::whereNull('deleted_at')->where('estado', 'En ruta')->count();
+        $camionesDescargado = Tramo::whereNull('deleted_at')->where('estado', 'Entregado')->count();
+        $toneladasDeclaradasMes = Tramo::whereNull('deleted_at')->whereBetween('fecha_salida', [$inicioMes, $finMes])->sum('peso_salida');
+        $toneladasEntregadasMes = Tramo::whereNull('deleted_at')->where('estado', 'Entregado')->whereBetween('fecha_llegada', [$inicioMes, $finMes])->sum('peso_llegada');
+        $cuentasActivas = CuentaEmpresa::whereNull('deleted_at')->where('activo', 1)->count();
+        $contratosRecientes = Contrato::with(['proveedor', 'cliente'])->whereNull('deleted_at')->latest('id')->take(5)->get();
+        $movimientosRecientes = Movimiento::with(['cuentaEmpresa.banco'])->whereNull('deleted_at')->latest('fecha')->latest('id')->take(8)->get();
+        $cuentasResumen = CuentaEmpresa::with('banco')->whereNull('deleted_at')->orderByDesc('saldo_actual')->take(5)->get();
+        $gastosPorCategoria = GastoExtra::select('categoria', DB::raw('SUM(monto_bolivianos) as total'))->whereNull('deleted_at')->where('estado', 'PAGADO')->groupBy('categoria')->orderByDesc('total')->take(5)->get();
+        $pagosPendientes = GastoExtra::with(['contrato.proveedor'])->whereNull('deleted_at')->where('estado', 'PENDIENTE')->latest('fecha')->take(5)->get();
+        $pagosPendientesCantidad = GastoExtra::whereNull('deleted_at')->where('estado', 'PENDIENTE')->count();
+        $gastosPendientesTotal = GastoExtra::whereNull('deleted_at')->where('estado', 'PENDIENTE')->sum('monto_bolivianos');
+        $ultimosPagos = GastoExtra::with(['contrato.proveedor'])->whereNull('deleted_at')->where('estado', 'PAGADO')->latest('fecha')->take(6)->get();
+        return view('home', compact('contratosActivos','contratosConcluidos','proveedoresActivos','clientesActivos','saldoTesoreria','capitalInicial','ingresosMes','egresosMes','cobrosClientesMes','pagosProveedorPagadosMes','pagosProveedorPendientesMes','pagosCamionMes','gastosExtrasPagadosMes','gastosExtrasPendientesMes','utilidadMes','camionesTransbordado','camionesEnRuta','camionesDescargado','toneladasDeclaradasMes','toneladasEntregadasMes','cuentasActivas','contratosRecientes','movimientosRecientes','cuentasResumen','gastosPorCategoria','pagosPendientes','pagosPendientesCantidad','gastosPendientesTotal','ultimosPagos'));
+      //  return view('home', compact('proveedoresRanking', 'clientesRanking', 'contratosActivos', 'proveedoresRegistrados', 'cuentasActivas', 'gastosExtrasPagadosMes', 'gastosExtrasPendientesMes', 'gastosPendientesTotal', 'pagosPendientesCantidad', 'pagosProveedorPagadosMes', 'pagosProveedorPendientesMes', 'cobrosClientesPagadosMes', 'cobrosClientesPendientesMes', 'pagosCamionesPagadosMes', 'pagosCamionesPendientesMes', 'camionesTransbordado', 'camionesEnRuta', 'camionesDescargado', 'camionesPendiente', 'contratosRecientes', 'pagosPendientes', 'gastosPorCategoria', 'ultimosPagos'));
+    }
 }

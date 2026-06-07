@@ -38,7 +38,11 @@ class GastoExtra extends Model
     }
     public function cuentaBancaria()
     {
-        return $this->belongsTo(CuentaBancaria::class, 'id');
+        return $this->belongsTo(CuentaBancaria::class, 'cuenta_bancaria_id');
+    }
+    public function cuentaEmpresa()
+    {
+        return $this->belongsTo(CuentaEmpresa::class, 'cuenta_empresa_id');
     }
     protected static function boot()
     {

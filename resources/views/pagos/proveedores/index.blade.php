@@ -315,7 +315,7 @@
                                         @foreach($empresa->cuentas as $cta)
                                             <option value="{{ $cta->id }}">
                                                 {{ $cta->nombre_cuenta }}
-                                                @if($cta->banco) — {{ $cta->banco }} @endif
+                                                @if($cta->banco) — {{ $cta->banco->nombre }} @endif
                                                 [{{ $cta->moneda }}]
                                             </option>
                                         @endforeach
