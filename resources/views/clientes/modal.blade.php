@@ -7,7 +7,24 @@
                         <i class="bi bi-person"></i> Nuevo Cliente
                     </span>
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalCliente"
+                            data-steps='[
+                                {"intro":"📝 Este es el formulario para registrar un <b>cliente</b>. Te explico cada campo. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#cli_nombre","intro":"🏢 <b>Nombre / Razón Social</b>: el nombre del cliente o de su empresa. Se escribe en mayúsculas automáticamente. <b>Obligatorio.</b>","position":"bottom"},
+                                {"element":"#cli_nit","intro":"🔢 <b>NIT / CI / RUC</b>: el documento tributario o de identidad del cliente. <b>Obligatorio.</b>","position":"bottom"},
+                                {"element":"#cli_pais_id","intro":"🌎 <b>País</b> del cliente. <b>Obligatorio.</b>","position":"bottom"},
+                                {"element":"#cli_email","intro":"✉️ <b>Email</b> de contacto (opcional). Sirve para enviar comprobantes o comunicarse.","position":"bottom"},
+                                {"element":"#telefonos-container","intro":"📞 <b>Teléfonos</b>: puedes agregar <b>varios</b> con el botón +.","position":"top"},
+                                {"element":"#direcciones-container","intro":"📍 <b>Direcciones</b>: igual que los teléfonos, puedes registrar varias.","position":"top"},
+                                {"element":"#btnCliente","intro":"💾 Cuando termines, pulsa <b>Registrar</b> para guardar el cliente.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
 
             <form id="formCliente" method="POST" action="{{ route('clientes.store') }}">

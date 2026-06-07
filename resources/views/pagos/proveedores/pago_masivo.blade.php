@@ -3,15 +3,36 @@
 @section('content')
 
 <div class="pagetitle">
-    <div>
-        <h1>PAGO MASIVO A PROVEEDORES</h1>
-        <nav>
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('pagos.proveedores.index') }}">Pagos Proveedores</a></li>
-                <li class="breadcrumb-item active">Pago Masivo</li>
-            </ol>
-        </nav>
+    <div class="d-flex flex-row align-items-center justify-content-between">
+        <div>
+            <h1>PAGO MASIVO A PROVEEDORES</h1>
+            <nav>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('pagos.proveedores.index') }}">Pagos Proveedores</a></li>
+                    <li class="breadcrumb-item active">Pago Masivo</li>
+                </ol>
+            </nav>
+        </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                @if($contratos->isEmpty())
+                data-steps='[
+                    {"intro":"💸 El <b>Pago Masivo</b> te permite pagar a varios proveedores y contratos a la vez, en un solo proceso.<br><br>📭 Por ahora <b>no hay contratos con saldo pendiente</b>, así que no hay nada que pagar. Cuando existan saldos por pagar, aparecerán aquí."}
+                ]'
+                @else
+                data-steps='[
+                    {"intro":"💸 El <b>Pago Masivo</b> te permite pagar varios contratos de golpe. Se hace en <b>2 pasos</b>: primero eliges qué pagar, y luego a qué cuenta llega cada pago. Te guío por el Paso 1."},
+                    {"element":"#cuenta_origen_id","intro":"🏦 <b>Cuenta de origen</b>: de qué cuenta de la empresa saldrá el dinero. Al elegirla se muestra su <b>saldo disponible</b> y te avisa si no alcanza.","position":"bottom"},
+                    {"element":"#fecha_pago","intro":"📅 <b>Fecha de pago</b> que tendrán todos los pagos de este lote.","position":"bottom"},
+                    {"element":"#metodo_pago","intro":"💳 <b>Método de pago</b> (transferencia o QR) para todo el lote.","position":"bottom"},
+                    {"element":"#zona-proveedores","intro":"📦 Aquí están los contratos <b>agrupados por proveedor</b>. Marca la casilla del proveedor para seleccionar todos sus contratos, o marca contratos sueltos.","position":"top"},
+                    {"element":"#col-pct","intro":"🔢 Para cada contrato marcado, escribe el <b>% del saldo</b> que vas a pagar. El sistema calcula el <b>monto</b> automáticamente en la columna de al lado.","position":"bottom"},
+                    {"element":"#zona-totales","intro":"🧮 Abajo ves cuántos contratos seleccionaste y el <b>total a pagar</b>. Cuando todo esté listo, el botón <b>Siguiente</b> te lleva al Paso 2 para asignar las cuentas destino y confirmar.","position":"top"}
+                ]'
+                @endif>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -76,6 +97,7 @@
       $porProveedor = $contratos->groupBy(fn($c) => $c->proveedor_id);
     @endphp
 
+    <div id="zona-proveedores">
     @foreach($porProveedor as $provId => $ctrs)
     @php $prov = $ctrs->first()->proveedor; @endphp
     <div class="card border mb-3">
@@ -96,7 +118,7 @@
               <th class="text-end">Monto Total</th>
               <th class="text-end">Total Pagado</th>
               <th class="text-end">Saldo Pendiente</th>
-              <th style="width:130px">% a pagar</th>
+              <th style="width:130px" @if($loop->first) id="col-pct" @endif>% a pagar</th>
               <th class="text-end" style="width:150px">Monto a pagar</th>
               <th style="width:40px"></th>
             </tr>
@@ -160,8 +182,9 @@
       </div>
     </div>
     @endforeach
+    </div>{{-- /zona-proveedores --}}
 
-    <div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="d-flex justify-content-between align-items-center mt-3" id="zona-totales">
       <div class="text-muted small">
         Contratos seleccionados: <strong id="lbl_seleccionados">0</strong>
         &nbsp;|&nbsp; Total a pagar: <strong id="lbl_total">—</strong>
@@ -180,7 +203,19 @@
 <div id="paso2_contenido" style="display:none">
 <div class="card">
   <div class="card-body">
-    <h5 class="card-title">Paso 2 — ¿A qué cuenta llega el dinero de cada contrato?</h5>
+    <div class="d-flex justify-content-between align-items-start">
+      <h5 class="card-title">Paso 2 — ¿A qué cuenta llega el dinero de cada contrato?</h5>
+      <button type="button"
+              class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+              data-steps='[
+                  {"intro":"📍 Estás en el <b>Paso 2</b> del pago masivo. Aquí defines a qué <b>cuenta bancaria</b> llega el dinero de cada contrato que seleccionaste antes. Te explico."},
+                  {"element":"#paso2_lista","intro":"📦 Los contratos aparecen agrupados por proveedor. Para cada uno se listan sus <b>cuentas bancarias</b>: haz clic en la fila de la cuenta a la que quieres pagar. Aparecerá una etiqueta verde <b>Asignada</b>.","position":"top"},
+                  {"element":"#btn_paso2_volver","intro":"↩️ Si te equivocaste o quieres cambiar montos, con <b>Volver al Paso 1</b> regresas sin perder lo seleccionado.","position":"right"},
+                  {"element":"#btn_confirmar","intro":"✅ Cuando <b>todos</b> los contratos tengan una cuenta asignada, este botón se activa. Te mostrará un resumen final (que puedes exportar a Excel) antes de registrar los pagos.","position":"left"}
+              ]'>
+          <i class="bi bi-question-circle"></i>
+      </button>
+    </div>
     <p class="text-muted small mb-3">
       <i class="bi bi-info-circle me-1"></i>
       Seleccione una cuenta bancaria destino para cada contrato.
@@ -189,7 +224,7 @@
     <div id="paso2_lista"></div>
 
     <div class="d-flex justify-content-between mt-4">
-      <button type="button" class="btn btn-outline-secondary" onclick="volverPaso1()">
+      <button type="button" id="btn_paso2_volver" class="btn btn-outline-secondary" onclick="volverPaso1()">
         <i class="bi bi-arrow-left me-1"></i> Volver al Paso 1
       </button>
       <button type="button" class="btn btn-success" id="btn_confirmar" onclick="abrirConfirmacion()" disabled>

@@ -13,6 +13,18 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"🚚 Bienvenido al módulo de <b>Transporte</b>. Aquí administras la flota de la empresa. Está dividido en pestañas; veamos la de <b>Camiones</b>."},
+                    {"element":"#transporteTabs","intro":"🗂️ El módulo tiene 3 pestañas: <b>Camiones</b> (los vehículos), <b>Propietarios / Conductores</b> (las personas) y <b>Asignación de Conductores</b> (qué chofer maneja cada camión).","position":"bottom"},
+                    {"element":"#tab-camiones","intro":"🚛 Esta es la pestaña de <b>Camiones</b>, donde registras cada vehículo de la flota.","position":"bottom"},
+                    {"element":"#tablaCamiones","intro":"📋 La lista de camiones registrados con su placa, tipo, marca, capacidad, propietario y estado.","position":"top"},
+                    {"element":"#tablaCamiones tbody tr:first-child .btn-group","intro":"⚙️ Con <b>Opciones</b> en cada fila puedes Modificar el camión, ver sus Fotos, ver el documento RUAT o Eliminarlo.","position":"left"},
+                    {"element":"#btnNuevoCamion","intro":"➕ Para registrar un camión nuevo, pulsa <b>Nuevo Camión</b>. El formulario tiene su propia guía ❓.","position":"left"}
+                ]'>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -59,7 +71,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h5 class="card-title mb-0">Camiones Registrados</h5>
                                 @can('camiones.create')
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCamion" onclick="resetModalCamion()">
+                                <button type="button" id="btnNuevoCamion" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCamion" onclick="resetModalCamion()">
                                     <i class="bi bi-plus-lg"></i> Nuevo Camión
                                 </button>
                                 @endcan
@@ -164,11 +176,25 @@
                             </p>
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h5 class="card-title mb-0">Propietarios y Conductores</h5>
-                                @can('operadores.create')
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalOperador" onclick="resetModalOperador()">
-                                    <i class="bi bi-plus-lg"></i> Nuevo Operador
-                                </button>
-                                @endcan
+                                <div class="d-flex gap-2">
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                                            data-steps='[
+                                                {"intro":"👷 En esta pestaña registras a las <b>personas</b> del transporte: los <b>propietarios</b> de los camiones y los <b>conductores</b> (choferes). Una misma persona puede ser ambas cosas."},
+                                                {"element":"#tablaOperadores","intro":"📋 Lista de propietarios y conductores con su documento, teléfono, tipo, licencia y estado.","position":"top"},
+                                                {"element":"#tablaOperadores thead th:nth-child(4)","intro":"🏷️ La columna <b>Tipo</b> indica si la persona es Propietario, Chofer o ambos.","position":"bottom"},
+                                                {"element":"#tablaOperadores thead th:nth-child(7)","intro":"📅 El <b>vencimiento de licencia</b>: si ya venció, se marca en rojo con ⚠ para que renueves a tiempo.","position":"bottom"},
+                                                {"element":"#tablaOperadores tbody tr:first-child .btn-group","intro":"⚙️ Con <b>Opciones</b> puedes Modificar, ver el Carnet, ver la Licencia o Eliminar.","position":"left"},
+                                                {"element":"#btnNuevoOperador","intro":"➕ Para registrar una persona nueva, pulsa <b>Nuevo Operador</b>. El formulario tiene su propia guía ❓.","position":"left"}
+                                            ]'>
+                                        <i class="bi bi-question-circle"></i>
+                                    </button>
+                                    @can('operadores.create')
+                                    <button type="button" id="btnNuevoOperador" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalOperador" onclick="resetModalOperador()">
+                                        <i class="bi bi-plus-lg"></i> Nuevo Operador
+                                    </button>
+                                    @endcan
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table id="tablaOperadores" class="table table-hover table-bordered table-sm">
@@ -279,11 +305,24 @@
                             </p>
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h5 class="card-title mb-0">Asignación de Conductores a Camiones</h5>
-                                @can('conductores.create')
-                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAsignacion">
-                                    <i class="bi bi-plus-lg"></i> Nueva Asignación
-                                </button>
-                                @endcan
+                                <div class="d-flex gap-2">
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                                            data-steps='[
+                                                {"intro":"🔗 En esta pestaña controlas <b>qué conductor maneja cada camión</b> y en qué período. Al finalizar una asignación queda en el historial, así tienes trazabilidad completa."},
+                                                {"element":"#tablaAsignaciones","intro":"📋 Lista de asignaciones: el camión, su conductor, la licencia y las fechas de inicio y fin.","position":"top"},
+                                                {"element":"#tablaAsignaciones thead th:nth-child(6)","intro":"🚦 La columna <b>Estado</b>: <b>Activo</b> (el conductor maneja el camión ahora) o <b>Finalizado</b> (asignación pasada, ya en el historial).","position":"bottom"},
+                                                {"element":"#tablaAsignaciones tbody tr:first-child td:last-child","intro":"⏹️ En las asignaciones <b>activas</b> aparece el botón <b>Finalizar</b>, que cierra la asignación y la pasa al historial.","position":"left"},
+                                                {"element":"#btnNuevaAsignacion","intro":"➕ Para asignar un conductor a un camión, pulsa <b>Nueva Asignación</b>. El formulario tiene su propia guía ❓.","position":"left"}
+                                            ]'>
+                                        <i class="bi bi-question-circle"></i>
+                                    </button>
+                                    @can('conductores.create')
+                                    <button type="button" id="btnNuevaAsignacion" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAsignacion">
+                                        <i class="bi bi-plus-lg"></i> Nueva Asignación
+                                    </button>
+                                    @endcan
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table id="tablaAsignaciones" class="table table-hover table-bordered table-sm">
@@ -348,7 +387,30 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-truck"></i> <span id="tituloCamion">Nuevo Camión</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalCamion"
+                            data-steps='[
+                                {"intro":"📝 Formulario para registrar un <b>camión</b>. Te explico cada campo. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#cam_placa_pais_id","intro":"🌎 <b>País de la Placa</b>: elígelo primero, porque define el <b>formato</b> que tendrá la placa abajo.","position":"bottom"},
+                                {"element":"#cam_placa","intro":"🔖 <b>Placa</b> del vehículo. El sistema aplica automáticamente el formato del país (ej. Bolivia: 2345-ABC).","position":"bottom"},
+                                {"element":"#cam_tipo_vehiculo_id","intro":"🚛 <b>Tipo de Vehículo</b>: tracto, semirremolque, plataforma, volqueta, etc.","position":"bottom"},
+                                {"element":"#cam_estado","intro":"🚦 <b>Estado</b> del camión: Activo, Inactivo o En mantenimiento.","position":"bottom"},
+                                {"element":"#cam_marca_id","intro":"🏭 <b>Marca</b> del camión (Volvo, Scania, Mercedes-Benz...).","position":"bottom"},
+                                {"element":"#cam_modelo","intro":"🔧 <b>Modelo</b> del camión (ej: FH 460).","position":"bottom"},
+                                {"element":"#cam_anio","intro":"📆 <b>Año</b> del vehículo (entre 1970 y el año actual).","position":"bottom"},
+                                {"element":"#cam_capacidad","intro":"⚖️ <b>Capacidad</b> de carga en toneladas (mínimo 3.5 t). Es clave para asignar cargas que no superen su límite.","position":"top"},
+                                {"element":"#cam_color","intro":"🎨 <b>Color</b> del camión (opcional).","position":"top"},
+                                {"element":"#cam_propietario","intro":"👤 <b>Propietario</b>: a quién pertenece el camión. Se elige de los operadores registrados como propietarios.","position":"top"},
+                                {"element":"#cam_ruat","intro":"📎 <b>Documento RUAT</b> en PDF (opcional): el registro del vehículo como respaldo.","position":"top"},
+                                {"element":"#btnAgregarFoto","intro":"📷 <b>Fotos</b>: puedes subir hasta 5 fotos del camión para identificarlo fácilmente.","position":"top"},
+                                {"element":"#btnCamion","intro":"💾 Cuando termines, pulsa <b>Registrar</b> para guardar el camión.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formCamion" method="POST" action="{{ route('camiones.store') }}" enctype="multipart/form-data">
                 @csrf
@@ -546,7 +608,29 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-person-workspace"></i> <span id="tituloOperador">Nuevo Operador</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalOperador"
+                            data-steps='[
+                                {"intro":"📝 Formulario para registrar a una persona del transporte (propietario y/o chofer). Te explico cada campo. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#op_nombre","intro":"🧑 <b>Nombre(s)</b> de la persona. Solo admite letras y se pasa a mayúsculas.","position":"bottom"},
+                                {"element":"#op_apellido_paterno","intro":"👤 <b>Apellido Paterno</b>. Obligatorio.","position":"bottom"},
+                                {"element":"#op_apellido_materno","intro":"👤 <b>Apellido Materno</b>. Obligatorio.","position":"bottom"},
+                                {"element":"#op_email","intro":"✉️ <b>Email</b> (opcional). Se valida el formato automáticamente.","position":"bottom"},
+                                {"element":"#op_ci_pais_id","intro":"🌎 <b>País del Documento</b>: elígelo primero, porque define el formato del número de documento.","position":"bottom"},
+                                {"element":"#op_ci","intro":"🪪 <b>N° de Documento</b> de identidad (CI, DNI, etc.), según el país elegido.","position":"bottom"},
+                                {"element":"#op_tipo","intro":"🏷️ <b>Tipo de Operador</b>: Propietario, Chofer o ambos. Si es chofer, aparecerán los datos de su <b>licencia</b>.","position":"bottom"},
+                                {"element":"#op_telefono","intro":"📞 <b>Teléfono</b>: elige el país (prefijo) y escribe el número; se valida según el formato del país.","position":"top"},
+                                {"element":"#op_direccion","intro":"📍 <b>Dirección</b> (opcional).","position":"top"},
+                                {"element":"#op_estado","intro":"🚦 <b>Estado</b>: Activo o Inactivo.","position":"top"},
+                                {"element":"#seccionLicencia","intro":"🪪 <b>Datos de Licencia</b>: esta sección aparece solo si la persona es <b>Chofer</b> o ambos. Incluye N° de licencia, país y vencimiento.","position":"top"},
+                                {"element":"#btnOperador","intro":"💾 Cuando termines, pulsa <b>Registrar</b> para guardar.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formOperador" method="POST" action="{{ route('operadores.store') }}" enctype="multipart/form-data">
                 @csrf
@@ -738,7 +822,20 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-person-check"></i> Asignar Conductor a Camión</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalAsignacion"
+                            data-steps='[
+                                {"intro":"📝 Aquí asignas un <b>conductor</b> a un <b>camión</b>. Es muy rápido: solo 2 campos. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#asig_camion_id","intro":"🚛 <b>Camión</b>: elige primero el camión. Al seleccionarlo se cargan los conductores disponibles para él.","position":"bottom"},
+                                {"element":"#asig_conductor_id","intro":"👷 <b>Conductor</b>: se habilita tras elegir el camión. Muestra los conductores disponibles, excluyendo los ya asignados a ese camión.","position":"bottom"},
+                                {"element":"[name=\"observaciones\"]","intro":"📝 <b>Observaciones</b> (opcional): cualquier nota sobre esta asignación.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('conductores.store') }}">
                 @csrf

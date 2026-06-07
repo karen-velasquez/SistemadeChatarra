@@ -7,7 +7,25 @@
                         <i class="bi bi-person"></i> Nuevo Proveedor
                     </span>
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalProveedor"
+                            data-steps='[
+                                {"intro":"📝 Este es el formulario para registrar un <b>proveedor</b>. Te explico cada campo. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#prov_nombre","intro":"🏢 <b>Nombre / Razón Social</b>: el nombre del proveedor o de su empresa. Se escribe en mayúsculas automáticamente. <b>Obligatorio.</b>","position":"bottom"},
+                                {"element":"#prov_nit","intro":"🔢 <b>NIT / CI / RUC</b>: el documento tributario o de identidad del proveedor. <b>Obligatorio.</b>","position":"bottom"},
+                                {"element":"#prov_pais","intro":"🌎 <b>País</b> del proveedor. Útil sobre todo para compras internacionales. <b>Obligatorio.</b>","position":"bottom"},
+                                {"element":"#prov_email","intro":"✉️ <b>Email</b> de contacto (opcional). Sirve para enviar comprobantes o comunicarse.","position":"bottom"},
+                                {"element":"#prov_tipo_producto","intro":"♻️ <b>Tipo de Producto</b>: qué tipo de chatarra o material suministra (ej: HIERRO, COBRE, ALUMINIO).","position":"bottom"},
+                                {"element":"#telefonos-container","intro":"📞 <b>Teléfonos</b>: puedes agregar <b>varios</b> con el botón +. Útil para tener más de un contacto.","position":"top"},
+                                {"element":"#direcciones-container","intro":"📍 <b>Direcciones</b>: igual que los teléfonos, puedes registrar varias.","position":"top"},
+                                {"element":"#btnProveedor","intro":"💾 Cuando termines, pulsa <b>Registrar</b> para guardar el proveedor.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
 
             <form id="formProveedor" method="POST" action="{{ route('proveedores.store') }}">

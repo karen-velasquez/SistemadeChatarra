@@ -5,7 +5,26 @@
                 <h5 class="modal-title">
                     <span id="tituloGasto"><i class="bi bi-cash-coin"></i> Registrar Gasto Extra</span>
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalGastoExtra"
+                            data-steps='[
+                                {"intro":"📝 Registra un gasto extra de un contrato. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#contrato","intro":"📄 <b>Contrato</b> al que pertenece este gasto.","position":"bottom"},
+                                {"element":"#cuenta_bancaria","intro":"🏦 <b>Cuenta bancaria</b> desde la que se realizó o se realizará el pago.","position":"bottom"},
+                                {"element":"#categoria","intro":"🏷️ <b>Categoría</b> del gasto (transporte, impuestos, etc.). Si eliges <b>OTRO</b>, podrás escribir una nueva.","position":"bottom"},
+                                {"element":"#concepto","intro":"✏️ <b>Concepto</b>: una descripción breve del gasto (mínimo 3 caracteres).","position":"bottom"},
+                                {"element":"#monto","intro":"💲 <b>Monto</b> del gasto.","position":"bottom"},
+                                {"element":"#moneda","intro":"💱 <b>Moneda</b>. Si no es BOB, deberás indicar el tipo de cambio al lado.","position":"bottom"},
+                                {"element":"#fecha","intro":"📅 <b>Fecha</b> del gasto.","position":"top"},
+                                {"element":"#estado_switch","intro":"🔀 <b>Estado del pago</b>: marca si el gasto ya está PAGADO o queda PENDIENTE. Si está pagado, pide método de pago y comprobante.","position":"top"},
+                                {"element":"#btnGasto","intro":"💾 Pulsa <b>Registrar</b> para guardar el gasto.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
 
             <form id="formGasto" method="POST" action="{{ route('gastos_extras.store') }}" enctype="multipart/form-data">

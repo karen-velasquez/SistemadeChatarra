@@ -13,13 +13,24 @@
                 </ol>
             </nav>
         </div>
-        @can('empleados.create')
-        <div>
-            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEmpleado" onclick="resetModal()">
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"👔 En este módulo gestionas el <b>personal de la empresa</b>. Los empleados pueden tener cuentas bancarias y vincularse a usuarios del sistema."},
+                        {"element":"#tabla_empleados","intro":"📋 La lista de empleados: nombre, CI, cargo, contacto y estado.","position":"top"},
+                        {"element":"#tabla_empleados thead th:nth-child(7)","intro":"🚦 La columna <b>Estado</b>: un empleado puede estar Activo o Inactivo (en vez de eliminarlo, se desactiva para conservar su historial).","position":"bottom"},
+                        {"element":"#tabla_empleados tbody tr:first-child td:last-child","intro":"⚙️ Acciones: ✏️ editar, el botón de activar/desactivar, y 🗑 eliminar (bloqueado si el empleado está en uso).","position":"left"},
+                        {"element":"#btnNuevoEmpleado","intro":"➕ Para registrar un empleado nuevo, pulsa aquí. El formulario tiene su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('empleados.create')
+            <button id="btnNuevoEmpleado" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalEmpleado" onclick="resetModal()">
                 <i class="bi bi-plus-lg"></i> Nuevo Empleado
             </button>
+            @endcan
         </div>
-        @endcan
     </div>
 </div>
 
@@ -177,7 +188,25 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-person-badge"></i> <span id="tituloEmpleado">Nuevo Empleado</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalEmpleado"
+                            data-steps='[
+                                {"intro":"📝 Registra un empleado. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios; el botón Registrar se activa al completarlos."},
+                                {"element":"#emp_nombre","intro":"🧑 <b>Nombre(s)</b> del empleado.","position":"bottom"},
+                                {"element":"#emp_apellido_paterno","intro":"👤 <b>Apellido Paterno</b>.","position":"bottom"},
+                                {"element":"#emp_apellido_materno","intro":"👤 <b>Apellido Materno</b>.","position":"bottom"},
+                                {"element":"#emp_ci","intro":"🪪 <b>C.I. / Documento</b>: solo números, máximo 20 dígitos.","position":"bottom"},
+                                {"element":"#emp_cargo_id","intro":"💼 <b>Cargo</b> del empleado. Los cargos se administran en el módulo Parámetros.","position":"bottom"},
+                                {"element":"#emp_telefono","intro":"📞 <b>Teléfono</b> (opcional): elige el país y escribe el número; se valida el formato.","position":"top"},
+                                {"element":"#emp_email","intro":"✉️ <b>Email</b> (opcional): se valida el formato en tiempo real.","position":"top"},
+                                {"element":"#btnEmpleado","intro":"💾 Pulsa <b>Registrar</b> para guardar.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formEmpleado" method="POST" action="{{ route('empleados.store') }}">
                 @csrf

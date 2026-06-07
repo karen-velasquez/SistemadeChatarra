@@ -14,18 +14,31 @@
                 </ol>
             </nav>
         </div>
-        @can('empresas.create')
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCuenta">
-            <i class="bi bi-plus-lg"></i> Nueva Cuenta
-        </button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"💼 Esta es la vista de <b>Cuentas y Movimientos</b> de esta empresa. Aquí ves todas sus cuentas bancarias, sus saldos y sus últimos movimientos."},
+                        {"element":"#emp-nota","intro":"ℹ️ Los movimientos generados por pagos (a clientes, proveedores, camiones) aparecen <b>bloqueados</b>: solo se anulan desde su módulo de origen. Los movimientos manuales sí los registras y eliminas aquí.","position":"bottom"},
+                        {"element":"#emp-cuentas","intro":"💳 Cada tarjeta es una <b>cuenta</b> de la empresa con su banco y saldo. Pulsa <b>Ver movimientos</b> para entrar al detalle de esa cuenta y registrar movimientos manuales.","position":"top"},
+                        {"element":"#emp-movimientos","intro":"📋 Aquí ves los <b>últimos movimientos</b> de todas las cuentas de esta empresa juntas.","position":"top"},
+                        {"element":"#btnNuevaCuentaEmp","intro":"➕ Con <b>Nueva Cuenta</b> agregas una cuenta bancaria a esta empresa. El formulario tiene su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('empresas.create')
+            <button id="btnNuevaCuentaEmp" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCuenta">
+                <i class="bi bi-plus-lg"></i> Nueva Cuenta
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
 <section class="section">
 
     {{-- Banner informativo --}}
-    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small">
+    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small" id="emp-nota">
         <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0"></i>
         <div>
             <strong>Cuentas y Movimientos</strong> — Vista de todas las cuentas de esta empresa y sus últimos movimientos consolidados.
@@ -36,7 +49,7 @@
 
     {{-- Resumen de cuentas --}}
     @php $saldoEmpresa = $empresa->cuentas->sum('saldo_actual'); @endphp
-    <div class="row mb-4">
+    <div class="row mb-4" id="emp-cuentas">
         @forelse($empresa->cuentas->sortByDesc('saldo_actual') as $cuenta)
         <div class="col-12 col-sm-6 col-xl-3 mb-3">
             <div class="card border-0 shadow-sm {{ !$cuenta->activo ? 'opacity-50' : '' }}">
@@ -75,7 +88,7 @@
     </div>
 
     {{-- Últimos movimientos de todas las cuentas --}}
-    <div class="card">
+    <div class="card" id="emp-movimientos">
         <div class="card-body">
             <h5 class="card-title">Últimos Movimientos</h5>
             @include('movimientos._tabla', [
@@ -94,7 +107,22 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Nueva Cuenta</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalCuenta"
+                            data-steps='[
+                                {"intro":"📝 Registra una <b>cuenta bancaria</b> para esta empresa. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#nombre_cuenta_cuentas","intro":"🏷️ <b>Nombre de la Cuenta</b>: un nombre que la identifique (ej: CUENTA PRINCIPAL BOB).","position":"bottom"},
+                                {"element":"#num_cuenta_cuentas","intro":"🔢 <b>N° de Cuenta</b>: solo dígitos, hasta 20.","position":"bottom"},
+                                {"element":"[name=\"banco_id\"]","intro":"🏦 <b>Banco</b> de la cuenta (de los registrados en Bancos y Cuentas).","position":"bottom"},
+                                {"element":"[name=\"moneda\"]","intro":"💱 <b>Moneda</b> de la cuenta.","position":"top"},
+                                {"element":"[name=\"saldo_inicial\"]","intro":"💰 <b>Saldo Inicial</b>: el saldo con el que arranca la cuenta. A partir de aquí el sistema lo va actualizando con cada movimiento.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('empresas.cuentas.store', $empresa->uuid) }}">
                 @csrf
@@ -166,30 +194,37 @@ $.fn.dataTable.ext.type.order['date-eu-pre'] = function (d) {
 };
 
 $(document).ready(function() {
-    $('#tabla_movimientos').DataTable({
-        language: {
-            processing:  "Procesando...",
-            lengthMenu:  'Mostrar <select><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="-1">Todos</option></select> registros',
-            search:      "Buscar:",
-            zeroRecords: "No se encontraron resultados",
-            info:        "Mostrando _START_ a _END_ de _TOTAL_ registros",
-            infoEmpty:   "Mostrando 0 registros",
-            infoFiltered: "(filtrado de _MAX_ registros totales)",
-            paginate: {
-                first:    "Primero",
-                last:     "Último",
-                next:     "Siguiente",
-                previous: "Anterior"
-            }
-        },
-        columnDefs: [
-            { type: 'date-eu', targets: 0 }
-        ],
-        order: [[0, 'desc']],
-        pageLength: 10,
-        responsive: true,
-        autoWidth: false
-    });
+    // Solo inicializar DataTables si hay filas reales (evita el error
+    // "Requested unknown parameter" cuando la tabla muestra la fila vacía con colspan)
+    var tabla = $('#tabla_movimientos');
+    var tieneFilas = tabla.find('tbody tr').length > 0 && !tabla.find('tbody tr td[colspan]').length;
+
+    if (tieneFilas) {
+        tabla.DataTable({
+            language: {
+                processing:  "Procesando...",
+                lengthMenu:  'Mostrar <select><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="-1">Todos</option></select> registros',
+                search:      "Buscar:",
+                zeroRecords: "No se encontraron resultados",
+                info:        "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty:   "Mostrando 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                paginate: {
+                    first:    "Primero",
+                    last:     "Último",
+                    next:     "Siguiente",
+                    previous: "Anterior"
+                }
+            },
+            columnDefs: [
+                { type: 'date-eu', targets: 0 }
+            ],
+            order: [[0, 'desc']],
+            pageLength: 10,
+            responsive: true,
+            autoWidth: false
+        });
+    }
 });
 </script>
 @endsection

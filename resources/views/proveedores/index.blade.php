@@ -13,9 +13,22 @@
                 </ol>
             </nav>
         </div>
-        @can('proveedores.create')
-        <button type="button" class="btn btn-primary MB-3" data-bs-toggle="modal" data-bs-target="#modalProveedor" onclick="resetModalProveedor()"> <i class="bi bi-plus-lg"></i> Nuevo Proveedor</button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"📦 Bienvenido al módulo <b>Proveedores</b>: las personas o empresas que le venden chatarra a la empresa. Aquí los registras y mantienes sus datos al día. Te muestro cómo funciona."},
+                        {"element":"#datos","intro":"📋 Esta es la lista de todos los proveedores registrados, con su NIT, país, teléfonos, direcciones y tipo de producto.","position":"top"},
+                        {"element":"#datos thead th:nth-child(4)","intro":"📞 En <b>Teléfonos</b> y <b>Direcciones</b> un mismo proveedor puede tener varios; se muestran como etiquetas.","position":"bottom"},
+                        {"element":"#datos tbody tr:first-child .btn-group","intro":"⚙️ Con el botón <b>Opciones</b> de cada fila puedes <b>Modificar</b> o <b>Eliminar</b> el proveedor.","position":"left"},
+                        {"element":"#btnNuevoProveedor","intro":"➕ Para registrar uno nuevo, pulsa <b>Nuevo Proveedor</b>. Se abrirá un formulario con su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('proveedores.create')
+            <button type="button" id="btnNuevoProveedor" class="btn btn-primary MB-3" data-bs-toggle="modal" data-bs-target="#modalProveedor" onclick="resetModalProveedor()"> <i class="bi bi-plus-lg"></i> Nuevo Proveedor</button>
+            @endcan
+        </div>
     </div>
 </div>
     <section class="section">

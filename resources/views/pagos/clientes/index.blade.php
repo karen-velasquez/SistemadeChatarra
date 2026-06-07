@@ -13,6 +13,25 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                @if($tramos->isEmpty())
+                data-steps='[
+                    {"intro":"💵 En <b>Cobros a Clientes</b> registras el dinero que los clientes pagan por la chatarra entregada.<br><br>📭 Aún no hay entregas con precio registrado. Para que aparezcan aquí, registra la llegada de un tramo indicando el <b>precio por tonelada</b> al cliente."}
+                ]'
+                @else
+                data-steps='[
+                    {"intro":"💵 Aquí registras los <b>cobros</b> de lo que vendes a los clientes. Cada fila es una <b>entrega</b> (un camión que llegó a un cliente). Te muestro cómo se usa."},
+                    {"element":"#filtro_cliente","intro":"🔎 Filtra las entregas por <b>cliente</b> para enfocarte en uno.","position":"bottom"},
+                    {"element":"#tabla_cobros","intro":"📋 Cada fila es una entrega: el cliente, contrato, camión, peso, precio/t, la deuda total, lo cobrado y el saldo.","position":"top"},
+                    {"element":"#tabla_cobros thead th:nth-child(6)","intro":"🏷️ La entrega necesita un <b>Precio por tonelada</b> para poder cobrarse. Si dice <b>Sin precio</b>, primero hay que registrarlo (fila en amarillo).","position":"bottom"},
+                    {"element":"#tabla_cobros thead th:nth-child(10)","intro":"🚦 El <b>Estado</b> indica si está Pendiente, parcialmente cobrado o totalmente Cobrado.","position":"bottom"},
+                    {"element":"#tabla_cobros tbody tr:first-child td:last-child","intro":"⚙️ El botón <b>Opciones</b> de cada fila: registrar el precio/t, <b>Registrar cobro</b> o ver el detalle de cobros.","position":"left"},
+                    {"element":"#btnCobroMasivo","intro":"💰 Con <b>Cobro Masivo</b> registras un pago grande del cliente y lo repartes entre varias entregas a la vez.","position":"left"}
+                ]'
+                @endif>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -89,7 +108,7 @@
                     </div>
                     @can('pagos_clientes.create')
                     <div class="col-auto">
-                        <button class="btn btn-success btn-sm" onclick="abrirCobroMasivo()">
+                        <button id="btnCobroMasivo" class="btn btn-success btn-sm" onclick="abrirCobroMasivo()">
                             <i class="bi bi-cash-stack"></i> Cobro Masivo
                         </button>
                     </div>
@@ -285,7 +304,24 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-receipt"></i> Registrar Cobro al Cliente</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalCobro"
+                            data-steps='[
+                                {"intro":"💳 Registra un <b>cobro</b> que el cliente realizó por una entrega. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#sel_cuenta_origen","intro":"🏦 <b>Cuenta Origen (Cliente)</b>: la cuenta del cliente desde la que pagó. Al elegirla se habilitan los demás campos.","position":"bottom"},
+                                {"element":"#cobro_tipo_pago","intro":"🏷️ <b>Tipo de Cobro</b>: Adelanto (a cuenta) o Pago Final.","position":"bottom"},
+                                {"element":"#cobro_cuenta_destino","intro":"📥 <b>Cuenta Destino (Empresa)</b>: a qué cuenta de la empresa entró el dinero.","position":"bottom"},
+                                {"element":"#cobro_metodo_pago","intro":"💳 <b>Método de Pago</b>. Si es transferencia, pedirá el código.","position":"bottom"},
+                                {"element":"#cobro_inp_monto","intro":"🔢 <b>Monto</b> cobrado. Si la moneda no es BOB, verás el equivalente en bolivianos.","position":"top"},
+                                {"element":"#cobro_fecha","intro":"📅 <b>Fecha del cobro</b>.","position":"top"},
+                                {"element":"#cobro_btn_guardar","intro":"💾 El botón <b>Registrar Cobro</b> se activa cuando completas todos los campos obligatorios.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i> Ayuda
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('pagos.clientes.store') }}">
                 @csrf
@@ -446,7 +482,23 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-cash-stack me-2"></i>Cobro Masivo por Cliente</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalCobroMasivo"
+                            data-steps='[
+                                {"intro":"💰 El <b>Cobro Masivo</b> sirve cuando un cliente paga un monto grande que cubre <b>varias entregas</b> a la vez. El sistema reparte el dinero entre las cargas que marques."},
+                                {"element":"#cm_cliente","intro":"👥 <b>Cliente</b>: elígelo primero. Se cargarán sus cuentas y sus entregas pendientes.","position":"bottom"},
+                                {"element":"#cm_cuenta_origen","intro":"🏦 <b>Cuenta Origen (Cliente)</b>: de qué cuenta del cliente proviene el pago.","position":"bottom"},
+                                {"element":"#cm_cuenta_destino","intro":"📥 <b>Cuenta Destino (Empresa)</b>: a qué cuenta entró el dinero. Su moneda define si pide tipo de cambio.","position":"bottom"},
+                                {"element":"#cm_monto","intro":"🔢 <b>Monto Total Recibido</b>: lo que pagó el cliente en total. Se repartirá entre las entregas seleccionadas.","position":"bottom"},
+                                {"element":"#cm_contenedor_tramos","intro":"📋 Marca las <b>entregas pendientes</b> que cubre este pago. Abajo verás un resumen que te dice si el monto cubre todo o solo parte.","position":"top"},
+                                {"element":"#cm_btn_guardar","intro":"💾 El botón <b>Registrar Cobro Masivo</b> se activa al completar los datos y marcar al menos una entrega.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i> Ayuda
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('pagos.clientes.cobro_masivo') }}">
                 @csrf

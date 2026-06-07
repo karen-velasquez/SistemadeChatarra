@@ -14,6 +14,24 @@
                 </ol>
             </nav>
         </div>
+        <button type="button"
+                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                @if($porProveedor->isEmpty())
+                data-steps='[
+                    {"intro":"🧮 Esta es la <b>Liquidación de Envíos</b>. Aquí podrás comparar, por proveedor, lo <b>pactado</b>, lo <b>declarado</b> y lo que realmente <b>llegó</b> al cliente.<br><br>📭 Por ahora <b>no hay contratos con envíos cerrados</b>, así que no hay datos que mostrar. Cuando cierres los envíos de un contrato, aparecerán aquí y la guía te mostrará cada parte."}
+                ]'
+                @else
+                data-steps='[
+                    {"intro":"🧮 Esta es la <b>Liquidación de Envíos</b>. Solo aparecen los contratos con <b>envíos cerrados</b>. Sirve para saber si el proveedor entregó lo acordado o hubo diferencias de peso."},
+                    {"element":"#liq-explicacion","intro":"📖 Lee esto primero: se comparan <b>3 pesos</b> — lo <b>pactado</b>, lo <b>declarado</b> por el proveedor y lo que realmente <b>llegó</b> al cliente.","position":"bottom"},
+                    {"element":"#liq-proveedor-cabecera","intro":"📦 Los contratos se agrupan por <b>proveedor</b>. A la derecha ves su <b>balance neto</b>: cuánto debe o se le debe en total.","position":"bottom"},
+                    {"element":"#liq-resumen","intro":"📊 Este resumen suma todo del proveedor: total pactado, declarado, llegado y la diferencia neta.","position":"bottom"},
+                    {"element":"#liq-tabla","intro":"📋 El detalle contrato por contrato. Cada fila compara los pesos y muestra la diferencia.","position":"top"},
+                    {"element":"#liq-resultado","intro":"🏷️ La columna <b>Resultado</b>: <span style=\"color:#dc3545\"><b>Merma</b></span> = faltó respecto a lo pactado; <span style=\"color:#198754\"><b>Excedente</b></span> = llegó más de lo pactado.","position":"left"}
+                ]'
+                @endif>
+            <i class="bi bi-question-circle"></i>
+        </button>
     </div>
 </div>
 
@@ -31,7 +49,7 @@
                 </div>
             @else
 
-            <p class="text-muted small mb-3">
+            <p class="text-muted small mb-3" id="liq-explicacion">
                 <i class="bi bi-info-circle me-1"></i>
                 Compara 3 valores por contrato: <strong>toneladas pactadas</strong> (lo acordado), <strong>declaradas por el proveedor</strong> (peso de salida de cada camión) y <strong>llegadas al cliente</strong> (peso de llegada confirmado).
                 Una diferencia <span class="text-danger fw-semibold">negativa (merma)</span> significa que el proveedor nos debe,
@@ -50,6 +68,7 @@
             <div class="card mb-4 border-0 shadow-sm">
                 {{-- Cabecera del proveedor --}}
                 <div class="card-header d-flex align-items-center gap-3 py-3"
+                     @if($loop->first) id="liq-proveedor-cabecera" @endif
                      style="background:linear-gradient(135deg,#1a3a5c 0%,#1976d2 100%);">
                     <div style="width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
                         <i class="bi bi-box-seam text-white" style="font-size:1.2rem"></i>
@@ -78,7 +97,7 @@
                 </div>
 
                 {{-- Resumen del proveedor --}}
-                <div class="d-flex border-bottom" style="background:#f8f9fa">
+                <div class="d-flex border-bottom" @if($loop->first) id="liq-resumen" @endif style="background:#f8f9fa">
                     <div class="flex-fill text-center py-2 px-3 border-end">
                         <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px">Total pactado</div>
                         <div class="fw-bold" style="font-size:1rem">{{ number_format($grupo['total_pactado'], 3) }} t</div>
@@ -101,7 +120,7 @@
 
                 {{-- Detalle por contrato --}}
                 <div class="card-body p-0">
-                    <table class="table table-sm table-hover mb-0 align-middle" style="font-size:.85rem">
+                    <table class="table table-sm table-hover mb-0 align-middle" @if($loop->first) id="liq-tabla" @endif style="font-size:.85rem">
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">Contrato</th>
@@ -111,7 +130,7 @@
                                 <th class="text-end">Ton. llegadas</th>
                                 <th class="text-end">Dif. (pactado - llegado)</th>
                                 <th class="text-end">Dif. (dec. - llegado)</th>
-                                <th class="text-center">Resultado</th>
+                                <th class="text-center" @if($loop->first) id="liq-resultado" @endif>Resultado</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -142,16 +161,16 @@
                                     {{ $diff >= 0 ? '+' : '' }}{{ number_format($diff, 3) }} t
                                 </td>
                                 <td class="text-center">
-                                    @if($diff < 0)
+                                    @if($diffPactado < 0)
                                         <span class="badge bg-danger">
                                             <i class="bi bi-exclamation-triangle me-1"></i>Merma
                                         </span>
-                                        <small class="text-muted d-block" style="font-size:.65rem">Proveedor debe {{ number_format(abs($diff), 3) }} t</small>
-                                    @elseif($diff > 0)
+                                        <small class="text-muted d-block" style="font-size:.65rem">Faltan {{ number_format(abs($diffPactado), 3) }} t de lo pactado</small>
+                                    @elseif($diffPactado > 0)
                                         <span class="badge bg-success">
                                             <i class="bi bi-plus-circle me-1"></i>Excedente
                                         </span>
-                                        <small class="text-muted d-block" style="font-size:.65rem">Empresa debe {{ number_format($diff, 3) }} t</small>
+                                        <small class="text-muted d-block" style="font-size:.65rem">Llegaron {{ number_format($diffPactado, 3) }} t más de lo pactado</small>
                                     @else
                                         <span class="badge bg-secondary">Exacto</span>
                                     @endif
@@ -173,9 +192,9 @@
                                     {{ $neta >= 0 ? '+' : '' }}{{ number_format($neta, 3) }} t
                                 </td>
                                 <td class="text-center">
-                                    @if($neta < 0)
+                                    @if($grupo['diferencia_pactado_llegado'] < 0)
                                         <span class="badge bg-danger">Merma neta</span>
-                                    @elseif($neta > 0)
+                                    @elseif($grupo['diferencia_pactado_llegado'] > 0)
                                         <span class="badge bg-success">Excedente neto</span>
                                     @else
                                         <span class="badge bg-secondary">Compensado</span>

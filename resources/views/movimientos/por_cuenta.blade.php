@@ -15,18 +15,31 @@
                 </ol>
             </nav>
         </div>
-        @can('empresas.create')
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
-            <i class="bi bi-plus-lg"></i> Registrar Movimiento
-        </button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"📒 Estás viendo el <b>detalle de una cuenta</b>: su saldo y el historial completo de movimientos. Aquí también puedes registrar movimientos manuales."},
+                        {"element":"#cta-resumen","intro":"📊 Estas tarjetas muestran la empresa, el <b>saldo actual</b> de la cuenta y los totales de ingresos y egresos.","position":"bottom"},
+                        {"element":"#cta-movimientos","intro":"📋 El historial de movimientos: las filas <b>verdes</b> son ingresos (entró dinero) y las <b>rojas</b> son egresos (salió dinero). Con el botón 👁 ves el detalle de cada uno.","position":"top"},
+                        {"element":"#cta-nota","intro":"🔒 Los movimientos creados por <b>pagos</b> del sistema aparecen bloqueados: solo se anulan desde su módulo (Pagos a Clientes, Proveedores o Camiones).","position":"bottom"},
+                        {"element":"#btnRegistrarMov","intro":"➕ Con <b>Registrar Movimiento</b> agregas un movimiento <b>manual</b> (un ajuste o gasto puntual). El formulario tiene su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('empresas.create')
+            <button id="btnRegistrarMov" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
+                <i class="bi bi-plus-lg"></i> Registrar Movimiento
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
 <section class="section">
 
     {{-- Banner informativo --}}
-    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small">
+    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex gap-3 align-items-start small" id="cta-nota">
         <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0"></i>
         <div>
             <strong>Movimientos de cuenta</strong> — Historial completo de ingresos y egresos de esta cuenta.
@@ -38,7 +51,7 @@
     </div>
 
     {{-- Info de cuenta --}}
-    <div class="row mb-4">
+    <div class="row mb-4" id="cta-resumen">
         <div class="col-md-3 mb-3">
             <div class="card border-0 shadow-sm h-100 text-center">
                 <div class="card-body pt-4 d-flex flex-column justify-content-center">
@@ -89,7 +102,7 @@
     @endif
 
     {{-- Movimientos --}}
-    <div class="card">
+    <div class="card" id="cta-movimientos">
         <div class="card-body">
             <h5 class="card-title mb-3">Movimientos</h5>
             @include('movimientos._tabla', ['movimientos' => $movimientos, 'mostrarCuenta' => false, 'mostrarEliminar' => false])
@@ -103,7 +116,22 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-cash-stack"></i> Registrar Movimiento</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalMovimiento"
+                            data-steps='[
+                                {"intro":"📝 Registra un movimiento <b>manual</b> en esta cuenta (un ajuste o gasto puntual). Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"[name=\"tipo\"]","intro":"🔀 <b>Tipo</b>: <b>Ingreso</b> (suma al saldo) o <b>Egreso</b> (resta del saldo).","position":"bottom"},
+                                {"element":"[name=\"categoria\"]","intro":"🏷️ <b>Categoría</b>: para movimientos manuales suele ser <b>Otro</b>. Los pagos a clientes/proveedores/camiones se registran desde sus propios módulos.","position":"bottom"},
+                                {"element":"[name=\"fecha\"]","intro":"📅 <b>Fecha</b> del movimiento.","position":"bottom"},
+                                {"element":"[name=\"monto\"]","intro":"💲 <b>Monto</b> del movimiento. La moneda es la de la cuenta (no se cambia).","position":"bottom"},
+                                {"element":"[name=\"concepto\"]","intro":"✏️ <b>Concepto</b>: una descripción de para qué fue el movimiento.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" action="{{ route('tesoreria.movimiento.store') }}">
                 @csrf
@@ -186,30 +214,37 @@ $.fn.dataTable.ext.type.order['date-eu-pre'] = function (d) {
 };
 
 $(document).ready(function() {
-    $('#tabla_movimientos').DataTable({
-        language: {
-            processing:  "Procesando...",
-            lengthMenu:  'Mostrar <select><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="-1">Todos</option></select> registros',
-            search:      "Buscar:",
-            zeroRecords: "No se encontraron resultados",
-            info:        "Mostrando _START_ a _END_ de _TOTAL_ registros",
-            infoEmpty:   "Mostrando 0 registros",
-            infoFiltered: "(filtrado de _MAX_ registros totales)",
-            paginate: {
-                first:    "Primero",
-                last:     "Último",
-                next:     "Siguiente",
-                previous: "Anterior"
-            }
-        },
-        columnDefs: [
-            { type: 'date-eu', targets: 0 }
-        ],
-        order: [[0, 'desc']],
-        pageLength: 10,
-        responsive: true,
-        autoWidth: false
-    });
+    // Solo inicializar DataTables si hay filas reales (evita el error
+    // "Requested unknown parameter" cuando la tabla muestra la fila vacía con colspan)
+    var tabla = $('#tabla_movimientos');
+    var tieneFilas = tabla.find('tbody tr').length > 0 && !tabla.find('tbody tr td[colspan]').length;
+
+    if (tieneFilas) {
+        tabla.DataTable({
+            language: {
+                processing:  "Procesando...",
+                lengthMenu:  'Mostrar <select><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="-1">Todos</option></select> registros',
+                search:      "Buscar:",
+                zeroRecords: "No se encontraron resultados",
+                info:        "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                infoEmpty:   "Mostrando 0 registros",
+                infoFiltered: "(filtrado de _MAX_ registros totales)",
+                paginate: {
+                    first:    "Primero",
+                    last:     "Último",
+                    next:     "Siguiente",
+                    previous: "Anterior"
+                }
+            },
+            columnDefs: [
+                { type: 'date-eu', targets: 0 }
+            ],
+            order: [[0, 'desc']],
+            pageLength: 10,
+            responsive: true,
+            autoWidth: false
+        });
+    }
 });
 </script>
 @endsection

@@ -16,16 +16,30 @@
             </nav>
         </div>
 
-        @can('gastos_extras.create')
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalGastoExtra" onclick="resetModalGastoExtra()">
-                <i class="bi bi-plus-lg"></i> Nuevo Gasto Extra
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"💰 Aquí registras los <b>gastos extra</b> asociados a tus contratos: transporte, impuestos, peajes u otros costos adicionales a la compra de chatarra."},
+                        {"element":"#ge-resumen","intro":"📊 Estas tarjetas resumen el <b>total</b> de gastos, cuánto está <b>pendiente</b>, cuánto <b>pagado</b> y cuántos contratos tienen gastos.","position":"bottom"},
+                        {"element":"#ge-filtro","intro":"🔎 Puedes <b>filtrar por proveedor</b> para ver solo sus contratos y gastos.","position":"bottom"},
+                        {"element":"#ge-contratos","intro":"📄 A la izquierda, la lista de <b>contratos</b> con su total de gastos. Pulsa <b>Ver Detalles</b> en uno para cargar sus gastos a la derecha.","position":"right"},
+                        {"element":"#ge-detalle","intro":"🧾 A la derecha aparece el <b>detalle</b> de los gastos del contrato elegido: fecha, categoría, concepto, monto y estado (Pendiente/Pagado).","position":"left"},
+                        {"element":"#btnNuevoGastoExtra","intro":"➕ Con <b>Nuevo Gasto Extra</b> registras un gasto. El formulario tiene su propia guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
             </button>
-        @endcan
+            @can('gastos_extras.create')
+                <button type="button" id="btnNuevoGastoExtra" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalGastoExtra" onclick="resetModalGastoExtra()">
+                    <i class="bi bi-plus-lg"></i> Nuevo Gasto Extra
+                </button>
+            @endcan
+        </div>
     </div>
 </div>
 
 <section class="section mt-3">
-    <div class="row mb-3">
+    <div class="row mb-3" id="ge-resumen">
         <div class="col-md-3">
             <div class="card p-3 shadow-sm border-0 rounded-4">
                 <div class="d-flex justify-content-between align-items-center">
@@ -83,7 +97,7 @@
         </div>
     </div>
 
-    <div class="card mb-3">
+    <div class="card mb-3" id="ge-filtro">
         <div class="card-body pt-3">
             <form method="GET">
                 <div class="row">
@@ -107,7 +121,7 @@
     </p>
 
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-4" id="ge-contratos">
             <div class="card">
                 <div class="card-body pt-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -145,7 +159,7 @@
             </div>
         </div>
 
-        <div class="col-md-8">
+        <div class="col-md-8" id="ge-detalle">
             <div class="card">
                 <div class="card-body pt-3">
                     <div class="d-flex justify-content-between align-items-center">

@@ -86,3 +86,62 @@
     });
 }());
 </script>
+
+<!-- ===================== Intro.js: Guías interactivas ===================== -->
+<script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/minified/intro.min.js"></script>
+<script>
+(function () {
+    // Listener global: cualquier elemento con la clase .btn-iniciar-tour lanza un tour.
+    // Los pasos se definen en el atributo data-steps (JSON) del propio botón.
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-iniciar-tour');
+        if (!btn) return;
+
+        e.preventDefault();
+
+        var raw = btn.getAttribute('data-steps');
+        if (!raw) {
+            console.warn('[Tour] El botón .btn-iniciar-tour no tiene atributo data-steps.');
+            return;
+        }
+
+        var steps;
+        try {
+            steps = JSON.parse(raw);
+        } catch (err) {
+            console.error('[Tour] data-steps no es un JSON válido:', err);
+            return;
+        }
+
+        // ¿El tour corre dentro de un modal? (atributo data-tour-modal="#idModal")
+        var modalSelector = btn.getAttribute('data-tour-modal');
+        var enModal = !!modalSelector;
+
+        if (enModal) {
+            document.body.classList.add('tour-en-modal');
+        }
+
+        introJs().setOptions({
+            steps: steps,
+            nextLabel: 'Siguiente →',
+            prevLabel: '← Atrás',
+            doneLabel: 'Entendido 👍',
+            showProgress: true,
+            showBullets: false,
+            exitOnOverlayClick: !enModal, // dentro de un modal evitamos cierres accidentales
+            scrollToElement: true,
+            scrollTo: 'tooltip',  // desplaza hasta que el GLOBO quede visible, no solo el campo
+            scrollPadding: 60
+        })
+        // En cada paso, aseguramos que el campo resaltado quede centrado en pantalla
+        .onafterchange(function (targetEl) {
+            if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            }
+        })
+        .oncomplete(function () { document.body.classList.remove('tour-en-modal'); })
+        .onexit(function ()     { document.body.classList.remove('tour-en-modal'); })
+        .start();
+    });
+}());
+</script>

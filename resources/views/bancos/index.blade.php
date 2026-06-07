@@ -13,16 +13,28 @@
                 </ol>
             </nav>
         </div>
-        @can('bancos.create')
         <div class="d-flex gap-2">
-            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalBanco" onclick="resetModalBanco()">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"🏦 Este módulo centraliza los <b>bancos</b> y las <b>cuentas bancarias</b> de proveedores, conductores, empleados y clientes. Estas cuentas se usan al registrar pagos. Te muestro cómo funciona."},
+                        {"element":"#colapseBancos","intro":"🏛️ Aquí ves los <b>bancos registrados</b>. Haz clic en el encabezado para desplegar u ocultar la lista. Cada banco muestra su país, código y cuántas cuentas tiene.","position":"bottom"},
+                        {"element":"#tabla_cuentas","intro":"💳 La lista de todas las <b>cuentas bancarias</b>: su banco, titular, tipo, número, moneda y alias. Puedes buscar y filtrar.","position":"top"},
+                        {"element":"#tabla_cuentas thead th:nth-child(3)","intro":"🏷️ La columna <b>Tipo</b> indica de quién es la cuenta: Empleado, Cliente, Proveedor o Propietario/Conductor.","position":"bottom"},
+                        {"element":"#btnNuevoBanco","intro":"➕ Con <b>Nuevo Banco</b> registras una entidad bancaria. Tiene su propia guía ❓.","position":"left"},
+                        {"element":"#btnNuevaCuenta","intro":"➕ Con <b>Nueva Cuenta</b> registras una cuenta bancaria y su titular. También tiene su guía ❓.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('bancos.create')
+            <button id="btnNuevoBanco" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalBanco" onclick="resetModalBanco()">
                 <i class="bi bi-plus-lg"></i> Nuevo Banco
             </button>
-            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalCuenta" onclick="resetModalCuenta()">
+            <button id="btnNuevaCuenta" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalCuenta" onclick="resetModalCuenta()">
                 <i class="bi bi-plus-lg"></i> Nueva Cuenta
             </button>
+            @endcan
         </div>
-        @endcan
     </div>
 </div>
 
@@ -224,7 +236,21 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-bank"></i> <span id="tituloBanco">Nuevo Banco</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalBanco"
+                            data-steps='[
+                                {"intro":"📝 Registra una entidad bancaria. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#banco_nombre","intro":"🏦 <b>Nombre del Banco</b> (ej: Banco Bisa).","position":"bottom"},
+                                {"element":"#banco_pais","intro":"🌎 <b>País</b> del banco. Si es Bolivia, aparece el campo de código ASFI.","position":"bottom"},
+                                {"element":"#banco_swift","intro":"🔤 <b>Código SWIFT</b> (opcional): para transferencias internacionales.","position":"bottom"},
+                                {"element":"#btnBanco","intro":"💾 Pulsa <b>Registrar</b> para guardar el banco.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formBanco" method="POST" action="{{ route('bancos.store') }}">
                 @csrf
@@ -274,7 +300,25 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-credit-card"></i> <span id="tituloCuenta">Nueva Cuenta Bancaria</span></h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            data-tour-modal="#modalCuenta"
+                            data-steps='[
+                                {"intro":"📝 Registra una cuenta bancaria. Los campos se van habilitando a medida que completas los anteriores. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
+                                {"element":"#tipo_titular","intro":"👥 <b>Tipo de Titular</b>: elige primero de quién es la cuenta (Empleado, Cliente, Proveedor o Propietario/Conductor). Esto habilita el resto de campos.","position":"bottom"},
+                                {"element":"#sec_titular","intro":"🔎 <b>Titular</b>: busca y selecciona a la persona o empresa registrada dueña de la cuenta.","position":"bottom"},
+                                {"element":"#sel_banco_cuenta","intro":"🏦 <b>Banco</b> de la cuenta.","position":"bottom"},
+                                {"element":"#inp_numero_cuenta","intro":"🔢 <b>Número de cuenta</b>.","position":"bottom"},
+                                {"element":"#inp_nro_documento","intro":"🪪 <b>CI / NIT</b> del titular de la cuenta.","position":"bottom"},
+                                {"element":"#sel_moneda","intro":"💱 <b>Moneda</b> de la cuenta (BOB o USD).","position":"top"},
+                                {"element":"#sec_toggle_titular","intro":"🔀 Activa <b>Titular diferente</b> si la cuenta figura a nombre de otra persona (familiar, representante). Pedirá su nombre y la relación.","position":"top"},
+                                {"element":"#btnCuenta","intro":"💾 Pulsa <b>Registrar Cuenta</b> para guardar.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i> Ayuda
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form id="formCuenta" method="POST" action="{{ route('bancos.cuenta.store') }}">
                 @csrf
