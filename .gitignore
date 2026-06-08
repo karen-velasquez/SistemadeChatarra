@@ -6,6 +6,7 @@
 /storage/*.key
 /storage/framework/views
 /vendor
+/public/comprobantes_pago/*
 .env
 .env.backup
 .env.production
