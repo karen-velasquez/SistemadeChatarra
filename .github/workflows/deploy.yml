@@ -1,4 +1,4 @@
-name: Deploy a Hostinger (FTP)
+name: Deploy a Hostinger (SFTP)
 
 # Se ejecuta automáticamente en cada push a la rama main.
 # También se puede lanzar a mano desde la pestaña "Actions" de GitHub.
@@ -9,60 +9,43 @@ on:
 
 jobs:
   deploy:
-    name: Subir cambios por FTP
+    name: Subir cambios por SFTP
     runs-on: ubuntu-latest
 
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v4
 
-      - name: Sincronizar archivos a Hostinger por FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      # Hostinger suele bloquear el FTP plano desde IPs externas (como las de
+      # GitHub Actions), por eso se usa SFTP (puerto 65002), que sí permite.
+      # Usa los mismos Secrets de usuario y contraseña que el FTP.
+      - name: Subir archivos a Hostinger por SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          # Datos de conexión guardados como Secrets en GitHub
           server:   ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-
-          # Hostinger: FTP en puerto 21. El Secret FTP_SERVER debe ser
-          # SOLO la IP (147.93.88.28), sin el prefijo ftp://.
-          protocol: ftp
-          port: 21
-
-          # Tiempo de espera de conexión (ms), holgado por si el server tarda.
-          timeout: 60000
+          port: 65002
 
           # Carpeta LOCAL de origen (la raíz del repo).
-          local-dir: ./
+          local_path: './*'
 
-          # Carpeta DESTINO en Hostinger. Debe terminar con /
-          # El proyecto Laravel vive directamente dentro de chatarra/
-          # (app, resources, vendor, .env... están ahí), sin subcarpeta extra.
-          server-dir: /public_html/chatarra/
+          # Carpeta DESTINO en Hostinger.
+          remote_path: '/public_html/chatarra'
 
-          # Borra del servidor archivos que ya no existen en el repo.
-          # Se deja en false por seguridad: NO elimina nada que no controle
-          # el repo (como vendor/, .env o archivos subidos manualmente).
-          dangerous-clean-slate: false
+          sftp_only: true
+          delete_remote_files: false
 
-          # Archivos y carpetas que NO se suben.
+          # Archivos y carpetas que NO se suben (patrón rsync).
           # vendor/ y .env ya están en el servidor y no deben tocarse.
           exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            vendor/**
-            node_modules/**
+            .git*
+            .github
+            vendor
+            node_modules
             .env
-            .env.*
-            storage/logs/**
-            storage/framework/cache/**
-            storage/framework/sessions/**
-            storage/framework/views/**
-            **/*.md
-            .gitignore
-            .gitattributes
-            .editorconfig
-            phpunit.xml
-            tests/**
-            README*
+            storage/logs
+            storage/framework/cache
+            storage/framework/sessions
+            storage/framework/views
+            tests
