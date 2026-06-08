@@ -14,34 +14,51 @@
 </div>
 
 <section class="section">
-    <form method="GET" action="{{ route('reportes.capital_utilidad') }}" class="row g-3 mb-4">
-        <div class="col-md-3">
-            <label class="form-label">Fecha inicio</label>
-            <input type="date" name="fecha_inicio" class="form-control" value="{{ $fechaInicio }}">
-        </div>
+   <form method="GET" action="{{ route('reportes.capital_utilidad') }}" class="row g-2 align-items-end mb-4">
 
-        <div class="col-md-3">
-            <label class="form-label">Fecha fin</label>
-            <input type="date" name="fecha_fin" class="form-control" value="{{ $fechaFin }}">
-        </div>
+    <div class="col-md-2">
+        <label class="form-label">Fecha inicio</label>
+        <input type="date" name="fecha_inicio" class="form-control" value="{{ $fechaInicio }}">
+    </div>
 
-        <div class="col-md-4">
-            <label class="form-label">Cuenta empresa</label>
-            <select name="cuenta_empresa_id" class="form-select">
-                <option value="todas" {{ $cuentaId == 'todas' ? 'selected' : '' }}>Todas las cuentas</option>
-                @foreach($cuentas as $cuenta)
-                    <option value="{{ $cuenta->id }}" {{ $cuentaId == $cuenta->id ? 'selected' : '' }}>{{ $cuenta->nombre_cuenta }} - {{ $cuenta->banco->nombre ?? 'Sin banco' }} - {{ $cuenta->moneda }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button class="btn btn-primary w-100"><i class="bi bi-search"></i> Filtrar </button>
-        </div>
-        <div class="col-md-12">
-            <a href="{{ route('reportes.capital_utilidad.excel', request()->query()) }}" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> Descargar Excel</a>
-        </div>
-    </form>
+    <div class="col-md-2">
+        <label class="form-label">Fecha fin</label>
+        <input type="date" name="fecha_fin" class="form-control" value="{{ $fechaFin }}">
+    </div>
 
+    <div class="col-md-4">
+        <label class="form-label">Cuenta empresa</label>
+        <select name="cuenta_empresa_id" class="form-select">
+            <option value="todas" {{ $cuentaId == 'todas' ? 'selected' : '' }}>Todas las cuentas</option>
+            @foreach($cuentas as $cuenta)
+                <option value="{{ $cuenta->id }}" {{ $cuentaId == $cuenta->id ? 'selected' : '' }}>
+                    {{ $cuenta->nombre_cuenta }} - {{ $cuenta->banco->nombre ?? 'Sin banco' }} - {{ $cuenta->moneda }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label d-none d-md-block">&nbsp;</label>
+        <div class="d-flex gap-2">
+            <button type="button" id="btnGuiaCapital" class="btn btn-outline-primary btn-iniciar-tour"
+                data-steps='[
+                    {"intro":"💰 Bienvenido al reporte de <b>Capital y Utilidad</b>. Aquí puedes analizar cuánto dinero había inicialmente, cuánto salió de tesorería, cuánto ingresó por clientes y cuál fue la utilidad generada."},
+                    {"element":"input[name=fecha_inicio]","intro":"📅 Selecciona la <b>fecha de inicio</b> para calcular los movimientos desde ese día.","position":"bottom"},
+                    {"element":"input[name=fecha_fin]","intro":"📅 Selecciona la <b>fecha final</b>. El reporte tomará ingresos y egresos hasta esta fecha.","position":"bottom"},
+                    {"element":"select[name=cuenta_empresa_id]","intro":"🏦 Aquí puedes elegir una <b>cuenta de empresa</b> específica o seleccionar <b>Todas las cuentas</b> para ver el capital global de tesorería.","position":"bottom"},
+                    {"element":"#btnFiltrarCapital","intro":"🔎 Presiona <b>Filtrar</b> para actualizar el reporte con las fechas y cuenta seleccionada.","position":"left"},
+                    {"element":"#btnExcelCapital","intro":"📥 Con <b>Excel</b> descargas el reporte de capital y utilidad con el mismo filtro aplicado.","position":"left"},
+                    {"intro":"📊 Las tarjetas del reporte muestran capital inicial, capital final calculado, saldo actual, ventas, proveedores, gastos operativos y utilidad."},
+                    {"intro":"✅ Usa este reporte para saber si la operación está generando ganancia real y cuánto dinero queda disponible en tesorería."}
+                ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            <button type="submit" id="btnFiltrarCapital" class="btn btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
+            <a href="{{ route('reportes.capital_utilidad.excel', request()->query()) }}" id="btnExcelCapital" class="btn btn-success flex-fill"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+        </div>
+    </div>
+</form>
     <div class="row g-3">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm rounded-4">
@@ -154,7 +171,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <div class="card border-0 shadow-sm rounded-4 mt-4">

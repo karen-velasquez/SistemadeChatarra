@@ -12,8 +12,8 @@
     <div class="section-card p-4 mb-4">
         <h5 class="panel-title mb-4"><i class="bi bi-funnel me-2"></i>Filtros de Reporte</h5>
 
-        <form method="GET" action="{{ route('reportes.index') }}">
-            <div class="row g-3 align-items-end">
+       <form method="GET" action="{{ route('reportes.index') }}">
+            <div class="row g-2 align-items-end">
                 <div class="col-md-2">
                     <label class="form-label">Fecha Inicio</label>
                     <input type="date" name="fecha_inicio" class="form-control" value="{{ $fechaInicio }}">
@@ -29,9 +29,7 @@
                     <select name="proveedor_id" class="form-select">
                         <option value="">TODOS</option>
                         @foreach($proveedores as $p)
-                            <option value="{{ $p->id }}" {{ request('proveedor_id') == $p->id ? 'selected' : '' }}>
-                                {{ $p->nombre }}
-                            </option>
+                            <option value="{{ $p->id }}" {{ request('proveedor_id') == $p->id ? 'selected' : '' }}>{{ $p->nombre }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -54,19 +52,35 @@
                         <option value="INTERNACIONAL" {{ request('tipo_contrato') == 'INTERNACIONAL' ? 'selected' : '' }}>INTERNACIONAL</option>
                     </select>
                 </div>
-
-                <div class="col-md-2 d-grid">
-                    <button type="submit" class="btn btn-dark"><i class="bi bi-search"></i>Filtrar</button>
+                <div class="col-md-2">
+                    <label class="form-label d-none d-md-block">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnGuiaReportes" class="btn btn-outline-primary btn-iniciar-tour"
+                            data-steps='[
+                                {"intro":"📊 Bienvenido al módulo de <b>Reportes Generales</b>. Aquí puedes analizar contratos, proveedores, clientes, pagos, cobros, gastos, utilidad y movimientos operativos."},
+                                {"element":"input[name=fecha_inicio]","intro":"📅 Selecciona la <b>fecha de inicio</b> para limitar el reporte a un periodo específico.","position":"bottom"},
+                                {"element":"input[name=fecha_fin]","intro":"📅 Selecciona la <b>fecha final</b>. El reporte mostrará datos registrados dentro de este rango.","position":"bottom"},
+                                {"element":"select[name=proveedor_id]","intro":"🏭 Filtra por <b>proveedor</b> para revisar contratos, pagos y operaciones relacionadas con un proveedor específico.","position":"bottom"},
+                                {"element":"select[name=cliente_id]","intro":"👤 Filtra por <b>cliente</b> para analizar ventas, cobros y entregas asociadas a ese cliente.","position":"bottom"},
+                                {"element":"select[name=tipo_contrato]","intro":"📄 Filtra por <b>tipo de contrato</b>, nacional o internacional, para comparar operaciones según su naturaleza.","position":"bottom"},
+                                {"element":"#btnFiltrarReportes","intro":"🔎 Presiona <b>Filtrar</b> para actualizar todos los indicadores, tablas y resultados del reporte general.","position":"left"},
+                                {"element":"#btnExportarExcel","intro":"📥 Con <b>Exportar Excel</b> descargas el reporte filtrado en formato Excel.","position":"left"},
+                                {"element":".report-tabs","intro":"🧭 Estas pestañas dividen el reporte por secciones: <b>Resumen General</b>, <b>Ventas</b>, <b>Compras</b> y <b>Gastos</b>.","position":"bottom"},
+                                {"intro":"✅ Usa los filtros, revisa los indicadores y exporta el reporte cuando necesites respaldar la información."}
+                            ]'>
+                            <i class="bi bi-question-circle"></i>
+                        </button>
+                        <button type="submit" id="btnFiltrarReportes" class="btn btn-primary flex-fill"><i class="bi bi-search"></i> Filtrar</button>
+                    </div>
                 </div>
             </div>
         </form>
-        @can('reportes.export')
-        <div class="mt-3 text-end">
-            <a href="{{ route('reportes.exportar.excel', request()->query()) }}" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i>Exportar Excel</a>
-        </div>
-        @endcan
-    </div>
 
+        @can('reportes.export')
+            <div class="d-flex justify-content-end mt-2">
+              <a href="{{ route('reportes.exportar.excel', request()->query()) }}" id="btnExportarExcel" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</a>
+            </div>
+        @endcan
     <div class="report-tabs mb-4">
         <button type="button" class="report-tab active" onclick="mostrarReporte('resumen', this)">Resumen General</button>
         <button type="button" class="report-tab" onclick="mostrarReporte('ventas', this)">Ventas</button>
