@@ -61,9 +61,7 @@
   </header>
   @include('layouts.partials.menu')
   <main id="main" class="main"> @yield('content')</main>
-  <footer id="footer" class="footer">
-    <div class="text-center text-muted small py-2">✅ Deploy automático activo — prueba {{ date('d/m/Y H:i') }}</div>
-  </footer>
+  <footer id="footer" class="footer"></footer>
   @include('layouts.partials.scripts')
 @stack('scripts')
 </body>
