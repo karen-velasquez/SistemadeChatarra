@@ -1,13 +1,13 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Models\Banco;
 use App\Models\Empresa;
+use App\Models\Parametro;
+use App\Models\Movimiento;
 use App\Models\CuentaEmpresa;
 use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
-
 class EmpresaController extends Controller
 {
     public function __construct()
@@ -17,11 +17,7 @@ class EmpresaController extends Controller
 
     public function index()
     {
-        $empresas = Empresa::withCount('cuentas')
-            ->with(['cuentas' => function($query) {
-                $query->withCount('movimientos')->with('banco');
-            }])
-            ->get();
+        $empresas = Empresa::withCount('cuentas')->with(['cuentas' => function($query) {$query->withCount('movimientos')->with('banco');}])->get();
         $bancos   = Banco::whereNull('deleted_at')->where('activo', true)->orderBy('nombre')->get();
         $monedas  = \App\Models\Parametro::where('tipo', 'tipo_moneda')->whereNull('deleted_at')->orderBy('valor')->get();
         return view('empresas.index', compact('empresas', 'bancos', 'monedas'));
@@ -55,7 +51,6 @@ class EmpresaController extends Controller
             'created_by'   => auth()->id(),
             'updated_by'   => auth()->id(),
         ]);
-
         Alert::success('Guardado', 'Empresa registrada correctamente.');
         return redirect()->route('empresas.index');
     }
@@ -65,11 +60,9 @@ class EmpresaController extends Controller
         $empresa = Empresa::where('uuid', $uuid)->firstOrFail();
         return response()->json($empresa);
     }
-
     public function update(Request $request, string $uuid)
     {
         $empresa = Empresa::where('uuid', $uuid)->firstOrFail();
-
         $request->validate([
             'nombre'      => 'required|string|max:150',
             'nit'         => 'required|digits_between:1,15',
@@ -85,7 +78,6 @@ class EmpresaController extends Controller
             'telefono.digits_between' => 'El teléfono debe contener entre 8 y 11 dígitos numéricos.',
             'email.email'          => 'Ingresa un correo electrónico válido.',
         ]);
-
         $empresa->update([
             'nombre'       => strtoupper($request->nombre),
             'nit'          => $request->nit,
@@ -95,7 +87,6 @@ class EmpresaController extends Controller
             'email'        => $request->email,
             'updated_by'   => auth()->id(),
         ]);
-
         Alert::success('Actualizado', 'Empresa actualizada correctamente.');
         return redirect()->route('empresas.index');
     }
@@ -108,52 +99,37 @@ class EmpresaController extends Controller
         return redirect()->route('empresas.index');
     }
 
-    // Cuentas de una empresa
     public function cuentas(string $uuid)
     {
         $empresa = Empresa::where('uuid', $uuid)->with('cuentas.banco')->firstOrFail();
-        $movimientos = \App\Models\Movimiento::withTrashed()
-            ->whereIn('cuenta_empresa_id', $empresa->cuentas->pluck('id'))
-            ->with([
-                'cuentaEmpresa.empresa',
-                'cuentaEmpresa.banco',
-                'origen.cuentaOrigen',
-                'origen.cuentaDestino',
-                'lotePago.cuentaOrigen'
-            ])
-            ->orderByDesc('fecha')
-            ->orderByDesc('id')
-            ->get();
-
-        // Cargar relaciones según el tipo de cuenta
-        foreach ($movimientos as $mov) {
+            $movimientos = Movimiento::withTrashed()->whereIn('cuenta_empresa_id', $empresa->cuentas->pluck('id'))->with(['cuentaEmpresa.empresa','cuentaEmpresa.banco','lotePago.cuentaOrigen'])->orderByDesc('fecha')->orderByDesc('id')->get();
+            foreach ($movimientos as $mov) {
             if ($mov->origen) {
-                if ($mov->origen->cuentaOrigen) {
+                if (method_exists($mov->origen, 'cuentaOrigen') && $mov->origen->cuentaOrigen) {
                     if (get_class($mov->origen->cuentaOrigen) === 'App\Models\CuentaBancaria') {
                         $mov->origen->cuentaOrigen->load('banco');
-                    } else if (get_class($mov->origen->cuentaOrigen) === 'App\Models\CuentaEmpresa') {
+                    } elseif (get_class($mov->origen->cuentaOrigen) === 'App\Models\CuentaEmpresa') {
                         $mov->origen->cuentaOrigen->load('empresa');
                     }
                 }
-                if ($mov->origen->cuentaDestino) {
+
+                if (method_exists($mov->origen, 'cuentaDestino') && $mov->origen->cuentaDestino) {
                     if (get_class($mov->origen->cuentaDestino) === 'App\Models\CuentaBancaria') {
                         $mov->origen->cuentaDestino->load('banco');
-                    } else if (get_class($mov->origen->cuentaDestino) === 'App\Models\CuentaEmpresa') {
+                    } elseif (get_class($mov->origen->cuentaDestino) === 'App\Models\CuentaEmpresa') {
                         $mov->origen->cuentaDestino->load('empresa');
                     }
                 }
             }
         }
         $bancos = Banco::whereNull('deleted_at')->where('activo', true)->orderBy('nombre')->get();
-        $monedas = \App\Models\Parametro::where('tipo', 'tipo_moneda')->whereNull('deleted_at')->orderBy('valor')->get();
+        $monedas = Parametro::where('tipo', 'tipo_moneda')->whereNull('deleted_at')->orderBy('valor')->get();
         return view('empresas.cuentas', compact('empresa', 'movimientos', 'bancos', 'monedas'));
     }
 
-    // Guardar cuenta de empresa
     public function storeCuenta(Request $request, string $uuid)
     {
         $empresa = Empresa::where('uuid', $uuid)->firstOrFail();
-
         $request->validate([
             'nombre_cuenta' => 'required|string|max:150',
             'banco_id'      => 'required|exists:bancos,id',
@@ -181,9 +157,7 @@ class EmpresaController extends Controller
             'created_by'    => auth()->id(),
             'updated_by'    => auth()->id(),
         ]);
-
         Alert::success('Guardado', 'Cuenta registrada correctamente.');
-
         if ($request->get('redirect_to') === 'index') {
             return redirect()->route('empresas.index');
         }

@@ -84,6 +84,7 @@ class PermissionsTableSeeder extends Seeder
             // Reportes
             ['name' => 'reportes.index',  'descripcion' => 'Ver Reportes',      'grupo' => 'REPORTES'],
             ['name' => 'reportes.export', 'descripcion' => 'Exportar Reportes', 'grupo' => 'REPORTES'],
+            ['name' => 'reportes.capital_utilidad',  'descripcion' => 'Ver Reportes de Capital y Utilidad', 'grupo' => 'REPORTES'],
             // Permisos
             ['name' => 'permisos.index',   'descripcion' => 'Ver todos los Permisos', 'grupo' => 'PERMISOS'],
             ['name' => 'permisos.create',  'descripcion' => 'Agregar Permisos',       'grupo' => 'PERMISOS'],

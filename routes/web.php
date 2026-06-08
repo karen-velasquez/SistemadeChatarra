@@ -176,7 +176,8 @@ use Illuminate\Support\Facades\Route;
     //Reportes
     Route::get('/reportes', [App\Http\Controllers\ReporteController::class, 'index'])->name('reportes.index')->middleware('permission:reportes.index');
     Route::get('/reportes/exportar-excel', [App\Http\Controllers\ReporteController::class,'exportarExcel'])->name('reportes.exportar.excel')->middleware('permission:reportes.export');
-
+    Route::get('reportes/capital-utilidad',[App\Http\Controllers\ReporteController::class, 'capitalUtilidad'])->name('reportes.capital_utilidad')->middleware('permission:reportes.capital_utilidad');
+    Route::get('reportes/capital-utilidad/excel',[App\Http\Controllers\ReporteController::class, 'capitalUtilidadExcel'])->name('reportes.capital_utilidad.excel')->middleware('permission:reportes.capital_utilidad');
     // Empresas (tesorería)
     Route::get('empresas', [App\Http\Controllers\EmpresaController::class, 'index'])->name('empresas.index')->middleware('permission:empresas.index');
     Route::post('empresas/store', [App\Http\Controllers\EmpresaController::class, 'store'])->name('empresas.store')->middleware('permission:empresas.create');

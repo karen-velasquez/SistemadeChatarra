@@ -230,14 +230,37 @@
       </li>
       @endcan
 
-      @can('reportes.index')
+        {{-- REPORTES --}}
+      @php $enReportes = request()->routeIs(['reportes.index','reportes.capital_utilidad']); @endphp
+      @if(auth()->user()->can('reportes.index'))
       <li class="nav-item">
-        <a class="nav-link {{ isActiveRoute('reportes.index') }}" href="{{ route('reportes.index') }}">
-          <i class="bi bi-graph-up"></i>
+        <a class="nav-link {{ $enReportes ? '' : 'collapsed' }}"
+           data-sidebar-target="menu-reportes" href="#">
+          <i class="bi bi-people"></i>
           <span>Reportes</span>
+          <i class="bi bi-chevron-down ms-auto"></i>
         </a>
+        <ul id="menu-reportes"
+            class="nav-content sidebar-submenu {{ $enReportes ? 'submenu-open' : '' }}">
+          @can('reportes.index')
+          <li>
+            <a href="{{ route('reportes.index') }}"
+               class="{{ isActiveRoute(['reportes.index']) ? 'active' : '' }}">
+              <i class="bi bi-person-lines-fill"></i><span>Reportes Generales</span>
+            </a>
+          </li>
+          @endcan
+          @can('reportes_capital.index')
+          <li>
+            <a href="{{ route('reportes.capital_utilidad') }}"
+               class="{{ isActiveRoute(['reportes.capital_utilidad']) ? 'active' : '' }}">
+              <i class="bi bi-receipt"></i><span>Reportes de Capital y Utilidad</span>
+            </a>
+          </li>
+          @endcan
+        </ul>
       </li>
-      @endcan
+      @endif
 
       {{-- Parámetros --}}
       @can('parametros.index')
