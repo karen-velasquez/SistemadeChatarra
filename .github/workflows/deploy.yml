@@ -1,0 +1,64 @@
+name: Deploy a Hostinger (FTP)
+
+# Se ejecuta automáticamente en cada push a la rama main.
+# También se puede lanzar a mano desde la pestaña "Actions" de GitHub.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Subir cambios por FTP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Sincronizar archivos a Hostinger por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          # Datos de conexión guardados como Secrets en GitHub
+          server:   ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+
+          # Protocolo y puerto (ftp = 21, ftps = 21 con TLS).
+          # Hostinger suele soportar FTP normal en el puerto 21.
+          protocol: ftp
+          port: 21
+
+          # Carpeta LOCAL de origen (la raíz del repo).
+          local-dir: ./
+
+          # Carpeta DESTINO en Hostinger. Debe terminar con /
+          # Ajusta esta ruta si tu estructura cambia.
+          server-dir: /public_html/chatarra/Sistema-de-compra-y-venta-de-chatarra-LARAVEL-main/
+
+          # Borra del servidor archivos que ya no existen en el repo.
+          # Se deja en false por seguridad: NO elimina nada que no controle
+          # el repo (como vendor/, .env o archivos subidos manualmente).
+          dangerous-clean-slate: false
+
+          # Archivos y carpetas que NO se suben.
+          # vendor/ y .env ya están en el servidor y no deben tocarse.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            vendor/**
+            node_modules/**
+            .env
+            .env.*
+            storage/logs/**
+            storage/framework/cache/**
+            storage/framework/sessions/**
+            storage/framework/views/**
+            **/*.md
+            .gitignore
+            .gitattributes
+            .editorconfig
+            phpunit.xml
+            tests/**
+            README*
