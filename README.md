@@ -1,66 +1,138 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistema de Compra y Venta de Chatarra
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicación web desarrollada en **Laravel 10** para gestionar todo el ciclo
+de un negocio de compra y venta de chatarra: proveedores, clientes,
+contratos, transporte, pagos, cobros y tesorería.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🧩 Módulos del sistema
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Módulo | Qué hace |
+|---|---|
+| **Dashboard** | Resumen de indicadores clave del negocio. |
+| **Contratos** | Compra/venta de chatarra, asignación de camiones, tramos y liquidación de envíos. |
+| **Proveedores** | Registro de proveedores, historial de pagos y pago masivo. |
+| **Transporte** | Camiones, propietarios/conductores, asignaciones, seguimiento de cargas y pago de fletes. |
+| **Clientes** | Registro de clientes y cobros (individuales y masivos). |
+| **Tesorería** | Movimientos, empresas y cuentas, préstamos internos y lotes de pago. |
+| **Bancos y Cuentas** | Catálogo de bancos y cuentas bancarias de terceros. |
+| **Empleados** | Gestión del personal de la empresa. |
+| **Gastos Extra** | Gastos adicionales asociados a los contratos. |
+| **Reportes** | Reportes de utilidad, capital y operativos, exportables a Excel. |
+| **Parámetros** | Catálogos del sistema (países, monedas, cargos, etc.). |
+| **Administración** | Usuarios, roles y permisos. |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🧭 Guías interactivas
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+El sistema incluye **guías paso a paso** integradas en cada pantalla y
+formulario. Se activan con el botón de ayuda (❓) que aparece en la cabecera
+de cada módulo.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- Librería usada: **[Shepherd.js](https://shepherdjs.dev) 11.2.0** (licencia MIT,
+  apta para uso comercial), cargada por CDN.
+- Las guías se definen con un atributo `data-steps` en cada botón
+  `.btn-iniciar-tour`. Un *listener* global lee ese atributo y lanza el tour.
+- La infraestructura está en:
+  - `resources/views/layouts/partials/styles.blade.php` (estilos)
+  - `resources/views/layouts/partials/scripts.blade.php` (lógica)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Cómo agregar una guía a una vista nueva
 
-## Laravel Sponsors
+Basta con un botón con la clase `.btn-iniciar-tour` y el atributo `data-steps`:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```html
+<button type="button" class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+        data-steps='[
+            {"intro":"Bienvenido a esta pantalla."},
+            {"element":"#mi-tabla","intro":"Aquí ves los registros.","position":"top"}
+        ]'>
+    <i class="bi bi-question-circle"></i>
+</button>
+```
 
-### Premium Partners
+Para guías dentro de un modal de Bootstrap, agrega `data-tour-modal="#idDelModal"`.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+---
 
-## Contributing
+## 🛠️ Tecnologías
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **Laravel 10** (PHP ^8.1)
+- **MySQL** como base de datos
+- **Bootstrap 5** + Bootstrap Icons (interfaz)
+- **DataTables** (tablas con búsqueda y paginación)
+- **Shepherd.js** (guías interactivas)
+- Paquetes destacados:
+  - `spatie/laravel-permission` — roles y permisos
+  - `barryvdh/laravel-dompdf` — generación de PDFs (notas de entrega, etc.)
+  - `maatwebsite/excel` — exportación a Excel
+  - `spatie/laravel-html`
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🚀 Instalación (entorno local)
 
-## Security Vulnerabilities
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/Daniel300498/Sistema-de-compra-y-venta-de-chatarra-LARAVEL.git
+cd Sistema-de-compra-y-venta-de-chatarra-LARAVEL
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 2. Instalar dependencias PHP
+composer install
 
-## License
+# 3. Instalar dependencias de assets (opcional, solo si editas app.js/app.css)
+npm install
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# 4. Copiar el archivo de entorno y generar la clave
+cp .env.example .env
+php artisan key:generate
+
+# 5. Configurar la base de datos en .env (DB_DATABASE, DB_USERNAME, DB_PASSWORD)
+
+# 6. Ejecutar migraciones y seeders (datos iniciales)
+php artisan migrate --seed
+
+# 7. Levantar el servidor de desarrollo
+php artisan serve
+```
+
+El sistema quedará disponible en `http://127.0.0.1:8000`.
+
+---
+
+## 📦 Despliegue (Hostinger)
+
+> **Nota:** el plan **Single** de Hostinger no incluye SSH/SFTP, y el FTP
+> queda bloqueado para conexiones automáticas desde servicios externos
+> (como GitHub Actions). Por eso el despliegue se realiza **manualmente
+> por FTP** con un cliente como **FileZilla**.
+
+### Subir cambios con FileZilla
+
+1. Conéctate por FTP:
+   - **Host:** la IP del FTP de Hostinger
+   - **Usuario / Contraseña:** los de tu cuenta FTP
+   - **Puerto:** `21`
+2. En el servidor, navega a: `public_html/chatarra/`
+3. Sube **solo los archivos que cambiaron** (respetando la estructura de carpetas).
+   No subas `vendor/`, `node_modules/` ni `.env` (ya están configurados en el servidor).
+4. Si cambiaste vistas Blade y no se reflejan, borra los `.php` de
+   `storage/framework/views/` en el servidor (caché de vistas; Laravel los regenera).
+
+---
+
+## 👥 Roles y permisos
+
+El acceso a cada módulo está controlado por **roles y permisos**
+(`spatie/laravel-permission`). Un usuario solo ve en el menú los módulos
+para los que tiene permiso. Los roles se gestionan desde
+**Administración → Roles**.
+
+---
+
+## 📄 Licencia
+
+Proyecto privado. Construido sobre el framework Laravel, que es software
+de código abierto bajo licencia [MIT](https://opensource.org/licenses/MIT).
