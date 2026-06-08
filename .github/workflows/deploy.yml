@@ -38,8 +38,9 @@ jobs:
           local-dir: ./
 
           # Carpeta DESTINO en Hostinger. Debe terminar con /
-          # Ajusta esta ruta si tu estructura cambia.
-          server-dir: /public_html/chatarra/Sistema-de-compra-y-venta-de-chatarra-LARAVEL-main/
+          # El proyecto Laravel vive directamente dentro de chatarra/
+          # (app, resources, vendor, .env... están ahí), sin subcarpeta extra.
+          server-dir: /public_html/chatarra/
 
           # Borra del servidor archivos que ya no existen en el repo.
           # Se deja en false por seguridad: NO elimina nada que no controle
