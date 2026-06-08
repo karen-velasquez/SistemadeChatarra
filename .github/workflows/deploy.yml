@@ -24,10 +24,15 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
 
-          # Protocolo y puerto (ftp = 21, ftps = 21 con TLS).
-          # Hostinger suele soportar FTP normal en el puerto 21.
-          protocol: ftp
+          # Protocolo y puerto. Hostinger usa FTP en el puerto 21 pero
+          # normalmente exige conexión cifrada (FTPS = FTP sobre TLS),
+          # también en el puerto 21. Por eso usamos ftps.
+          protocol: ftps
           port: 21
+
+          # Tiempo de espera de conexión (ms). Se sube por si el servidor
+          # tarda en responder al iniciar la sesión TLS.
+          timeout: 60000
 
           # Carpeta LOCAL de origen (la raíz del repo).
           local-dir: ./
