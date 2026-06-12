@@ -106,6 +106,11 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'empresas.create',  'descripcion' => 'Registrar Empresas y Movimientos', 'grupo' => 'EMPRESAS'],
             ['name' => 'empresas.edit',    'descripcion' => 'Editar Empresas',                   'grupo' => 'EMPRESAS'],
             ['name' => 'empresas.destroy', 'descripcion' => 'Eliminar Empresas',                 'grupo' => 'EMPRESAS'],
+            // Parámetros
+            ['name' => 'parametros.index',   'descripcion' => 'Ver Parámetros',      'grupo' => 'PARAMETROS'],
+            ['name' => 'parametros.create',  'descripcion' => 'Agregar Parámetros',  'grupo' => 'PARAMETROS'],
+            ['name' => 'parametros.edit',    'descripcion' => 'Editar Parámetros',   'grupo' => 'PARAMETROS'],
+            ['name' => 'parametros.destroy', 'descripcion' => 'Eliminar Parámetros', 'grupo' => 'PARAMETROS'],
         ];
 
         foreach ($permisos as $p) {
