@@ -733,7 +733,7 @@ function filtrarPorCliente(clienteId) {
 function abrirModalPrecio(tramoId, label, contrato) {
     document.getElementById('precio_label').textContent    = label;
     document.getElementById('precio_contrato').textContent = 'Contrato: ' + contrato;
-    document.getElementById('formPrecio').action = '/pagos/clientes/' + tramoId + '/precio';
+    document.getElementById('formPrecio').action = url_global + '/pagos/clientes/' + tramoId + '/precio';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPrecio')).show();
 }
 
@@ -785,7 +785,7 @@ function cargarCuentasCliente(clienteId) {
         return;
     }
 
-    fetch(`/api/pagos/cuentas-cliente?cliente_id=${clienteId}`)
+    fetch(`${url_global}/api/pagos/cuentas-cliente?cliente_id=${clienteId}`)
         .then(r => r.json())
         .then(data => {
             if (data.length === 0) {
@@ -892,7 +892,7 @@ function verDetalle(tramoId) {
         '<div class="text-center py-4"><div class="spinner-border text-success"></div></div>';
     modal.show();
 
-    fetch(`/api/pagos/clientes/${tramoId}/detalle`)
+    fetch(`${url_global}/api/pagos/clientes/${tramoId}/detalle`)
         .then(r => r.json())
         .then(d => {
             const mon = d.moneda_venta || 'BOB';
@@ -1100,7 +1100,7 @@ function cargarCuentasClienteMasivo(clienteId) {
         return;
     }
 
-    fetch(`/api/pagos/cuentas-cliente?cliente_id=${clienteId}`)
+    fetch(`${url_global}/api/pagos/cuentas-cliente?cliente_id=${clienteId}`)
         .then(r => r.json())
         .then(data => {
             if (data.length === 0) {
@@ -1225,7 +1225,7 @@ function abrirEditarCobro(uuid, tipo, monto, fecha, metodo, codigo, obs) {
 function anularCobro(uuid) {
     if (!confirm('¿Anular este cobro? Se registrará una reversa en tesorería.')) return;
 
-    fetch(`/pagos/clientes/${uuid}/destroy`)
+    fetch(`${url_global}/pagos/clientes/${uuid}/destroy`)
         .then(r => {
             if (r.ok || r.redirected) {
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCobro')).hide();
@@ -1242,7 +1242,7 @@ function guardarEditarCobro() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 
-    fetch(`/pagos/clientes/${_editarCobroUuid}`, {
+    fetch(`${url_global}/pagos/clientes/${_editarCobroUuid}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',

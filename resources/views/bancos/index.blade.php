@@ -800,7 +800,7 @@ function editarCuenta(uuid, bancoId, tipoTitular, titularId, numeroCuenta, moned
     document.getElementById('tituloCuenta').textContent = 'Editar Cuenta Bancaria';
     document.getElementById('btnCuenta').innerHTML      = '<i class="bi bi-save"></i> Actualizar Cuenta';
     document.getElementById('methodCuenta').value       = 'PUT';
-    document.getElementById('formCuenta').action        = '/bancos/cuentas/' + uuid;
+    document.getElementById('formCuenta').action        = url_global + '/bancos/cuentas/' + uuid;
 
     // Banco y moneda
     const selBanco = document.getElementById('sel_banco_cuenta');
@@ -859,7 +859,7 @@ function editarBanco(uuid, nombre, pais, swift, codigo) {
     document.getElementById('tituloBanco').textContent = 'Editar Banco';
     document.getElementById('btnBanco').textContent    = 'Actualizar';
     document.getElementById('methodBanco').value       = 'PUT';
-    document.getElementById('formBanco').action        = '/bancos/' + uuid;
+    document.getElementById('formBanco').action        = url_global + '/bancos/' + uuid;
     document.getElementById('banco_nombre').value      = nombre;
     document.getElementById('banco_pais').value        = pais;
     document.getElementById('banco_swift').value       = swift ?? '';

@@ -345,7 +345,7 @@ function validarMontoPrestamo() {
 }
 
 function abrirDevolucion(uuid, concepto, montoPendiente, moneda) {
-    document.getElementById('formDevolucion').action = '/prestamos-internos/' + uuid + '/devolver';
+    document.getElementById('formDevolucion').action = url_global + '/prestamos-internos/' + uuid + '/devolver';
     document.getElementById('montoDevolucion').max   = montoPendiente;
     document.getElementById('montoDevolucion').value = montoPendiente;
     document.getElementById('infoDevolucion').innerHTML =

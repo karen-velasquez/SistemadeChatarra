@@ -1304,7 +1304,7 @@ function segCargarHistorial(ccId) {
     const wrap = document.getElementById('seg_historial_body');
     wrap.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-secondary"></div></div>';
 
-    fetch(`/api/pagos/camiones/${ccId}/detalle`)
+    fetch(`${url_global}/api/pagos/camiones/${ccId}/detalle`)
         .then(r => r.json())
         .then(d => {
             if (!d.pagos || d.pagos.length === 0) {
@@ -1449,7 +1449,7 @@ function segCambiarReceptor(tipo) {
     const sel = document.getElementById('seg_cuenta_destino');
     sel.innerHTML = '<option value="">-- Cargando... --</option>';
     if (!id) { sel.innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>'; return; }
-    fetch(`/api/pagos/cuentas-receptor?receptor_id=${id}`)
+    fetch(`${url_global}/api/pagos/cuentas-receptor?receptor_id=${id}`)
         .then(r => r.json())
         .then(data => {
             sel.innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>';
@@ -1478,7 +1478,7 @@ function filtrarPorProveedorSeg(proveedorId) {
 }
 
 function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo) {
-    document.getElementById('formEditarPago').action = '/pagos/camiones/' + uuid;
+    document.getElementById('formEditarPago').action = url_global + '/pagos/camiones/' + uuid;
     document.getElementById('edit_tipo_pago').value   = tipo;
     document.getElementById('edit_monto').value       = monto;
     document.getElementById('edit_moneda_pago').value = moneda;
@@ -1747,7 +1747,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
     document.getElementById('hist_contenido').innerHTML = '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalHistorialPagos')).show();
 
-    fetch(`/api/pagos/camiones/${ccId}/detalle`)
+    fetch(`${url_global}/api/pagos/camiones/${ccId}/detalle`)
         .then(r => r.json())
         .then(d => {
             document.getElementById('hist_loading').style.display = 'none';

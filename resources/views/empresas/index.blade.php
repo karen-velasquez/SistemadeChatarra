@@ -747,7 +747,7 @@ function abrirModalCuenta(uuid, nombre) {
     window.validacionCuentaActiva = false;
 
     document.getElementById('nc_empresa_nombre').textContent = nombre;
-    document.getElementById('formNuevaCuenta').action = '/empresas/' + uuid + '/cuentas/store';
+    document.getElementById('formNuevaCuenta').action = url_global + '/empresas/' + uuid + '/cuentas/store';
 
     // Limpiar campos específicos sin usar reset() para evitar eventos
     document.getElementById('nc_nombre_cuenta').value = '';
@@ -768,13 +768,13 @@ function abrirModalCuenta(uuid, nombre) {
 }
 
 function editarEmpresa(uuid) {
-    fetch('/empresas/' + uuid + '/edit')
+    fetch(url_global + '/empresas/' + uuid + '/edit')
         .then(r => r.json())
         .then(e => {
             document.getElementById('tituloModal').innerText    = 'Editar Empresa';
             document.getElementById('btnGuardar').innerText     = 'Actualizar';
             document.getElementById('methodEmpresa').value      = 'PUT';
-            document.getElementById('formEmpresa').action       = '/empresas/' + uuid;
+            document.getElementById('formEmpresa').action       = url_global + '/empresas/' + uuid;
             document.getElementById('nombre').value             = e.nombre ?? '';
             document.getElementById('nit').value                = e.nit ?? '';
             document.getElementById('nit_contador').textContent = (e.nit ?? '').length + ' / 15';
@@ -798,7 +798,7 @@ function editarEmpresa(uuid) {
 }
 
 function verInfoEmpresa(uuid) {
-    fetch('/empresas/' + uuid + '/edit')
+    fetch(url_global + '/empresas/' + uuid + '/edit')
         .then(r => r.json())
         .then(e => {
             // Datos generales

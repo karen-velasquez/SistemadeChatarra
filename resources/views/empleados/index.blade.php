@@ -386,7 +386,7 @@ function editarEmpleado(uuid, nombre, apellidoPaterno, apellidoMaterno, ci, carg
     document.getElementById('tituloEmpleado').textContent      = 'Editar Empleado';
     document.getElementById('btnEmpleado').innerHTML           = '<i class="bi bi-save"></i> Actualizar';
     document.getElementById('methodEmpleado').value            = 'PUT';
-    document.getElementById('formEmpleado').action             = '/empleados/' + uuid;
+    document.getElementById('formEmpleado').action             = url_global + '/empleados/' + uuid;
     document.getElementById('emp_nombre').value                = nombre;
     document.getElementById('emp_apellido_paterno').value      = apellidoPaterno;
     document.getElementById('emp_apellido_materno').value      = apellidoMaterno;

@@ -259,10 +259,10 @@ function nuevoParametro() {
 }
 
 function editarParametro(uuid) {
-    fetch('/parametros/' + uuid + '/edit')
+    fetch(url_global + '/parametros/' + uuid + '/edit')
         .then(r => r.json())
         .then(p => {
-            document.getElementById('formParametro').action = '/parametros/' + uuid;
+            document.getElementById('formParametro').action = url_global + '/parametros/' + uuid;
             document.getElementById('tipo').value           = p.tipo ?? '';
             document.getElementById('valor').value          = p.valor ?? '';
             document.getElementById('descripcion').value    = p.descripcion ?? '';

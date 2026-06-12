@@ -379,14 +379,14 @@
     }
 
     function _cargarContrato(uuid, soloVer) {
-        fetch('/contrato/' + uuid + '/edit')
+        fetch(url_global + '/contrato/' + uuid + '/edit')
             .then(r => r.json())
             .then(c => {
                 const readonly = soloVer;
                 document.getElementById('tituloContrato').innerText = soloVer ? 'Información del Contrato' : 'Editar Contrato';
                 document.getElementById('btnContrato').style.display = soloVer ? 'none' : '';
                 document.getElementById('methodContrato').value      = 'PUT';
-                document.getElementById('formContrato').action       = '/contrato/' + c.id;
+                document.getElementById('formContrato').action       = url_global + '/contrato/' + c.id;
 
                 const campos = ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato','moneda','monto_total'];
                 campos.forEach(id => {

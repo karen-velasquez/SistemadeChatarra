@@ -1442,7 +1442,7 @@
         document.getElementById('tituloCamion').innerText = 'Editar Camión';
         document.getElementById('btnCamion').innerText    = 'Actualizar';
         document.getElementById('methodCamion').value     = 'PUT';
-        document.getElementById('formCamion').action      = '/camion/' + camion.id;
+        document.getElementById('formCamion').action      = url_global + '/camion/' + camion.id;
         document.getElementById('cam_placa_pais_id').value   = camion.placa_pais_id ?? '';
         actualizarFormatoPlaca();
         document.getElementById('cam_placa').value        = camion.placa;
@@ -1492,7 +1492,8 @@
     }
 
     function editarCamionPorUuid(uuid) {
-        fetch('/camion/' + uuid + '/edit', {
+        const url = '{{ route('camiones.edit', ['uuid' => ':uuid']) }}'.replace(':uuid', uuid);
+        fetch(url, {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
         })
         .then(r => r.json())
@@ -1564,7 +1565,11 @@
     }
 
     function editarOperadorPorUuid(uuid) {
-        fetch('/operador/' + uuid + '/edit', {
+        // Usamos route() para que la URL sea correcta tanto en local como
+        // en Hostinger (donde el sitio vive en una subcarpeta). El :uuid se
+        // reemplaza por el valor real.
+        const url = '{{ route('operadores.edit', ['uuid' => ':uuid']) }}'.replace(':uuid', uuid);
+        fetch(url, {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
         })
         .then(r => r.json())
@@ -1577,7 +1582,7 @@
         document.getElementById('tituloOperador').innerText = 'Editar Operador';
         document.getElementById('btnOperador').innerText = 'Actualizar';
         document.getElementById('methodOperador').value = 'PUT';
-        document.getElementById('formOperador').action = '/operador/' + op.id;
+        document.getElementById('formOperador').action = '{{ route('operadores.update', ['operador' => ':id']) }}'.replace(':id', op.id);
         document.getElementById('op_nombre').value            = op.nombre;
         document.getElementById('op_apellido_paterno').value  = op.apellido_paterno;
         document.getElementById('op_apellido_materno').value  = op.apellido_materno ?? '';

@@ -150,7 +150,7 @@
 @section('scripts')
 <script>
 function abrirModalCodigo(uuid, codigoActual, tipo, fecha) {
-    document.getElementById('form_codigo').action = `/lotes-pago/${uuid}/codigo`;
+    document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
     document.getElementById('input_codigo_real').value = codigoActual;
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
     new bootstrap.Modal(document.getElementById('modalCodigo')).show();

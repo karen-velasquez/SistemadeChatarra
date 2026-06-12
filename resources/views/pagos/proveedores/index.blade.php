@@ -591,7 +591,7 @@ function cargarCuentasProveedor(proveedorId) {
         sel.innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>';
         return;
     }
-    fetch(`/api/pagos/cuentas-proveedor?proveedor_id=${proveedorId}`)
+    fetch(`${url_global}/api/pagos/cuentas-proveedor?proveedor_id=${proveedorId}`)
         .then(r => r.json())
         .then(data => {
             sel.innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>';
@@ -610,7 +610,7 @@ function toggleCodigo(metodo) {
 }
 
 function abrirEditarPagoProveedor(uuid, tipo, monto, moneda, tc, fecha, metodo, codigo) {
-    document.getElementById('formEditarPagoProveedor').action = '/pagos/proveedores/' + uuid;
+    document.getElementById('formEditarPagoProveedor').action = url_global + '/pagos/proveedores/' + uuid;
     document.getElementById('edit_pp_tipo').value    = tipo;
     document.getElementById('edit_pp_fecha').value   = fecha;
     document.getElementById('edit_pp_moneda').value  = moneda;
@@ -641,7 +641,7 @@ function verDetalle(contratoId) {
         '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
     modal.show();
 
-    fetch(`/api/pagos/proveedores/${contratoId}/detalle`)
+    fetch(`${url_global}/api/pagos/proveedores/${contratoId}/detalle`)
         .then(r => r.json())
         .then(d => {
             const mon = d.moneda || 'BOB';
