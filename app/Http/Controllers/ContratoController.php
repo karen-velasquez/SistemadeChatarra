@@ -85,13 +85,14 @@ class ContratoController extends Controller
     {
         $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
 
-        abort_if(!$contrato->documento_pdf, 404, 'Este contrato no tiene documento PDF.');
+        abort_if(!$contrato->documento_pdf, 404, 'Este contrato no tiene documento adjunto.');
 
         $path = Storage::disk('public')->path($contrato->documento_pdf);
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        return response()->file($path, ['Content-Type' => 'application/pdf']);
+        // Detecta el tipo real del archivo (PDF o imagen) para mostrarlo correctamente.
+        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
     }
 
     public function destroy($uuid)

@@ -22,7 +22,7 @@ class ContratoRequest extends FormRequest
             'toneladas_contrato' => 'required|numeric|min:0.001',
             'monto_total'       => 'required|numeric|min:0',
             'moneda'            => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
-            'documento_pdf'     => 'nullable|file|mimes:pdf|max:30720',
+            'documento_pdf'     => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:30720',
         ];
     }
 
@@ -43,8 +43,8 @@ class ContratoRequest extends FormRequest
             'monto_total.numeric'     => 'El monto total debe ser un número.',
             'moneda.required'         => 'La moneda es obligatoria.',
             'documento_pdf.file'          => 'El documento debe ser un archivo.',
-            'documento_pdf.mimes'         => 'Solo se permiten archivos PDF.',
-            'documento_pdf.max'           => 'El PDF no puede superar los 30 MB.',
+            'documento_pdf.mimes'         => 'Solo se permiten archivos PDF, PNG, JPG o JPEG.',
+            'documento_pdf.max'           => 'El documento no puede superar los 30 MB.',
         ];
     }
 }

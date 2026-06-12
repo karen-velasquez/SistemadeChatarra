@@ -13,15 +13,24 @@
                 </ol>
             </nav>
         </div>
-        <button type="button"
-                class="btn btn-outline-primary btn-sm btn-iniciar-tour"
-                data-steps='[
-                    {"intro":"⚙️ Los <b>Parámetros</b> son los catálogos que usa todo el sistema: cargos de empleados, países, monedas, marcas de camión, sucursales bancarias, etc."},
-                    {"element":"#param-nota","intro":"⚠️ <b>Importante</b>: los parámetros se crean desde la base de datos. Aquí solo puedes <b>editar la descripción</b> de los existentes. Para agregar nuevos, contacta al administrador.","position":"bottom"},
-                    {"element":"#param-primer-grupo","intro":"🗂️ Los parámetros se agrupan por <b>tipo</b>. Haz clic en el encabezado de un grupo para <b>desplegar</b> sus valores. Dentro verás el Valor y la Descripción de cada uno; los que dicen <b>En uso</b> están siendo usados por otros registros. Con el botón ✏️ de cada fila puedes editar solo su <b>descripción</b>.","position":"bottom"}
-                ]'>
-            <i class="bi bi-question-circle"></i>
-        </button>
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"⚙️ Los <b>Parámetros</b> son los catálogos que usa todo el sistema: cargos de empleados, países, monedas, marcas de camión, sucursales bancarias, etc."},
+                        {"element":"#param-nota","intro":"ℹ️ Aquí gestionas esos catálogos. Puedes <b>editar la descripción</b> de los existentes y, si tienes permiso, <b>agregar nuevos</b>.","position":"bottom"},
+                        {"element":"#param-primer-grupo","intro":"🗂️ Los parámetros se agrupan por <b>tipo</b>. Haz clic en el encabezado de un grupo para <b>desplegar</b> sus valores. Dentro verás el Valor y la Descripción de cada uno; los que dicen <b>En uso</b> están siendo usados por otros registros. Con el botón ✏️ de cada fila editas su descripción.","position":"bottom"},
+                        {"element":"#btnNuevoParametro","intro":"➕ Con <b>Nuevo Parámetro</b> agregas un valor nuevo a un catálogo: eliges el <b>grupo</b> de la lista y escribes el valor.","position":"left"}
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('parametros.create')
+            <button type="button" id="btnNuevoParametro" class="btn btn-primary btn-sm"
+                    onclick="nuevoParametro()">
+                <i class="bi bi-plus-lg"></i> Nuevo Parámetro
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
@@ -137,6 +146,54 @@
     @endforelse
 </section>
 
+{{-- MODAL NUEVO PARÁMETRO --}}
+@can('parametros.create')
+<div class="modal fade" id="modalNuevoParametro" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nuevo Parámetro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formNuevoParametro" method="POST" action="{{ route('parametros.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-muted small mb-3"><span class="text-danger">*</span> Campos obligatorios.</p>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Tipo / Grupo <span class="text-danger">*</span></label>
+                            <select name="tipo" id="nuevo_tipo" class="form-select" required>
+                                <option value="">-- Seleccione un grupo --</option>
+                                @foreach($tipos as $t)
+                                    <option value="{{ $t }}">{{ $t }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Elige el grupo (catálogo) al que pertenece el nuevo valor.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Valor <span class="text-danger">*</span></label>
+                            <input type="text" name="valor" id="nuevo_valor" class="form-control"
+                                   required placeholder="Ej: SUPERVISOR"
+                                   oninput="this.value=this.value.toUpperCase()">
+                            <div class="form-text">El valor que se mostrará. Se guarda en MAYÚSCULAS.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            <input type="text" name="descripcion" id="nuevo_descripcion" class="form-control"
+                                   placeholder="Información adicional (opcional)">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endcan
+
 {{-- MODAL EDITAR DESCRIPCIÓN --}}
 <div class="modal fade" id="modalParametro" tabindex="-1">
     <div class="modal-dialog">
@@ -195,6 +252,12 @@
 }
 </style>
 <script>
+function nuevoParametro() {
+    const form = document.getElementById('formNuevoParametro');
+    if (form) form.reset();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalNuevoParametro')).show();
+}
+
 function editarParametro(uuid) {
     fetch('/parametros/' + uuid + '/edit')
         .then(r => r.json())

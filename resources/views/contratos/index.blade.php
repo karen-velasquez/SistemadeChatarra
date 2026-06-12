@@ -157,7 +157,7 @@
                                                 @if($c->documento_pdf)
                                                 <li>
                                                     <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}" target="_blank">
-                                                        <i class="bi bi-file-earmark-pdf"></i> Ver PDF
+                                                        <i class="bi bi-file-earmark-text"></i> Ver documento
                                                     </a>
                                                 </li>
                                                 @endif
@@ -229,7 +229,7 @@
                                 {"element":"#fecha_fin","intro":"📅 <b>Fecha de Fin</b> (opcional): hasta cuándo rige el contrato.","position":"bottom"},
                                 {"element":"#toneladas_contrato","intro":"⚖️ <b>Total de Toneladas</b> pactadas en el contrato. Acepta decimales (ej: 500.000).","position":"top"},
                                 {"element":"#monto_total","intro":"💲 <b>Monto total a pagar</b> al proveedor. A la izquierda eliges la <b>moneda</b> (BOB, USD, etc.).","position":"top"},
-                                {"element":"#documento_pdf","intro":"📎 Adjunta el <b>PDF del contrato</b> firmado como respaldo (opcional, máx. 30 MB).","position":"top"},
+                                {"element":"#documento_pdf","intro":"📎 Adjunta el <b>documento del contrato</b> firmado (PDF o imagen) como respaldo (opcional, máx. 30 MB).","position":"top"},
                                 {"element":"#btnContrato","intro":"💾 Cuando todo esté listo, pulsa <b>Registrar</b> para guardar el contrato.","position":"top"}
                             ]'>
                         <i class="bi bi-question-circle"></i>
@@ -325,14 +325,14 @@
                             @error('monto_total')<div class="text-danger small">{{ $message }}</div>@enderror
                         </div>
 
-                        {{-- Documento PDF --}}
+                        {{-- Documento del contrato (PDF o imagen) --}}
                         <div class="col-md-12">
-                            <label class="form-label">Documento PDF del Contrato</label>
+                            <label class="form-label">Documento del Contrato</label>
                             <input type="file" class="form-control @error('documento_pdf') is-invalid @enderror"
-                                name="documento_pdf" id="documento_pdf" accept=".pdf">
-                            <small class="text-muted">Solo archivos PDF. Tamaño máximo: 30 MB.</small>
+                                name="documento_pdf" id="documento_pdf" accept=".pdf,.png,.jpg,.jpeg">
+                            <small class="text-muted">Archivos PDF, PNG, JPG o JPEG. Tamaño máximo: 30 MB.</small>
                             <div id="pdfActualInfo" class="mt-1 d-none">
-                                <span class="text-success"><i class="bi bi-file-earmark-pdf"></i> Ya tiene PDF cargado.</span>
+                                <span class="text-success"><i class="bi bi-file-earmark-check"></i> Ya tiene un documento cargado.</span>
                                 <small class="text-muted">Si selecciona uno nuevo, reemplazará al actual.</small>
                             </div>
                             @error('documento_pdf')<div class="invalid-feedback">{{ $message }}</div>@enderror
