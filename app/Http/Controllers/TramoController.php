@@ -303,7 +303,7 @@ class TramoController extends Controller
         abort_if(!in_array($tramo->estado, ['Entregado', 'Transbordado', 'Div. Carga']), 403, 'El tramo aún no ha sido completado.');
 
         $pdf = Pdf::loadView('contratos.partials.nota-entrega-pdf', compact('tramo'))
-            ->setPaper('a4', 'portrait');
+            ->setPaper('letter', 'portrait');
 
         return $pdf->stream('nota-entrega-' . $tramo->camion->placa . '-' . $tramo->fecha_llegada->format('Y-m-d') . '.pdf');
     }

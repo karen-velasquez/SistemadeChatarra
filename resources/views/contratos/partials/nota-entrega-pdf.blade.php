@@ -73,9 +73,28 @@
     .firma-col { display: table-cell; width: 33%; text-align: center; padding: 0 10px; }
     .firma-line { border-top: 1px solid #333; margin: 0 auto 5px; width: 80%; }
     .firma-label { font-size: 10px; color: #555; }
+
+    /* Marca de agua: logo centrado y semitransparente, detrás del contenido */
+    .marca-agua {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 380px;
+        margin-left: -190px;   /* la mitad del width, para centrar (DomPDF no soporta transform) */
+        margin-top: -190px;
+        text-align: center;
+        opacity: 0.07;
+        z-index: -1000;
+    }
+    .marca-agua img { width: 380px; }
 </style>
 </head>
 <body>
+
+{{-- MARCA DE AGUA (logo centrado y tenue, detrás del contenido) --}}
+<div class="marca-agua">
+    <img src="{{ public_path('assets/images/logo.jpeg') }}" alt="">
+</div>
 
 {{-- ENCABEZADO --}}
 <div style="display:table; width:100%; border-bottom:3px solid #1a6e3c; padding-bottom:12px; margin-bottom:20px;">
@@ -117,17 +136,17 @@
     @if($esParcial)
     <div class="row">
         <div class="cell">
-            <div class="big">{{ number_format($totalLlego, 3) }} t</div>
+            <div class="big">{{ number_format($totalLlego, 3, ',', '.') }} t</div>
             <div class="lbl">Total que llegó</div>
         </div>
         <div class="cell" style="font-size:22px; color:#aaa; padding-top:8px;">&#8594;</div>
         <div class="cell">
-            <div class="big" style="color:#0c4a6e;">{{ number_format($tnCliente, 3) }} t</div>
+            <div class="big" style="color:#0c4a6e;">{{ number_format($tnCliente, 3, ',', '.') }} t</div>
             <div class="lbl">Entregado a este cliente</div>
         </div>
         @if($tnRestante > 0)
         <div class="cell">
-            <div class="big" style="color:#b45309;">{{ number_format($tnRestante, 3) }} t</div>
+            <div class="big" style="color:#b45309;">{{ number_format($tnRestante, 3, ',', '.') }} t</div>
             <div class="lbl">Continúa en nuevo tramo</div>
         </div>
         @endif
@@ -135,17 +154,17 @@
     @else
     <div class="row">
         <div class="cell">
-            <div class="big">{{ number_format($tramo->peso_salida, 3) }} t</div>
+            <div class="big">{{ number_format($tramo->peso_salida, 3, ',', '.') }} t</div>
             <div class="lbl">Peso de salida</div>
         </div>
         <div class="cell" style="font-size:22px; color:#aaa; padding-top:8px;">&#8594;</div>
         <div class="cell">
-            <div class="big">{{ number_format($tramo->peso_llegada, 3) }} t</div>
+            <div class="big">{{ number_format($tramo->peso_llegada, 3, ',', '.') }} t</div>
             <div class="lbl">Peso de llegada (neto)</div>
         </div>
         @if($merma > 0)
         <div class="cell">
-            <div class="big diff">− {{ number_format($merma, 3) }} t</div>
+            <div class="big diff">− {{ number_format($merma, 3, ',', '.') }} t</div>
             <div class="lbl">Merma</div>
         </div>
         @endif
@@ -237,17 +256,17 @@
     <div style="font-weight:bold; color:#1a6e3c; margin-bottom:6px; text-transform:uppercase; font-size:11px;">Valor de la Carga Entregada</div>
     <div style="display:table; width:100%;">
         <div style="display:table-cell; text-align:center;">
-            <div style="font-size:18px; font-weight:bold; color:#1a6e3c;">{{ number_format($precioTon, 2) }} {{ $monedaVenta }}/t</div>
+            <div style="font-size:18px; font-weight:bold; color:#1a6e3c;">{{ number_format($precioTon, 2, ',', '.') }} {{ $monedaVenta }}/t</div>
             <div style="font-size:10px; color:#555; text-transform:uppercase;">Precio por tonelada</div>
         </div>
         <div style="display:table-cell; text-align:center; font-size:22px; color:#aaa; padding-top:6px;">×</div>
         <div style="display:table-cell; text-align:center;">
-            <div style="font-size:18px; font-weight:bold; color:#1a6e3c;">{{ number_format($tnCliente, 3) }} t</div>
+            <div style="font-size:18px; font-weight:bold; color:#1a6e3c;">{{ number_format($tnCliente, 3, ',', '.') }} t</div>
             <div style="font-size:10px; color:#555; text-transform:uppercase;">Toneladas entregadas</div>
         </div>
         <div style="display:table-cell; text-align:center; font-size:22px; color:#aaa; padding-top:6px;">=</div>
         <div style="display:table-cell; text-align:center;">
-            <div style="font-size:20px; font-weight:bold; color:#065f46;">{{ number_format($totalVenta, 2) }} {{ $monedaVenta }}</div>
+            <div style="font-size:20px; font-weight:bold; color:#065f46;">{{ number_format($totalVenta, 2, ',', '.') }} {{ $monedaVenta }}</div>
             <div style="font-size:10px; color:#555; text-transform:uppercase;">Total a cobrar</div>
         </div>
     </div>
@@ -258,7 +277,7 @@
 @if($tramo->descuento_porcentaje)
 <div class="descuento-box">
     <div class="title">&#9888; Descuento aplicado al pago del camionero</div>
-    <strong>{{ number_format($tramo->descuento_porcentaje, 2) }}%</strong> sobre el flete de este tramo.
+    <strong>{{ number_format($tramo->descuento_porcentaje, 2, ',', '.') }}%</strong> sobre el flete de este tramo.
 </div>
 @endif
 
