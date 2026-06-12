@@ -392,10 +392,18 @@
                 document.getElementById('formContrato').action       = url_global + '/contrato/' + c.id;
 
                 const campos = ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato','moneda','monto_total'];
+                const camposFecha = ['fecha_inicio','fecha_fin'];
                 campos.forEach(id => {
                     const el = document.getElementById(id);
                     if (!el) return;
-                    el.value = c[id] ?? '';
+                    let valor = c[id] ?? '';
+                    // Un input type="date" solo acepta "YYYY-MM-DD". El backend
+                    // devuelve la fecha como ISO ("2026-06-08T00:00:00...."),
+                    // así que tomamos solo los primeros 10 caracteres.
+                    if (camposFecha.includes(id) && valor) {
+                        valor = String(valor).substring(0, 10);
+                    }
+                    el.value = valor;
                     readonly ? el.setAttribute('disabled', true) : el.removeAttribute('disabled');
                 });
                 document.getElementById('numero_contrato_display').value = c.numero_contrato;
