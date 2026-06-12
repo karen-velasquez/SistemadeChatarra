@@ -129,6 +129,27 @@ class ContratoController extends Controller
         return redirect()->route('contratos.index');
     }
 
+    public function descerrarEnvios($uuid)
+    {
+        $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+
+        if (!$contrato->envios_cerrados) {
+            Alert::warning('Aviso', 'Los envíos de este contrato no están cerrados.');
+            return redirect()->route('contratos.index');
+        }
+
+        // Reabrir: el contrato vuelve a estar editable y sale de la liquidación
+        // (la liquidación solo lista contratos con envios_cerrados = true).
+        $contrato->update([
+            'envios_cerrados'    => false,
+            'envios_cerrados_at' => null,
+            'updated_by'         => auth()->id(),
+        ]);
+
+        Alert::success('Envíos Reabiertos', "Contrato {$contrato->numero_contrato}: envíos reabiertos. Vuelve a estar disponible para agregar camiones y ya no aparece en liquidación.");
+        return redirect()->route('contratos.index');
+    }
+
     public function liquidacion()
     {
         // Contratos cerrados con sus relaciones para liquidación

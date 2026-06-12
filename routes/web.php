@@ -85,6 +85,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('contrato/{uuid}/camiones',[App\Http\Controllers\ContratoController::class,'camiones'])->name('contratos.camiones')->middleware('permission:contratos.index');
     Route::get('contrato/{uuid}/pdf',[App\Http\Controllers\ContratoController::class,'verPdf'])->name('contratos.pdf')->middleware('permission:contratos.index');
     Route::get('contrato/{uuid}/cerrar-envios',[App\Http\Controllers\ContratoController::class,'cerrarEnvios'])->name('contratos.cerrar')->middleware('permission:contratos.cerrar');
+    Route::get('contrato/{uuid}/descerrar-envios',[App\Http\Controllers\ContratoController::class,'descerrarEnvios'])->name('contratos.descerrar')->middleware('permission:contratos.cerrar');
     Route::get('contratos/liquidacion',[App\Http\Controllers\ContratoController::class,'liquidacion'])->name('contratos.liquidacion')->middleware('permission:contratos.liquidacion');
 
     //Contrato Camiones

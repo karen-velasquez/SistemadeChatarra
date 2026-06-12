@@ -131,17 +131,13 @@
                                             <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>
                                             <ul class="dropdown-menu">
                                                 @can('contratos.index')
+                                                @if(!$c->envios_cerrados)
                                                 <li>
-                                                    @if($c->envios_cerrados)
-                                                        <span class="dropdown-item text-muted">
-                                                            <i class="bi bi-lock-fill text-danger"></i> Envíos cerrados
-                                                        </span>
-                                                    @else
-                                                        <a class="dropdown-item" href="{{ route('contratos.camiones', $c->uuid) }}">
-                                                            <i class="bi bi-truck"></i> Gestionar Camiones
-                                                        </a>
-                                                    @endif
+                                                    <a class="dropdown-item" href="{{ route('contratos.camiones', $c->uuid) }}">
+                                                        <i class="bi bi-truck"></i> Gestionar Camiones
+                                                    </a>
                                                 </li>
+                                                @endif
                                                 @endcan
                                                 @can('contratos.cerrar')
                                                 @if(!$c->envios_cerrados)
@@ -149,6 +145,13 @@
                                                     <a class="dropdown-item text-warning" href="{{ route('contratos.cerrar', $c->uuid) }}"
                                                         onclick="return confirm('¿Cerrar envíos del contrato {{ $c->numero_contrato }}? Ya no se podrán agregar más camiones.')">
                                                         <i class="bi bi-lock"></i> Cierre de Envíos
+                                                    </a>
+                                                </li>
+                                                @else
+                                                <li>
+                                                    <a class="dropdown-item text-success" href="{{ route('contratos.descerrar', $c->uuid) }}"
+                                                        onclick="return confirm('¿Reabrir los envíos del contrato {{ $c->numero_contrato }}? Volverá a estar editable y saldrá de la liquidación de envíos.')">
+                                                        <i class="bi bi-unlock"></i> Reabrir Envíos
                                                     </a>
                                                 </li>
                                                 @endif
