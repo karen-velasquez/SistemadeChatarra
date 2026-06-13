@@ -18,6 +18,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class UserController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -36,7 +38,8 @@ class UserController extends Controller
             ->orderBy('nombre')
             ->get();
         $user = new User();
-        return view('users.create',compact('roles','user','empleados'));
+        $idempotencyToken = $this->generarToken('user_store_token');
+        return view('users.create',compact('roles','user','empleados','idempotencyToken'));
     }
 
     public function datos_empleado(Request $request){
@@ -46,6 +49,11 @@ class UserController extends Controller
 
    public function store(UserRequest $request)
     {
+        if (!$this->tokenValido('user_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('users.index');
+        }
+
         $user=new User();
         $user->name = $request->name;
         $user->email = $request->email;

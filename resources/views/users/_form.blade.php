@@ -10,6 +10,7 @@
     </small>
 </div>
 <form id="formUser" action="{{route('users.store')}}" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="_idempotency_token" value="{{ $idempotencyToken ?? '' }}">
 <div class="row mb-1">
     <label for="empleado_id" class="col-md-4 col-form-label text-right">Empleado <span class="text-danger">(*)</span></label>
     <div class="col-md-6 mb-0 pb-0">
@@ -136,3 +137,11 @@
     </div>
 </div>
 </form>
+<script>
+document.getElementById('formUser').addEventListener('submit', function(e) {
+    var btn = document.getElementById('btnSubmitUser');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
+</script>

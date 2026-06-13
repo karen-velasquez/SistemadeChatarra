@@ -243,6 +243,8 @@
             <form id="formContrato" method="POST" action="{{ route('contratos.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" id="methodContrato" value="POST">
+                <input type="hidden" name="numero_contrato" id="numero_contrato" value="{{ $numeroSiguiente }}">
+                <input type="hidden" name="_idempotency_token" id="idempotencyToken" value="{{ $idempotencyToken }}">
                 <div class="modal-body">
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
                     <div class="row g-3">
@@ -348,6 +350,14 @@
                     <button type="submit" class="btn btn-primary" id="btnContrato">Registrar</button>
                 </div>
             </form>
+            <script>
+                document.getElementById('formContrato').addEventListener('submit', function(e) {
+                    const btn = document.getElementById('btnContrato');
+                    if (btn.disabled) { e.preventDefault(); return; }
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+                });
+            </script>
         </div>
     </div>
 </div>
@@ -366,11 +376,17 @@
 
     function resetModalContrato() {
         document.getElementById('tituloContrato').innerText  = 'Nuevo Contrato';
-        document.getElementById('btnContrato').innerText     = 'Registrar';
-        document.getElementById('btnContrato').style.display = '';
+        const btn = document.getElementById('btnContrato');
+        btn.innerText     = 'Registrar';
+        btn.style.display = '';
+        btn.disabled      = false;
         document.getElementById('methodContrato').value      = 'POST';
         document.getElementById('formContrato').action       = '{{ route("contratos.store") }}';
         document.getElementById('numero_contrato_display').value = '{{ $numeroSiguiente }}';
+        document.getElementById('numero_contrato').value         = '{{ $numeroSiguiente }}';
+        fetch('{{ route("contratos.nuevo-token") }}')
+            .then(r => r.json())
+            .then(d => { document.getElementById('idempotencyToken').value = d.token; });
         document.getElementById('formContrato').reset();
         document.getElementById('moneda').value = 'BOB';
         document.getElementById('pdfActualInfo').classList.add('d-none');
@@ -387,9 +403,14 @@
             .then(c => {
                 const readonly = soloVer;
                 document.getElementById('tituloContrato').innerText = soloVer ? 'Información del Contrato' : 'Editar Contrato';
-                document.getElementById('btnContrato').style.display = soloVer ? 'none' : '';
+                const btn = document.getElementById('btnContrato');
+                btn.style.display = soloVer ? 'none' : '';
+                btn.disabled      = false;
+                btn.innerText     = 'Guardar';
                 document.getElementById('methodContrato').value      = 'PUT';
                 document.getElementById('formContrato').action       = url_global + '/contrato/' + c.id;
+                document.getElementById('numero_contrato').value     = c.numero_contrato ?? '';
+                document.getElementById('idempotencyToken').value    = '';
 
                 const campos = ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato','moneda','monto_total'];
                 const camposFecha = ['fecha_inicio','fecha_fin'];

@@ -9,6 +9,8 @@ use App\Models\Parametro;
 
 class PermissionController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function index()
     {
         $permisos=Permission::all();
@@ -16,16 +18,21 @@ class PermissionController extends Controller
     }
     public function create()
     {
-        $grupos = Parametro::where('tipo', 'grupos')->get();    
+        $grupos = Parametro::where('tipo', 'grupos')->get();
         $permiso=new Permission();
-        return view('permisos.create',compact('permiso','grupos'));
+        $idempotencyToken = $this->generarToken('permiso_store_token');
+        return view('permisos.create',compact('permiso','grupos','idempotencyToken'));
     }
     public function store(Request $request)
     {
+        if (!$this->tokenValido('permiso_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('permisos.index');
+        }
+
         $permiso=Permission::create($request->all());
         Alert::success('Registrado','Permiso registrado con exito!');
         return redirect()->route('permisos.index');
-
     }
     public function edit(Permission $permiso)
     {

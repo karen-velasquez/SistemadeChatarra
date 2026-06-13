@@ -11,6 +11,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class CamionConductorController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -18,6 +20,11 @@ class CamionConductorController extends Controller
 
     public function store(CamionConductorRequest $request)
     {
+        if (!$this->tokenValido('conductor_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('camiones.index', ['tab' => 'conductores']);
+        }
+
         CamionConductor::create(array_merge($request->validated(), [
             'fecha_inicio' => now()->toDateString(),
         ]));

@@ -44,15 +44,17 @@ use Illuminate\Support\Facades\Route;
     //Proveedores
     Route::get('proveedores',[App\Http\Controllers\ProveedorController::class,'index'])->name('proveedores.index')->middleware('permission:proveedores.index');
     Route::get('proveedor/create',[App\Http\Controllers\ProveedorController::class,'create'])->name('proveedores.create')->middleware('permission:proveedores.create');
+    Route::get('proveedores/nuevo-token',[App\Http\Controllers\ProveedorController::class,'nuevoToken'])->name('proveedores.nuevo-token');
     Route::post('proveedor/store',[App\Http\Controllers\ProveedorController::class,'store'])->name('proveedores.store')->middleware('permission:proveedores.create');
     Route::get('proveedor/{uuid}',[App\Http\Controllers\ProveedorController::class,'show'])->name('proveedores.show')->middleware('permission:proveedores.show');
     Route::get('proveedor/{uuid}/edit',[App\Http\Controllers\ProveedorController::class,'edit'])->name('proveedores.edit')->middleware('permission:proveedores.edit');
     Route::put('proveedores/{proveedor}',[App\Http\Controllers\ProveedorController::class,'update'])->name('proveedores.update')->middleware('permission:proveedores.edit');
     Route::get('proveedor/{uuid}/destroy',[App\Http\Controllers\ProveedorController::class,'destroy'])->name('proveedores.destroy')->middleware('permission:proveedores.destroy');
-    
+
     //clientes
     Route::get('clientes', [App\Http\Controllers\ClienteController::class, 'index'])->name('clientes.index')->middleware('permission:clientes.index');
     Route::get('clientes/create', [App\Http\Controllers\ClienteController::class, 'create'])->name('clientes.create')->middleware('permission:clientes.create');
+    Route::get('clientes/nuevo-token',[App\Http\Controllers\ClienteController::class,'nuevoToken'])->name('clientes.nuevo-token');
     Route::post('clientes/store', [App\Http\Controllers\ClienteController::class, 'store'])->name('clientes.store')->middleware('permission:clientes.create');
     Route::get('clientes/{uuid}', [App\Http\Controllers\ClienteController::class, 'show'])->name('clientes.show')->middleware('permission:clientes.show');
     Route::get('clientes/{uuid}/edit', [App\Http\Controllers\ClienteController::class, 'edit'])->name('clientes.edit')->middleware('permission:clientes.edit');
@@ -61,6 +63,7 @@ use Illuminate\Support\Facades\Route;
 
     //Camiones
     Route::get('camiones',[App\Http\Controllers\CamionController::class,'index'])->name('camiones.index')->middleware('permission:camiones.index');
+    Route::get('camiones/nuevo-token',[App\Http\Controllers\CamionController::class,'nuevoToken'])->name('camiones.nuevo-token');
     Route::post('camion/store',[App\Http\Controllers\CamionController::class,'store'])->name('camiones.store')->middleware('permission:camiones.create');
     Route::put('camion/{camion}',[App\Http\Controllers\CamionController::class,'update'])->name('camiones.update')->middleware('permission:camiones.edit');
     Route::get('camion/{uuid}/edit',[App\Http\Controllers\CamionController::class,'edit'])->name('camiones.edit')->middleware('permission:camiones.edit');
@@ -78,6 +81,8 @@ use Illuminate\Support\Facades\Route;
 
     //Contratos
     Route::get('contratos',[App\Http\Controllers\ContratoController::class,'index'])->name('contratos.index')->middleware('permission:contratos.index');
+    Route::get('contratos/nuevo-token',[App\Http\Controllers\ContratoController::class,'nuevoToken'])->name('contratos.nuevo-token');
+    Route::get('contratos/liquidacion',[App\Http\Controllers\ContratoController::class,'liquidacion'])->name('contratos.liquidacion')->middleware('permission:contratos.liquidacion');
     Route::post('contrato/store',[App\Http\Controllers\ContratoController::class,'store'])->name('contratos.store')->middleware('permission:contratos.create');
     Route::get('contrato/{uuid}/edit',[App\Http\Controllers\ContratoController::class,'edit'])->name('contratos.edit')->middleware('permission:contratos.edit');
     Route::put('contrato/{contrato}',[App\Http\Controllers\ContratoController::class,'update'])->name('contratos.update')->middleware('permission:contratos.edit');
@@ -86,7 +91,6 @@ use Illuminate\Support\Facades\Route;
     Route::get('contrato/{uuid}/pdf',[App\Http\Controllers\ContratoController::class,'verPdf'])->name('contratos.pdf')->middleware('permission:contratos.index');
     Route::get('contrato/{uuid}/cerrar-envios',[App\Http\Controllers\ContratoController::class,'cerrarEnvios'])->name('contratos.cerrar')->middleware('permission:contratos.cerrar');
     Route::get('contrato/{uuid}/descerrar-envios',[App\Http\Controllers\ContratoController::class,'descerrarEnvios'])->name('contratos.descerrar')->middleware('permission:contratos.cerrar');
-    Route::get('contratos/liquidacion',[App\Http\Controllers\ContratoController::class,'liquidacion'])->name('contratos.liquidacion')->middleware('permission:contratos.liquidacion');
 
     //Contrato Camiones
     Route::post('contrato-camion/store',[App\Http\Controllers\ContratoCamionController::class,'store'])->name('contrato-camion.store')->middleware('permission:contratos.edit');
@@ -105,19 +109,21 @@ use Illuminate\Support\Facades\Route;
 
     // Empleados
     Route::get('empleados',[App\Http\Controllers\EmpleadoController::class,'index'])->name('empleados.index')->middleware('permission:empleados.index');
+    Route::get('empleados/nuevo-token',[App\Http\Controllers\EmpleadoController::class,'nuevoToken'])->name('empleados.nuevo-token');
     Route::post('empleados',[App\Http\Controllers\EmpleadoController::class,'store'])->name('empleados.store')->middleware('permission:empleados.create');
     Route::put('empleados/{uuid}',[App\Http\Controllers\EmpleadoController::class,'update'])->name('empleados.update')->middleware('permission:empleados.edit');
     Route::get('empleados/{uuid}/toggle',[App\Http\Controllers\EmpleadoController::class,'toggleActivo'])->name('empleados.toggle')->middleware('permission:empleados.edit');
     Route::get('empleados/{uuid}/destroy',[App\Http\Controllers\EmpleadoController::class,'destroy'])->name('empleados.destroy')->middleware('permission:empleados.destroy');
 
-    // Bancos y cuentas bancarias
+    // Bancos y cuentas bancarias (rutas estáticas de cuentas ANTES que las dinámicas de banco)
     Route::get('bancos',[App\Http\Controllers\BancoController::class,'index'])->name('bancos.index')->middleware('permission:bancos.index');
     Route::post('bancos',[App\Http\Controllers\BancoController::class,'store'])->name('bancos.store')->middleware('permission:bancos.create');
-    Route::put('bancos/{uuid}',[App\Http\Controllers\BancoController::class,'update'])->name('bancos.update')->middleware('permission:bancos.edit');
-    Route::get('bancos/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroy'])->name('bancos.destroy')->middleware('permission:bancos.destroy');
     Route::post('bancos/cuentas',[App\Http\Controllers\BancoController::class,'storeCuenta'])->name('bancos.cuenta.store')->middleware('permission:bancos.create');
     Route::put('bancos/cuentas/{uuid}',[App\Http\Controllers\BancoController::class,'updateCuenta'])->name('bancos.cuenta.update')->middleware('permission:bancos.edit');
     Route::get('bancos/cuentas/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroyCuenta'])->name('bancos.cuenta.destroy')->middleware('permission:bancos.destroy');
+    Route::get('bancos/nuevo-token',[App\Http\Controllers\BancoController::class,'nuevoToken'])->name('bancos.nuevo-token');
+    Route::put('bancos/{uuid}',[App\Http\Controllers\BancoController::class,'update'])->name('bancos.update')->middleware('permission:bancos.edit');
+    Route::get('bancos/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroy'])->name('bancos.destroy')->middleware('permission:bancos.destroy');
 
     // Pagos de clientes
     Route::get('pagos/clientes',[App\Http\Controllers\PagoClienteController::class,'index'])->name('pagos.clientes.index')->middleware('permission:pagos_clientes.index');
@@ -181,6 +187,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('reportes/capital-utilidad/excel',[App\Http\Controllers\ReporteController::class, 'capitalUtilidadExcel'])->name('reportes.capital_utilidad.excel')->middleware('permission:reportes.capital_utilidad');
     // Empresas (tesorería)
     Route::get('empresas', [App\Http\Controllers\EmpresaController::class, 'index'])->name('empresas.index')->middleware('permission:empresas.index');
+    Route::get('empresas/nuevo-token',[App\Http\Controllers\EmpresaController::class,'nuevoToken'])->name('empresas.nuevo-token');
     Route::post('empresas/store', [App\Http\Controllers\EmpresaController::class, 'store'])->name('empresas.store')->middleware('permission:empresas.create');
     Route::get('empresas/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'edit'])->name('empresas.edit')->middleware('permission:empresas.edit');
     Route::put('empresas/{uuid}', [App\Http\Controllers\EmpresaController::class, 'update'])->name('empresas.update')->middleware('permission:empresas.edit');

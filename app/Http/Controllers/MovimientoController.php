@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
 class MovimientoController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -39,7 +41,8 @@ class MovimientoController extends Controller
                 }
             }
         }
-        return view('movimientos.index', compact('empresas', 'totalIngresos', 'totalEgresos', 'saldoGeneral', 'ultimosMovimientos'));
+        $idempotencyToken = $this->generarToken('movimiento_store_token');
+        return view('movimientos.index', compact('empresas', 'totalIngresos', 'totalEgresos', 'saldoGeneral', 'ultimosMovimientos', 'idempotencyToken'));
     }
     // Movimientos de una cuenta específica
   
@@ -72,6 +75,11 @@ class MovimientoController extends Controller
     // Registrar movimiento manual
     public function store(Request $request)
     {
+        if (!$this->tokenValido('movimiento_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->back();
+        }
+
         $request->validate([
             'cuenta_empresa_id' => 'required|exists:cuentas_empresa,id',
             'tipo'              => 'required|in:ingreso,egreso',

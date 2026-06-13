@@ -1,0 +1,94 @@
+[33m6d1fcda[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m edicion de la coma en pagos y contratos
+[33m859416e[m Coma decimal: módulo Contratos
+[33m32985e1[m Coma decimal: helpers + módulo Pagos
+[33mc4fd1c7[m modificacion estilo del pdf
+[33m81620bf[m modificacion de fechas en contratos registro
+[33md3eaa48[m cambios reabrir contratos
+[33md60a671[m Agregar permisos del módulo Parámetros al seeder
+[33m64910c5[m Corregir URLs absolutas en JS que fallaban en Hostinger (subcarpeta)
+[33md26ec47[m Contratos admite imágenes y Parámetros permite crear valores
+[33m5f46c23[m Merge branch 'main' of https://github.com/Daniel300498/Sistema-de-compra-y-venta-de-chatarra-LARAVEL
+[33mb0f5401[m Actualizar README con la documentación real del proyecto
+[33m2f8ff06[m Ignorar comprobantes de pago
+[33m3c1de63[m :wq :wq 
+[33m4b968fe[m Eliminar comprobantes de Git
+[33mf58ab05[m Quitar deploy automático: plan Single de Hostinger no soporta SFTP/SSH
+[33m855d57b[m Deploy Hostinger: cambiar a SFTP (puerto 65002)
+[33m5b90a0c[m Deploy Hostinger: volver a FTP plano (host debe ser solo la IP)
+[33m43f0127[m Deploy Hostinger: corregir ruta destino a /public_html/chatarra/
+[33ma87a7d9[m Prueba de deploy automático (marca temporal en footer)
+[33meddf241[m Deploy Hostinger: usar FTPS (TLS) en lugar de FTP plano
+[33mc0c5679[m Merge branch 'main' of https://github.com/Daniel300498/Sistema-de-compra-y-venta-de-chatarra-LARAVEL 
+[33ma7aed81[m Agregue guia rapida de reportes
+[33m364f0e6[m Merge branch 'main' of https://github.com/Daniel300498/Sistema-de-compra-y-venta-de-chatarra-LARAVEL
+[33m5e651ae[m Migrar guías interactivas de Intro.js a Shepherd.js (licencia MIT)
+[33m66c00d8[m Solucion conflicto home
+[33m057a9d3[m Cambios y mejoras reportes utilidad y capital, gastos extras en tesoreria
+[33mc800ad5[m Agregar guías interactivas (Intro.js) en todos los módulos
+[33mbdeca4c[m Mejoras en entregas, peso de llegada y visualización de tramos hijos
+[33m1cc544e[m Actualizaciones y mejoras home
+[33m617860a[m Mejoras en liquidación y estado de entrega de contratos
+[33mf65e747[m Fix: División de Carga - Estado permanente y filtro de cards duplicados
+[33m61b1049[m Correcciones: relaciones Eloquent, capacidad camiones y parámetros
+[33m3f7a42c[m Refactorización completa: normalización BD, permisos y nuevos módulos
+[33m480ba9c[m Correcciones Gastos extras
+[33m26c8531[m Correcciones Gastos extras
+[33m60336a5[m correcciones permisos usuarios
+[33mf8dfe74[m Correcciones y mejoras password, mis datos
+[33mb228490[m correcciones roles
+[33m1c14e98[m Correcciones
+[33m7a626fc[m Correcciones
+[33mbaca673[m aumentando migraciones
+[33mdcd823d[m Permisos agregados en Migraciones, Clientes, Proveedores, Gastos Extras y Reportes
+[33m930d861[m modificaciones de permisos
+[33m838e482[m modificaciones de la reunion del marte y miercoles
+[33m2f4f797[m Creacion de Dashboard, reportes y correcion de Gastos Extras
+[33m40b59e3[m correcciones
+[33me02af00[m fix: evitar duplicate column en migraciones de cuentas_bancarias
+[33m0a61e26[m edicion
+[33m89ef5d2[m restaurar migración create_cuentas_bancarias_table
+[33m8427dee[m eliminacion migracion
+[33ma3f2ba4[m eliminacion migracion
+[33mee9363b[m modificaciones: empleados, pagos clientes/proveedores/camiones, seguimiento, bancos y sidebar
+[33m0903869[m Eliminar archivos de CuentaBancaria
+[33mb3c663e[m Resolver conflicto CuentaBancaria
+[33mcd38450[m Resuelto conflicto de merge
+[33maa17522[m Mis cambios locales
+[33mad5e84f[m modificaciones
+[33m1042592[m modificaciones de pagos
+[33m67e2a24[m deploy corregido ftp2
+[33mdaa3df0[m deploy corregido ftp2
+[33m5e9702a[m deploy corregido ftp
+[33m808e7fd[m primer deploy corregido
+[33m9a87f38[m primer deploy corregido
+[33m00c1b38[m deploy correcto corregido
+[33m39fb9cb[m deploy correcto
+[33m5c6957b[m deploy correcto
+[33m4ac8d40[m Configuracion de deploy automatico
+[33mbcc29fd[m Resolver conflicto: fecha_inicio required en ContratoRequest
+[33m0d53171[m modicaciones contratos
+[33mf1139d2[m Correccion contactosVarios.js
+[33m1143de6[m Merge branch 'main' of https://github.com/Daniel300498/Sistema-de-compra-y-venta-de-chatarra-LARAVEL
+[33med065ae[m Correcciones y validaciones proveedores y clientes
+[33m642b08d[m cambio en el seeder operadortransporte
+[33mb04a6d0[m Agregacion de can en menu
+[33mf58fd3a[m Ultimas correcciones seeder
+[33m5228a55[m Correcciones del seeder parametros y permisos
+[33m7aebdf0[m Correcciones CRUD Prooveedor y Cliente
+[33m2b3bb56[m corrigiendo tn
+[33mf2d5879[m Corrigiendo
+[33m88e2f47[m aumentando el guardado de ruat, carnet y fotos del camion
+[33m44c01f8[m Subiendo los documentos al sistema
+[33m68bff1b[m Corrección de migraciones y seeders completos del sistema
+[33mff17db1[m implementación de modales para gestión de clientes y proveedores
+[33m138f62f[m Merge branch 'main' of https://github.com/Daniel300498/Sistema-de-compra-y-venta-de-chatarra-LARAVEL
+[33m21895ba[m Módulo Contratos: gestión de camiones, entregas y mejoras de UI
+[33m222d9d7[m Correcciones Clientes/ Proveedores
+[33m15e399d[m Adecuaciones modulos Clientes/ Proveedores
+[33m0648830[m Eliminando recursos que no se estan usando
+[33m8b52bf1[m Forms de contratos, camiones, propietarios y asignacion de camiones realizado
+[33m4c0942d[m Agrega seeder de usuarios, actualiza rutas y excluye vistas compiladas del repositorio
+[33mfe344ea[m probando mi primer commit
+[33m36edb23[m CRUD CLIENTES
+[33m7f5d427[m CRUD Proveedores
+[33m40fa9d7[m Poyecto Compra y Venta de Chatarra Laravel primer commit

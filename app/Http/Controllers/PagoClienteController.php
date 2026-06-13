@@ -16,6 +16,8 @@ use Carbon\Carbon;
 
 class PagoClienteController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -58,12 +60,17 @@ class PagoClienteController extends Controller
             ])->values();
 
         $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
+        $idempotencyToken = $this->generarToken('pago_cliente_store_token');
 
-        return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas'));
+        return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas', 'idempotencyToken'));
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('pago_cliente_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('pagos.clientes.index');
+        }
         $request->validate([
             'tramo_id'           => 'required|exists:tramos,id',
             'tipo_pago'          => 'required|in:adelanto,pago_final',

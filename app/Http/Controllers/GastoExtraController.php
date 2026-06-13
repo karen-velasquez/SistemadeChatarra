@@ -16,6 +16,8 @@ use Carbon\Carbon;
 
 class GastoExtraController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function index(Request $request)
     {
         $contratos = Contrato::whereNull('deleted_at')->get();
@@ -39,10 +41,15 @@ class GastoExtraController extends Controller
         $aduaneros = GastoExtra::where('estado','PAGADO')->where('categoria','ADUANERO')->sum('monto_bolivianos');
         $carga = GastoExtra::where('estado','PAGADO')->where('categoria','CARGUIO')->sum('monto_bolivianos');
         $otros = 0;
-        return view('gastos_extras.index',compact('contratos','categorias','cuentas_banco','proveedores','contratosFiltrados','total','pendientes','pagados','aduaneros','carga','otros'));
+        $idempotencyToken = $this->generarToken('gasto_extra_store_token');
+        return view('gastos_extras.index',compact('contratos','categorias','cuentas_banco','proveedores','contratosFiltrados','total','pendientes','pagados','aduaneros','carga','otros','idempotencyToken'));
     }
     public function store(GastoExtraRequest $request)
     {
+        if (!$this->tokenValido('gasto_extra_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('gastos_extras.index');
+        }
         $cuenta = CuentaBancaria::findOrFail($request->cuenta_bancaria_id);
         $monedaEsBob = $request->moneda === 'BOB';
         $tipoCambioVacio = empty($request->tipo_cambio);

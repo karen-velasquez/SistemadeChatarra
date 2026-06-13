@@ -9,6 +9,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class EmpleadoController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -18,11 +20,23 @@ class EmpleadoController extends Controller
     {
         $empleados = Empleado::with('cargo')->whereNull('deleted_at')->orderBy('apellido_paterno')->orderBy('nombre')->get();
         $cargos = Parametro::tipo('cargo_empleados')->whereNull('deleted_at')->orderBy('valor')->get();
-        return view('empleados.index', compact('empleados', 'cargos'));
+        $idempotencyToken = $this->generarToken('empleado_store_token');
+        return view('empleados.index', compact('empleados', 'cargos', 'idempotencyToken'));
+    }
+
+    public function nuevoToken()
+    {
+        return response()->json([
+            'token' => $this->generarToken('empleado_store_token'),
+        ]);
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('empleado_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('empleados.index');
+        }
         $request->validate([
             'nombre'           => 'required|string|max:100',
             'apellido_paterno' => 'required|string|max:100',

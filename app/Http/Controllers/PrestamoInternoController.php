@@ -12,6 +12,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class PrestamoInternoController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -24,12 +26,17 @@ class PrestamoInternoController extends Controller
             ->paginate(20);
 
         $empresas = Empresa::with('cuentas')->get();
+        $idempotencyToken = $this->generarToken('prestamo_store_token');
 
-        return view('prestamos_internos.index', compact('prestamos', 'empresas'));
+        return view('prestamos_internos.index', compact('prestamos', 'empresas', 'idempotencyToken'));
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('prestamo_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('prestamos_internos.index');
+        }
         $request->validate([
             'cuenta_origen_id'  => 'required|exists:cuentas_empresa,id',
             'cuenta_destino_id' => 'required|exists:cuentas_empresa,id|different:cuenta_origen_id',

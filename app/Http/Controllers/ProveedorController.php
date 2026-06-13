@@ -13,6 +13,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class ProveedorController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -22,17 +24,30 @@ class ProveedorController extends Controller
     {
         $paises=Parametro::where('tipo','paises')->get();
         $proveedores = Proveedor::with(['contacts', 'pais'])->whereNull('deleted_at')->orderby('created_at','desc')->get();
-        return view('proveedores.index',compact('proveedores','paises'));
+        $idempotencyToken = $this->generarToken('proveedor_store_token');
+        return view('proveedores.index',compact('proveedores','paises','idempotencyToken'));
     }
       
+    public function nuevoToken()
+    {
+        return response()->json([
+            'token' => $this->generarToken('proveedor_store_token'),
+        ]);
+    }
+
     public function create()
     {
         $proveedor=new Proveedor();
         $paises=Parametro::where('tipo','paises')->get();
         return view('proveedores.create',compact('proveedor','paises'));
     }
-      public function store(ProveedorRequest $request)
+    public function store(ProveedorRequest $request)
     {
+        if (!$this->tokenValido('proveedor_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('proveedores.index');
+        }
+
         $proveedor=Proveedor::create($request->all());
          $telefonos = $request->telefonos;
         $direcciones = $request->direcciones;

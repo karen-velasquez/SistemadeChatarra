@@ -9,12 +9,14 @@ use App\Models\Proveedor;
 use App\Models\OperadorTransporte;
 use App\Models\Parametro;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use App\Http\Requests\ContratoRequest;
 use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class ContratoController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
     public function __construct()
     {
         $this->middleware('auth');
@@ -39,12 +41,32 @@ class ContratoController extends Controller
 
         $numeroSiguiente = Contrato::generarNumero();
 
-        return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente'));
+        $idempotencyToken = Str::uuid()->toString();
+        session(['contrato_store_token' => $idempotencyToken]);
+
+        return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente', 'idempotencyToken'));
+    }
+
+    public function nuevoToken()
+    {
+        $token = \Illuminate\Support\Str::uuid()->toString();
+        session(['contrato_store_token' => $token]);
+        return response()->json(['token' => $token]);
     }
 
     public function store(ContratoRequest $request)
     {
-        $data = $request->except('documento_pdf');
+        $tokenEnviado   = $request->input('_idempotency_token');
+        $tokenEnSesion  = session('contrato_store_token');
+
+        if (!$tokenEnviado || $tokenEnviado !== $tokenEnSesion) {
+            Alert::error('Solicitud duplicada', 'Este contrato ya fue registrado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('contratos.index');
+        }
+
+        session()->forget('contrato_store_token');
+
+        $data = $request->except(['documento_pdf', '_idempotency_token']);
 
         if ($request->hasFile('documento_pdf')) {
             $data['documento_pdf'] = $request->file('documento_pdf')
@@ -245,6 +267,9 @@ class ContratoController extends Controller
 
         $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
 
-        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas'));
+        $tokenContratoCamion     = $this->generarToken('contrato_camion_store_token');
+        $tokenTramoTransbordo    = $this->generarToken('tramo_transbordo_store_token');
+
+        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas', 'tokenContratoCamion', 'tokenTramoTransbordo'));
     }
 }

@@ -15,6 +15,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class PagoProveedorController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -31,12 +33,17 @@ class PagoProveedorController extends Controller
         $proveedores = Proveedor::whereNull('deleted_at')->orderBy('nombre')->get();
 
         $empresas = Empresa::with('cuentas')->whereNull('deleted_at')->get();
+        $idempotencyToken = $this->generarToken('pago_proveedor_store_token');
 
-        return view('pagos.proveedores.index', compact('contratos', 'proveedores', 'empresas'));
+        return view('pagos.proveedores.index', compact('contratos', 'proveedores', 'empresas', 'idempotencyToken'));
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('pago_proveedor_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('pagos.proveedores.index');
+        }
         $request->validate([
             'contrato_id'        => 'required|exists:contratos,id',
             'tipo_pago'          => 'required|in:adelanto,parcial,pago_final',

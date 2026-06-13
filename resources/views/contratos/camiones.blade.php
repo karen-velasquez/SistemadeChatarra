@@ -228,8 +228,9 @@
                                     <i class="bi bi-question-circle"></i>
                                 </button>
                             </div>
-                            <form method="POST" action="{{ route('contrato-camion.store') }}">
+                            <form id="formContratoCamion" method="POST" action="{{ route('contrato-camion.store') }}">
                                 @csrf
+                                <input type="hidden" name="_idempotency_token" id="idempotencyTokenContratoCamion" value="{{ $tokenContratoCamion ?? '' }}">
                                 <input type="hidden" name="contrato_id" value="{{ $contrato->id }}">
                                 <div class="row g-3">
 
@@ -544,8 +545,9 @@
                 <h5 class="modal-title"><i class="bi bi-arrow-down-right"></i> Registrar Transbordo</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ route('tramo.store') }}">
+            <form id="formTramoTransbordo" method="POST" action="{{ route('tramo.store') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenTransbordo" value="{{ $tokenTramoTransbordo ?? '' }}">
                 <input type="hidden" name="contrato_camion_id" id="tsb_cc_id">
                 <input type="hidden" name="tramo_padre_id"     id="tsb_padre_id">
                 <div class="modal-body">
@@ -991,5 +993,17 @@ function calcTotalVenta() {
         verificarFormCC();
     });
 })();
+
+// Bloqueo anti-doble-submit
+['formContratoCamion', 'formTramoTransbordo'].forEach(function(fid) {
+    var f = document.getElementById(fid);
+    if (!f) return;
+    f.addEventListener('submit', function(e) {
+        var btn = f.querySelector('button[type="submit"]');
+        if (!btn || btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    });
+});
 </script>
 @endsection

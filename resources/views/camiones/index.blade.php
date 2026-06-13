@@ -415,6 +415,7 @@
             <form id="formCamion" method="POST" action="{{ route('camiones.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" id="methodCamion" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenCamion" value="{{ $tokenCamion ?? '' }}">
                 <div class="modal-body">
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
                     <div class="row g-3">
@@ -635,6 +636,7 @@
             <form id="formOperador" method="POST" action="{{ route('operadores.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" id="methodOperador" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenOperador" value="{{ $tokenOperador ?? '' }}">
                 <div class="modal-body">
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
                     <div class="row g-3">
@@ -837,8 +839,9 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form method="POST" action="{{ route('conductores.store') }}">
+            <form id="formConductor" method="POST" action="{{ route('conductores.store') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenConductor" value="{{ $tokenConductor ?? '' }}">
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">
@@ -1411,9 +1414,18 @@
     // Reset y abrir modal camión en modo Nuevo
     function resetModalCamion() {
         document.getElementById('tituloCamion').innerText = 'Nuevo Camión';
-        document.getElementById('btnCamion').innerText    = 'Registrar';
+        var btnC = document.getElementById('btnCamion');
+        btnC.innerText = 'Registrar';
+        btnC.disabled  = false;
         document.getElementById('methodCamion').value     = 'POST';
         document.getElementById('formCamion').action      = '{{ route("camiones.store") }}';
+        fetch('{{ route("camiones.nuevo-token") }}')
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('idempotencyTokenCamion').value    = d.camion_token;
+                document.getElementById('idempotencyTokenOperador').value  = d.operador_token;
+                document.getElementById('idempotencyTokenConductor').value = d.conductor_token;
+            });
         document.getElementById('formCamion').reset();
         document.getElementById('ruatActualInfo').classList.add('d-none');
         document.getElementById('galeriaFotos').classList.add('d-none');
@@ -1543,9 +1555,18 @@
     // Reset modal operador
     function resetModalOperador() {
         document.getElementById('tituloOperador').innerText = 'Nuevo Operador';
-        document.getElementById('btnOperador').innerText = 'Registrar';
+        var btnO = document.getElementById('btnOperador');
+        btnO.innerText = 'Registrar';
+        btnO.disabled  = false;
         document.getElementById('methodOperador').value = 'POST';
         document.getElementById('formOperador').action = '{{ route("operadores.store") }}';
+        fetch('{{ route("camiones.nuevo-token") }}')
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('idempotencyTokenCamion').value    = d.camion_token;
+                document.getElementById('idempotencyTokenOperador').value  = d.operador_token;
+                document.getElementById('idempotencyTokenConductor').value = d.conductor_token;
+            });
         document.getElementById('formOperador').reset();
         document.getElementById('seccionLicencia').style.display = 'none';
         document.getElementById('seccionDocLicencia').classList.add('d-none');
@@ -1666,6 +1687,18 @@
         document.getElementById('asig_conductor_id').innerHTML = '<option value="">— Primero seleccione un camión —</option>';
         document.getElementById('asig_conductor_id').disabled = true;
         document.getElementById('asig_conductor_hint').classList.add('d-none');
+    });
+
+    // Bloqueo anti-doble-submit
+    ['formCamion','formOperador','formConductor'].forEach(function(formId) {
+        var form = document.getElementById(formId);
+        if (!form) return;
+        form.addEventListener('submit', function(e) {
+            var btn = form.querySelector('button[type="submit"]');
+            if (!btn || btn.disabled) { e.preventDefault(); return; }
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        });
     });
 </script>
 @endsection

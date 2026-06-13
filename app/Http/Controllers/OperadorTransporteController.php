@@ -9,6 +9,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class OperadorTransporteController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -22,6 +24,11 @@ class OperadorTransporteController extends Controller
 
     public function store(OperadorTransporteRequest $request)
     {
+        if (!$this->tokenValido('operador_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('camiones.index', ['tab' => 'operadores']);
+        }
+
         $data = $request->except(['doc_carnet', 'doc_licencia']);
 
         if ($request->hasFile('doc_carnet')) {

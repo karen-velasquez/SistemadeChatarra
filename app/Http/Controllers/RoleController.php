@@ -11,6 +11,7 @@ use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
     public function __construct()
     {
         $this->middleware('auth');
@@ -25,22 +26,22 @@ class RoleController extends Controller
     {
         $permissions=Permission::all();
         $grupos=Permission::select('grupo')->distinct()->get();
-        //dd($grupos);
         $role= new Role();
-        return view('roles.create',compact('permissions','role','grupos'));
+        $idempotencyToken = $this->generarToken('role_store_token');
+        return view('roles.create',compact('permissions','role','grupos','idempotencyToken'));
     }
 
-
-     public function store(RoleRequest $request)
+    public function store(RoleRequest $request)
     {
-        //dd($request->all());
-        $role=Role::create(['name'=>$request->name,'descripcion'=>$request->descripcion,'guard_name'=>'web','uuid'=>\Illuminate\Support\Str::uuid()]);
-        //actualice los permisos
+        if (!$this->tokenValido('role_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('roles.index');
+        }
 
+        $role=Role::create(['name'=>$request->name,'descripcion'=>$request->descripcion,'guard_name'=>'web','uuid'=>\Illuminate\Support\Str::uuid()]);
         $role->permissions()->sync($request->get('permissions') ?? []);
         Alert::success('Guardado','Rol creado con exito!');
         return redirect()->route('roles.index');
-
     }
 
     public function show($uuid)

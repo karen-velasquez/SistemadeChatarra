@@ -10,6 +10,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class TramoController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -208,6 +210,11 @@ class TramoController extends Controller
     // Crear tramo hijo (transbordo desde un tramo en frontera)
     public function store(Request $request)
     {
+        if (!$this->tokenValido('tramo_transbordo_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->back();
+        }
+
         $tramoPadre = Tramo::findOrFail($request->tramo_padre_id);
 
         $request->validate([

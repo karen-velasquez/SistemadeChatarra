@@ -31,6 +31,7 @@
             <form id="formProveedor" method="POST" action="{{ route('proveedores.store') }}">
                 @csrf
                 <input type="hidden" name="_method" id="methodProveedor" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenProveedor" value="{{ $idempotencyToken ?? '' }}">
                 <div class="modal-body">
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
                     <div class="row g-3">

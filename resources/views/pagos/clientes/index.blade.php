@@ -323,8 +323,9 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form method="POST" action="{{ route('pagos.clientes.store') }}">
+            <form id="formCobroCliente" method="POST" action="{{ route('pagos.clientes.store') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenCobroCliente" value="{{ $idempotencyToken ?? '' }}">
                 <input type="hidden" name="tramo_id" id="cobro_tramo_id">
                 <input type="hidden" name="moneda_pago" id="cobro_moneda_pago">
                 <input type="hidden" name="tipo_cambio" id="cobro_inp_tipo_cambio_bob" value="1">
@@ -1272,5 +1273,13 @@ function guardarEditarCobro() {
         btn.innerHTML = '<i class="bi bi-save me-1"></i>Guardar cambios';
     });
 }
+
+// Bloqueo anti-doble-submit cobro cliente
+document.getElementById('formCobroCliente').addEventListener('submit', function(e) {
+    var btn = document.getElementById('cobro_btn_guardar');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
 </script>
 @endsection

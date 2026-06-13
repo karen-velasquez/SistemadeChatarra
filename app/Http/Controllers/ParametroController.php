@@ -8,6 +8,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class ParametroController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -17,11 +19,16 @@ class ParametroController extends Controller
     {
         $parametros = Parametro::orderBy('tipo')->orderBy('descripcion')->get()->groupBy('tipo');
         $tipos = Parametro::select('tipo')->distinct()->orderBy('tipo')->pluck('tipo');
-        return view('parametros.index', compact('parametros', 'tipos'));
+        $idempotencyToken = $this->generarToken('parametro_store_token');
+        return view('parametros.index', compact('parametros', 'tipos', 'idempotencyToken'));
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('parametro_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('parametros.index');
+        }
         $request->validate([
             'tipo'        => 'required|string|max:100',
             'valor'       => 'required|string|max:255',

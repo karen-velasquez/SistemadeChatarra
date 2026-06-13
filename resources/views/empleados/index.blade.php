@@ -211,6 +211,7 @@
             <form id="formEmpleado" method="POST" action="{{ route('empleados.store') }}">
                 @csrf
                 <input type="hidden" name="_method" id="methodEmpleado" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenEmpleado" value="{{ $idempotencyToken ?? '' }}">
                 <div class="modal-body">
                     <div class="row g-3">
 
@@ -334,11 +335,23 @@ $(document).ready(function() {
     });
 });
 
+document.getElementById('formEmpleado').addEventListener('submit', function(e) {
+    var btn = document.getElementById('btnEmpleado');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
+
 function resetModal() {
     document.getElementById('tituloEmpleado').textContent      = 'Nuevo Empleado';
-    document.getElementById('btnEmpleado').innerHTML           = '<i class="bi bi-save"></i> Registrar';
+    var btnE = document.getElementById('btnEmpleado');
+    btnE.innerHTML = '<i class="bi bi-save"></i> Registrar';
+    btnE.disabled  = false;
     document.getElementById('methodEmpleado').value            = 'POST';
     document.getElementById('formEmpleado').action             = '{{ route("empleados.store") }}';
+    fetch('{{ route("empleados.nuevo-token") }}')
+        .then(r => r.json())
+        .then(d => { document.getElementById('idempotencyTokenEmpleado').value = d.token; });
     document.getElementById('emp_nombre').value                = '';
     document.getElementById('emp_apellido_paterno').value      = '';
     document.getElementById('emp_apellido_materno').value      = '';

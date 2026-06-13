@@ -117,11 +117,22 @@ window.limpiarFormularioCliente = function () {
 };
 function resetModalCliente() {
     document.getElementById('tituloCliente').innerHTML ='<i class="bi bi-person-plus "></i> Nuevo Cliente';
-    document.getElementById('btnCliente').innerText = 'Registrar';
+    var btn = document.getElementById('btnCliente');
+    btn.innerText = 'Registrar';
+    btn.disabled = false;
     document.getElementById('methodCliente').value = 'POST';
     document.getElementById('formCliente').action = '{{ route("clientes.store")}}';
+    fetch('{{ route("clientes.nuevo-token") }}')
+        .then(r => r.json())
+        .then(d => { document.getElementById('idempotencyTokenCliente').value = d.token; });
     limpiarFormularioCliente();
 }
+document.getElementById('formCliente').addEventListener('submit', function(e) {
+    var btn = document.getElementById('btnCliente');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
 function editarCliente(cliente) {
     const baseUrl = "{{ url('/') }}";
     document.getElementById('tituloCliente').innerHTML = '<i class="bi bi-pencil-square"></i> Editar Cliente';

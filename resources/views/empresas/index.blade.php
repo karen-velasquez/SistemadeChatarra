@@ -280,6 +280,7 @@
             <form id="formNuevaCuenta" method="POST" action="">
                 @csrf
                 <input type="hidden" name="redirect_to" value="index">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenEmpresaCuenta" value="{{ $tokenEmpresa ?? '' }}">
                 <div class="modal-body">
                     <p class="text-muted small mb-3"><span class="text-danger">*</span> Todos los campos marcados son obligatorios.</p>
                     <div class="row g-3">
@@ -363,6 +364,7 @@
             <form id="formEmpresa" method="POST" action="{{ route('empresas.store') }}">
                 @csrf
                 <input type="hidden" name="_method" id="methodEmpresa" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenEmpresa" value="{{ $tokenEmpresa ?? '' }}">
                 <div class="modal-body">
                     <p class="text-muted small mb-3"><span class="text-danger">*</span> Todos los campos marcados son obligatorios.</p>
                     <div class="row g-3">
@@ -693,11 +695,31 @@ function validarFormularioEmpresa() {
     btnGuardar.disabled = !formularioValido;
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('formEmpresa').addEventListener('submit', function(e) {
+        var btn = document.getElementById('btnGuardar');
+        if (btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    });
+    document.getElementById('formNuevaCuenta').addEventListener('submit', function(e) {
+        var btn = document.getElementById('btnGuardarCuenta');
+        if (btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    });
+});
+
 function resetModal() {
     document.getElementById('tituloModal').innerText    = 'Nueva Empresa';
-    document.getElementById('btnGuardar').innerText     = 'Registrar';
+    var btnG = document.getElementById('btnGuardar');
+    btnG.innerText = 'Registrar';
+    btnG.disabled  = false;
     document.getElementById('methodEmpresa').value      = 'POST';
     document.getElementById('formEmpresa').action       = '{{ route("empresas.store") }}';
+    fetch('{{ route("empresas.nuevo-token") }}')
+        .then(r => r.json())
+        .then(d => { document.getElementById('idempotencyTokenEmpresa').value = d.token; });
     document.getElementById('formEmpresa').reset();
     document.getElementById('nit_contador').textContent = '0 / 15';
     document.getElementById('tel_pais').value           = 'Bolivia';

@@ -255,6 +255,7 @@
             <form id="formBanco" method="POST" action="{{ route('bancos.store') }}">
                 @csrf
                 <input type="hidden" name="_method" id="methodBanco" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenBanco" value="{{ $tokenBanco ?? '' }}">
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">
@@ -323,6 +324,7 @@
             <form id="formCuenta" method="POST" action="{{ route('bancos.cuenta.store') }}">
                 @csrf
                 <input type="hidden" name="_method" id="methodCuenta" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenCuenta" value="{{ $tokenCuenta ?? '' }}">
                 <div class="modal-body">
                     <div class="row g-3">
 
@@ -738,9 +740,26 @@ function cambiarPaisBanco(paisId) {
     }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('formBanco').addEventListener('submit', function(e) {
+        var btn = document.getElementById('btnBanco');
+        if (btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    });
+    document.getElementById('formCuenta').addEventListener('submit', function(e) {
+        var btn = document.getElementById('btnCuenta');
+        if (btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    });
+});
+
 function resetModalBanco() {
     document.getElementById('tituloBanco').textContent = 'Nuevo Banco';
-    document.getElementById('btnBanco').textContent    = 'Registrar';
+    var btnB = document.getElementById('btnBanco');
+    btnB.textContent = 'Registrar';
+    btnB.disabled    = false;
     document.getElementById('methodBanco').value       = 'POST';
     document.getElementById('formBanco').action        = '{{ route("bancos.store") }}';
     document.getElementById('banco_nombre').value      = '';
@@ -748,13 +767,23 @@ function resetModalBanco() {
     document.getElementById('banco_swift').value       = '';
     document.getElementById('banco_codigo').value      = '';
     document.getElementById('sec_codigo_banco').style.display = 'none';
+    // Obtener token fresco del servidor
+    fetch('{{ route("bancos.nuevo-token") }}')
+        .then(r => r.json())
+        .then(d => { document.getElementById('idempotencyTokenBanco').value = d.banco_token; });
 }
 
 function resetModalCuenta() {
     document.getElementById('tituloCuenta').textContent  = 'Nueva Cuenta Bancaria';
-    document.getElementById('btnCuenta').innerHTML       = '<i class="bi bi-save"></i> Registrar Cuenta';
+    var btnC = document.getElementById('btnCuenta');
+    btnC.innerHTML = '<i class="bi bi-save"></i> Registrar Cuenta';
+    btnC.disabled  = false;
     document.getElementById('methodCuenta').value        = 'POST';
     document.getElementById('formCuenta').action         = '{{ route("bancos.cuenta.store") }}';
+    // Obtener token fresco del servidor
+    fetch('{{ route("bancos.nuevo-token") }}')
+        .then(r => r.json())
+        .then(d => { document.getElementById('idempotencyTokenCuenta').value = d.cuenta_token; });
     document.getElementById('tipo_titular').value        = '';
 
     // Deshabilitar todos los campos

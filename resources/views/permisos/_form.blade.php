@@ -1,7 +1,8 @@
 <p>
   Debe rellenar todos los campos marcados con <strong class="text-danger">(*)</strong>.
   Al momento de registrar o editar el permiso.</p>
-<form action="{{route('permisos.store')}}" method="POST" enctype="multipart/form-data">
+<form id="formPermiso" action="{{route('permisos.store')}}" method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="_idempotency_token" value="{{ $idempotencyToken ?? '' }}">
   
 <div class="row mb-1">  
     <label for="role_id" class="col-md-4 col-form-label text-right">Nombre de permiso<span class="text-danger">(*)</span></label>
@@ -43,8 +44,16 @@
 </div>
   <div class="row mt-2">
     <div class="text-center">
-      <button type="submit" class="btn btn-primary"> {{ $texto }} </button>
+      <button type="submit" class="btn btn-primary" id="btnPermiso"> {{ $texto }} </button>
       <a href="{{route('permisos.index')}}" class="btn btn-danger">Cancelar</a>
     </div>
   </div>
 </form>
+<script>
+document.getElementById('formPermiso').addEventListener('submit', function(e) {
+    var btn = document.getElementById('btnPermiso');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
+</script>

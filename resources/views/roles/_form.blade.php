@@ -19,10 +19,21 @@
                         <input type="text" class="form-control @error('descripcion') error @enderror" name="descripcion" id=descripcion value="{{ old('descripcion',$role->descripcion) }}">
                     </div>
                 </div>
+                <input type="hidden" name="_idempotency_token" value="{{ $idempotencyToken ?? '' }}">
                 <div class="text-center">
-                 {{ Form::submit('Guardar',['class'=>'btn btn-primary']) }}
+                 {{ Form::submit('Guardar',['class'=>'btn btn-primary', 'id'=>'btnRol']) }}
                  <a href="{{ route('roles.index') }}" class="btn btn-danger">Cancelar</a>
              </div>
+             <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.querySelector('form').addEventListener('submit', function(e) {
+                        var btn = document.getElementById('btnRol');
+                        if (btn.disabled) { e.preventDefault(); return; }
+                        btn.disabled = true;
+                        btn.value = 'Guardando...';
+                    });
+                });
+             </script>
            </div>
         </div>
     </div>

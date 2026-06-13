@@ -10,6 +10,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class ContratoCamionController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -17,6 +19,11 @@ class ContratoCamionController extends Controller
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('contrato_camion_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->back();
+        }
+
         $request->validate([
             'contrato_id'      => 'required|exists:contratos,id',
             'camion_id'        => 'required|exists:camiones,id',

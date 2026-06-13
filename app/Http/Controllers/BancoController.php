@@ -14,6 +14,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class BancoController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -29,18 +31,33 @@ class BancoController extends Controller
         $sucursales  = Parametro::where('tipo', 'sucursal_cuenta')->whereNull('deleted_at')->orderBy('descripcion')->get();
         $paises      = Parametro::where('tipo', 'paises')->whereNull('deleted_at')->orderBy('valor')->get();
 
-        // Relaciones para titular diferente
         $relacionesEmpleado   = Parametro::where('tipo', 'relacion_titular_empleado')->whereNull('deleted_at')->orderBy('valor')->get();
         $relacionesProveedor  = Parametro::where('tipo', 'relacion_titular_proveedor')->whereNull('deleted_at')->orderBy('valor')->get();
         $relacionesCliente    = Parametro::where('tipo', 'relacion_titular_cliente')->whereNull('deleted_at')->orderBy('valor')->get();
         $relacionesOperador   = Parametro::where('tipo', 'relacion_titular_propietario_conductor')->whereNull('deleted_at')->orderBy('valor')->get();
 
+        $tokenBanco  = $this->generarToken('banco_store_token');
+        $tokenCuenta = $this->generarToken('cuenta_bancaria_store_token');
+
         return view('bancos.index', compact('bancos', 'proveedores', 'operadores', 'empleados', 'clientes', 'sucursales', 'paises',
-            'relacionesEmpleado', 'relacionesProveedor', 'relacionesCliente', 'relacionesOperador'));
+            'relacionesEmpleado', 'relacionesProveedor', 'relacionesCliente', 'relacionesOperador',
+            'tokenBanco', 'tokenCuenta'));
+    }
+
+    public function nuevoToken()
+    {
+        return response()->json([
+            'banco_token'  => $this->generarToken('banco_store_token'),
+            'cuenta_token' => $this->generarToken('cuenta_bancaria_store_token'),
+        ]);
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('banco_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('bancos.index');
+        }
         $request->validate([
             'nombre'       => 'required|string|max:150',
             'pais_id'      => 'required|exists:parametros,id',
@@ -106,6 +123,10 @@ class BancoController extends Controller
     // Cuentas bancarias
     public function storeCuenta(Request $request)
     {
+        if (!$this->tokenValido('cuenta_bancaria_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('bancos.index');
+        }
         $request->validate([
             'banco_id'      => 'required|exists:bancos,id',
             'tipo_titular'  => 'required|in:proveedor,operador,empleado,cliente',

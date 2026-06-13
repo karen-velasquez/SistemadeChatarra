@@ -12,6 +12,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class ClienteController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -21,7 +23,15 @@ class ClienteController extends Controller
     {
         $clientes = Cliente::with(['contacts', 'pais'])->whereNull('deleted_at')->orderby('created_at','desc')->get();
         $paises = Parametro::where('tipo','paises')->get();
-        return view('clientes.index',compact('clientes','paises'));
+        $idempotencyToken = $this->generarToken('cliente_store_token');
+        return view('clientes.index',compact('clientes','paises','idempotencyToken'));
+    }
+
+    public function nuevoToken()
+    {
+        return response()->json([
+            'token' => $this->generarToken('cliente_store_token'),
+        ]);
     }
 
  public function create()
@@ -33,6 +43,11 @@ class ClienteController extends Controller
 
 public function store(ClienteRequest $request)
     {
+        if (!$this->tokenValido('cliente_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('clientes.index');
+        }
+
         $telefonos = $request->telefonos;
         $direcciones = $request->direcciones;
         $cliente=Cliente::create($request->all());

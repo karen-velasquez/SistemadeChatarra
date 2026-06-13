@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
 class EmpresaController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -20,11 +22,23 @@ class EmpresaController extends Controller
         $empresas = Empresa::withCount('cuentas')->with(['cuentas' => function($query) {$query->withCount('movimientos')->with('banco');}])->get();
         $bancos   = Banco::whereNull('deleted_at')->where('activo', true)->orderBy('nombre')->get();
         $monedas  = \App\Models\Parametro::where('tipo', 'tipo_moneda')->whereNull('deleted_at')->orderBy('valor')->get();
-        return view('empresas.index', compact('empresas', 'bancos', 'monedas'));
+        $tokenEmpresa = $this->generarToken('empresa_store_token');
+        return view('empresas.index', compact('empresas', 'bancos', 'monedas', 'tokenEmpresa'));
+    }
+
+    public function nuevoToken()
+    {
+        return response()->json([
+            'token' => $this->generarToken('empresa_store_token'),
+        ]);
     }
 
     public function store(Request $request)
     {
+        if (!$this->tokenValido('empresa_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('empresas.index');
+        }
         $request->validate([
             'nombre'      => 'required|string|max:150',
             'nit'         => 'required|digits_between:1,15',
@@ -101,6 +115,8 @@ class EmpresaController extends Controller
 
     public function cuentas(string $uuid)
     {
+        // Token para el form de nueva cuenta dentro de esta vista
+        $this->generarToken('empresa_cuenta_store_token');
         $empresa = Empresa::where('uuid', $uuid)->with('cuentas.banco')->firstOrFail();
             $movimientos = Movimiento::withTrashed()->whereIn('cuenta_empresa_id', $empresa->cuentas->pluck('id'))->with(['cuentaEmpresa.empresa','cuentaEmpresa.banco','lotePago.cuentaOrigen'])->orderByDesc('fecha')->orderByDesc('id')->get();
             foreach ($movimientos as $mov) {
@@ -129,6 +145,11 @@ class EmpresaController extends Controller
 
     public function storeCuenta(Request $request, string $uuid)
     {
+        if (!$this->tokenValido('empresa_cuenta_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('empresas.index');
+        }
+
         $empresa = Empresa::where('uuid', $uuid)->firstOrFail();
         $request->validate([
             'nombre_cuenta' => 'required|string|max:150',

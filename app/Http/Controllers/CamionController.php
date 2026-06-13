@@ -13,6 +13,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class CamionController extends Controller
 {
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -36,11 +38,28 @@ class CamionController extends Controller
         $paises = Parametro::where('tipo', 'paises')->orderBy('valor')->get();
         $paisesDocumento = Parametro::where('tipo', 'pais_documento')->get();
 
-        return view('camiones.index', compact('camiones', 'operadores', 'choferes', 'asignaciones', 'marcas', 'tiposVehiculo', 'paises', 'paisesDocumento'));
+        $tokenCamion    = $this->generarToken('camion_store_token');
+        $tokenOperador  = $this->generarToken('operador_store_token');
+        $tokenConductor = $this->generarToken('conductor_store_token');
+
+        return view('camiones.index', compact('camiones', 'operadores', 'choferes', 'asignaciones', 'marcas', 'tiposVehiculo', 'paises', 'paisesDocumento', 'tokenCamion', 'tokenOperador', 'tokenConductor'));
+    }
+
+    public function nuevoToken()
+    {
+        return response()->json([
+            'camion_token'    => $this->generarToken('camion_store_token'),
+            'operador_token'  => $this->generarToken('operador_store_token'),
+            'conductor_token' => $this->generarToken('conductor_store_token'),
+        ]);
     }
 
     public function store(CamionRequest $request)
     {
+        if (!$this->tokenValido('camion_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('camiones.index');
+        }
         $data = $request->except(['documento_ruat', 'fotos', 'capacidad_tn']);
         $data['capacidad_kg'] = $request->capacidad_tn * 1000;
 

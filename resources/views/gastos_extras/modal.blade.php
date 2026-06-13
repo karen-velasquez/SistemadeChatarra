@@ -30,6 +30,7 @@
             <form id="formGasto" method="POST" action="{{ route('gastos_extras.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" id="methodGasto" value="POST">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenGasto" value="{{ $idempotencyToken ?? '' }}">
 
                 <div class="modal-body">
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
@@ -155,6 +156,14 @@
                     <button type="submit" class="btn btn-primary" id="btnGasto">Registrar</button>
                 </div>
             </form>
+            <script>
+            document.getElementById('formGasto').addEventListener('submit', function(e) {
+                var btn = document.getElementById('btnGasto');
+                if (btn.disabled) { e.preventDefault(); return; }
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+            });
+            </script>
         </div>
     </div>
 </div>

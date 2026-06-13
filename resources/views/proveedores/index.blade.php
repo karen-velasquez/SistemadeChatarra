@@ -126,11 +126,22 @@
    
 function resetModalProveedor() {
     document.getElementById('tituloProveedor').innerHTML ='<i class="bi bi-building "></i> Nuevo Proveedor';
-    document.getElementById('btnProveedor').innerText = 'Registrar';
+    var btn = document.getElementById('btnProveedor');
+    btn.innerText = 'Registrar';
+    btn.disabled = false;
     document.getElementById('methodProveedor').value = 'POST';
     document.getElementById('formProveedor').action = '{{ route("proveedores.store")}}';
+    fetch('{{ route("proveedores.nuevo-token") }}')
+        .then(r => r.json())
+        .then(d => { document.getElementById('idempotencyTokenProveedor').value = d.token; });
     limpiarFormularioProveedor();
 }
+document.getElementById('formProveedor').addEventListener('submit', function(e) {
+    var btn = document.getElementById('btnProveedor');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
 function editarProveedor(proveedor) {
     const baseUrl = "{{ url('/') }}";
     document.getElementById('tituloProveedor').innerHTML = '<i class="bi bi-pencil-square"></i> Editar Proveedor';

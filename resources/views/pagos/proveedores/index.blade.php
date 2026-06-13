@@ -219,8 +219,9 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form method="POST" action="{{ route('pagos.proveedores.store') }}">
+            <form id="formPagoProveedor" method="POST" action="{{ route('pagos.proveedores.store') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenPagoProveedor" value="{{ $idempotencyToken ?? '' }}">
                 <input type="hidden" name="contrato_id" id="pago_contrato_id">
                 <div class="modal-body">
 
@@ -379,9 +380,17 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Registrar Pago</button>
+                    <button type="submit" class="btn btn-primary" id="btnPagoProveedor"><i class="bi bi-save"></i> Registrar Pago</button>
                 </div>
             </form>
+            <script>
+            document.getElementById('formPagoProveedor').addEventListener('submit', function(e) {
+                var btn = document.getElementById('btnPagoProveedor');
+                if (btn.disabled) { e.preventDefault(); return; }
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+            });
+            </script>
         </div>
     </div>
 </div>

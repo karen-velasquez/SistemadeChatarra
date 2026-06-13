@@ -157,6 +157,7 @@
             </div>
             <form id="formNuevoParametro" method="POST" action="{{ route('parametros.store') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenParametro" value="{{ $idempotencyToken ?? '' }}">
                 <div class="modal-body">
                     <p class="text-muted small mb-3"><span class="text-danger">*</span> Campos obligatorios.</p>
                     <div class="row g-3">
@@ -186,9 +187,17 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Registrar</button>
+                    <button type="submit" class="btn btn-primary" id="btnParametro"><i class="bi bi-save"></i> Registrar</button>
                 </div>
             </form>
+            <script>
+            document.getElementById('formNuevoParametro').addEventListener('submit', function(e) {
+                var btn = document.getElementById('btnParametro');
+                if (btn.disabled) { e.preventDefault(); return; }
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+            });
+            </script>
         </div>
     </div>
 </div>
