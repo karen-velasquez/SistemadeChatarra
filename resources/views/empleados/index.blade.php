@@ -346,12 +346,16 @@ function resetModal() {
     document.getElementById('tituloEmpleado').textContent      = 'Nuevo Empleado';
     var btnE = document.getElementById('btnEmpleado');
     btnE.innerHTML = '<i class="bi bi-save"></i> Registrar';
-    btnE.disabled  = false;
+    btnE.disabled  = true;
     document.getElementById('methodEmpleado').value            = 'POST';
     document.getElementById('formEmpleado').action             = '{{ route("empleados.store") }}';
     fetch('{{ route("empleados.nuevo-token") }}')
-        .then(r => r.json())
-        .then(d => { document.getElementById('idempotencyTokenEmpleado').value = d.token; });
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(d => {
+            document.getElementById('idempotencyTokenEmpleado').value = d.token;
+            document.getElementById('btnEmpleado').disabled = false;
+        })
+        .catch(() => { document.getElementById('btnEmpleado').disabled = false; });
     document.getElementById('emp_nombre').value                = '';
     document.getElementById('emp_apellido_paterno').value      = '';
     document.getElementById('emp_apellido_materno').value      = '';

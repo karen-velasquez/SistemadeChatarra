@@ -44,11 +44,17 @@ class BancoController extends Controller
             'tokenBanco', 'tokenCuenta'));
     }
 
-    public function nuevoToken()
+    public function nuevoTokenBanco()
     {
         return response()->json([
-            'banco_token'  => $this->generarToken('banco_store_token'),
-            'cuenta_token' => $this->generarToken('cuenta_bancaria_store_token'),
+            'token' => $this->generarToken('banco_store_token'),
+        ]);
+    }
+
+    public function nuevoTokenCuenta()
+    {
+        return response()->json([
+            'token' => $this->generarToken('cuenta_bancaria_store_token'),
         ]);
     }
 

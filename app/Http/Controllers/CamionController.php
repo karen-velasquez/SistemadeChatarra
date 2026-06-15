@@ -54,6 +54,38 @@ class CamionController extends Controller
         ]);
     }
 
+    public function buscarPorPlaca(\Illuminate\Http\Request $request)
+    {
+        $placa = strtoupper(trim($request->query('placa', '')));
+        if (!$placa) {
+            return response()->json(null);
+        }
+        $camion = Camion::with(['fotos', 'marca', 'tipoVehiculo'])
+            ->whereNull('deleted_at')
+            ->where('placa', $placa)
+            ->first();
+        if (!$camion) {
+            return response()->json(null);
+        }
+        return response()->json([
+            'id'               => $camion->id,
+            'placa'            => $camion->placa,
+            'placa_pais_id'    => $camion->placa_pais_id,
+            'tipo_vehiculo_id' => $camion->tipo_vehiculo_id,
+            'marca_id'         => $camion->marca_id,
+            'modelo'           => $camion->modelo,
+            'anio'             => $camion->anio,
+            'capacidad_kg'     => $camion->capacidad_kg,
+            'color'            => $camion->color,
+            'estado'           => $camion->estado,
+            'propietario_id'   => $camion->propietario_id,
+            'documento_ruat'   => $camion->documento_ruat,
+            'fotos'            => $camion->fotos,
+            'marca_label'      => $camion->marca->valor ?? '-',
+            'tipo_label'       => $camion->tipoVehiculo->valor ?? '-',
+        ]);
+    }
+
     public function store(CamionRequest $request)
     {
         if (!$this->tokenValido('camion_store_token', $request->input('_idempotency_token'))) {

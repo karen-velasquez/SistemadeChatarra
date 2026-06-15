@@ -113,16 +113,17 @@ class Contrato extends Model implements Auditable
     // Toneladas declaradas por el proveedor (suma peso_declarado de tramos raíz)
     public function getToneladasAsignadasAttribute(): float
     {
-        return (float) $this->contratoCamiones()->sum('toneladas');
+        return (float) $this->contratoCamiones()->where('activo', true)->sum('toneladas');
     }
 
     // Toneladas declaradas por el proveedor (suma peso_salida de tramos raíz — camiones padre)
     public function getToneladasDeclaradasAttribute(): float
     {
         $total = 0;
-        foreach ($this->contratoCamiones as $cc) {
+        foreach ($this->contratoCamiones()->where('activo', true)->get() as $cc) {
             $total += $cc->tramos()
                 ->whereDoesntHave('tramoPadre')
+                ->where('activo', true)
                 ->sum('peso_salida');
         }
         return (float) $total;
@@ -132,23 +133,25 @@ class Contrato extends Model implements Auditable
     public function getToneladasEntregadasAttribute(): float
     {
         $total = 0;
-        foreach ($this->contratoCamiones as $cc) {
+        foreach ($this->contratoCamiones()->where('activo', true)->get() as $cc) {
             $total += $cc->tramos()
                 ->whereDoesntHave('tramosHijos')
                 ->where('estado', 'Entregado')
+                ->where('activo', true)
                 ->sum('peso_llegada');
         }
         return (float) $total;
     }
 
-    // Toneladas en tránsito (tramos finales aún no entregados)
+    // Toneladas en tránsito (tramos finales activos aún no entregados)
     public function getToneladasEnTransitoAttribute(): float
     {
         $total = 0;
-        foreach ($this->contratoCamiones as $cc) {
+        foreach ($this->contratoCamiones()->where('activo', true)->get() as $cc) {
             $total += $cc->tramos()
                 ->whereDoesntHave('tramosHijos')
                 ->whereIn('estado', ['En ruta', 'Transbordando'])
+                ->where('activo', true)
                 ->sum('peso_salida');
         }
         return (float) $total;

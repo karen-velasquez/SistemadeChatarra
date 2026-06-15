@@ -128,12 +128,16 @@ function resetModalProveedor() {
     document.getElementById('tituloProveedor').innerHTML ='<i class="bi bi-building "></i> Nuevo Proveedor';
     var btn = document.getElementById('btnProveedor');
     btn.innerText = 'Registrar';
-    btn.disabled = false;
+    btn.disabled = true;
     document.getElementById('methodProveedor').value = 'POST';
     document.getElementById('formProveedor').action = '{{ route("proveedores.store")}}';
     fetch('{{ route("proveedores.nuevo-token") }}')
-        .then(r => r.json())
-        .then(d => { document.getElementById('idempotencyTokenProveedor').value = d.token; });
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(d => {
+            document.getElementById('idempotencyTokenProveedor').value = d.token;
+            document.getElementById('btnProveedor').disabled = false;
+        })
+        .catch(() => { document.getElementById('btnProveedor').disabled = false; });
     limpiarFormularioProveedor();
 }
 document.getElementById('formProveedor').addEventListener('submit', function(e) {

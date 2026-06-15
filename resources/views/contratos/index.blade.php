@@ -131,13 +131,12 @@
                                             <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>
                                             <ul class="dropdown-menu">
                                                 @can('contratos.index')
-                                                @if(!$c->envios_cerrados)
                                                 <li>
                                                     <a class="dropdown-item" href="{{ route('contratos.camiones', $c->uuid) }}">
-                                                        <i class="bi bi-truck"></i> Gestionar Camiones
+                                                        <i class="bi bi-truck"></i>
+                                                        {{ $c->envios_cerrados ? 'Ver Camiones' : 'Gestionar Camiones' }}
                                                     </a>
                                                 </li>
-                                                @endif
                                                 @endcan
                                                 @can('contratos.cerrar')
                                                 @if(!$c->envios_cerrados)
@@ -184,19 +183,10 @@
                                                 @endif
                                                 @can('contratos.destroy')
                                                 <li>
-                                                    @if($c->contratoCamiones->count() > 0)
-                                                        <span class="dropdown-item text-muted" style="cursor: not-allowed;"
-                                                            data-bs-toggle="tooltip"
-                                                            data-bs-placement="left"
-                                                            title="No se puede eliminar porque tiene {{ $c->contratoCamiones->count() }} camión(es) asignado(s)">
-                                                            <i class="bi bi-trash"></i> Eliminar
-                                                        </span>
-                                                    @else
-                                                        <a class="dropdown-item text-danger" href="{{ route('contratos.destroy', $c->uuid) }}"
-                                                            onclick="return confirm('¿Eliminar el contrato {{ $c->numero_contrato }}?')">
-                                                            <i class="bi bi-trash"></i> Eliminar
-                                                        </a>
-                                                    @endif
+                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.destroy', $c->uuid) }}"
+                                                        onclick="return confirm('¿Eliminar el contrato {{ $c->numero_contrato }}?\n\nEsta acción eliminará también todos los camiones asignados, tramos y pagos asociados. Esta acción no se puede deshacer.')">
+                                                        <i class="bi bi-trash"></i> Eliminar
+                                                    </a>
                                                 </li>
                                                 @endcan
                                             </ul>
@@ -330,6 +320,17 @@
                             @error('monto_total')<div class="text-danger small">{{ $message }}</div>@enderror
                         </div>
 
+                        {{-- Costo unitario informativo --}}
+                        <div class="col-md-12">
+                            <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2" id="costoUnitarioBox" style="display:none!important;">
+                                <i class="bi bi-calculator"></i>
+                                <span>Costo unitario por tonelada:
+                                    <strong id="costoUnitarioValor" class="ms-1">—</strong>
+                                    <span id="costoUnitarioMoneda" class="ms-1 text-muted"></span>
+                                </span>
+                            </div>
+                        </div>
+
                         {{-- Documento del contrato (PDF o imagen) --}}
                         <div class="col-md-12">
                             <label class="form-label">Documento del Contrato</label>
@@ -379,17 +380,22 @@
         const btn = document.getElementById('btnContrato');
         btn.innerText     = 'Registrar';
         btn.style.display = '';
-        btn.disabled      = false;
+        btn.disabled      = true;
         document.getElementById('methodContrato').value      = 'POST';
         document.getElementById('formContrato').action       = '{{ route("contratos.store") }}';
         document.getElementById('numero_contrato_display').value = '{{ $numeroSiguiente }}';
         document.getElementById('numero_contrato').value         = '{{ $numeroSiguiente }}';
         fetch('{{ route("contratos.nuevo-token") }}')
-            .then(r => r.json())
-            .then(d => { document.getElementById('idempotencyToken').value = d.token; });
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+            .then(d => {
+                document.getElementById('idempotencyToken').value = d.token;
+                document.getElementById('btnContrato').disabled = false;
+            })
+            .catch(() => { document.getElementById('btnContrato').disabled = false; });
         document.getElementById('formContrato').reset();
         document.getElementById('moneda').value = 'BOB';
         document.getElementById('pdfActualInfo').classList.add('d-none');
+        document.getElementById('costoUnitarioBox').style.setProperty('display', 'none', 'important');
         // Quitar disabled de todos los campos por si venían de modo solo-ver
         ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato','moneda','monto_total','documento_pdf'].forEach(id => {
             const el = document.getElementById(id);
@@ -434,6 +440,7 @@
                 const pdfInfo = document.getElementById('pdfActualInfo');
                 c.documento_pdf ? pdfInfo.classList.remove('d-none') : pdfInfo.classList.add('d-none');
 
+                actualizarCostoUnitario();
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContrato')).show();
             });
     }
@@ -446,8 +453,30 @@
         _cargarContrato(uuid, true);
     }
 
-    // Inicializar tooltips de Bootstrap
+    // Costo unitario informativo (monto / toneladas)
+    function actualizarCostoUnitario() {
+        const monto = parseFloat(document.getElementById('monto_total').value);
+        const ton   = parseFloat(document.getElementById('toneladas_contrato').value);
+        const box   = document.getElementById('costoUnitarioBox');
+        const val   = document.getElementById('costoUnitarioValor');
+        const mon   = document.getElementById('costoUnitarioMoneda');
+
+        if (monto > 0 && ton > 0) {
+            const costo = monto / ton;
+            val.textContent = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(costo);
+            mon.textContent = document.getElementById('moneda').value + '/t';
+            box.style.removeProperty('display');
+        } else {
+            box.style.setProperty('display', 'none', 'important');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('monto_total').addEventListener('input', actualizarCostoUnitario);
+        document.getElementById('toneladas_contrato').addEventListener('input', actualizarCostoUnitario);
+        document.getElementById('moneda').addEventListener('change', actualizarCostoUnitario);
+
+        // Inicializar tooltips de Bootstrap
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);

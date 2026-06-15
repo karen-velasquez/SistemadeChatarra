@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Camion;
 use App\Models\Contrato;
 use App\Models\Cliente;
+use App\Models\PagoCamion;
+use App\Models\PagoCliente;
+use App\Models\PagoProveedor;
 use App\Models\Proveedor;
 use App\Models\OperadorTransporte;
 use App\Models\Parametro;
@@ -87,6 +90,11 @@ class ContratoController extends Controller
 
     public function update(ContratoRequest $request, Contrato $contrato)
     {
+        if ($contrato->envios_cerrados) {
+            Alert::error('No permitido', 'No se puede modificar un contrato con envíos cerrados.');
+            return redirect()->route('contratos.index');
+        }
+
         $data = $request->except('documento_pdf');
 
         if ($request->hasFile('documento_pdf')) {
@@ -119,16 +127,34 @@ class ContratoController extends Controller
 
     public function destroy($uuid)
     {
-        $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+        $contrato = Contrato::with('contratoCamiones')->where('uuid', $uuid)->firstOrFail();
 
-        // Verificar si tiene camiones asignados
-        if ($contrato->contratoCamiones()->count() > 0) {
-            Alert::error('Error', 'No se puede eliminar el contrato porque tiene camiones asignados. Primero elimine los camiones del contrato.');
-            return redirect()->route('contratos.index');
+        // Eliminación en cascada respetando el orden de FKs.
+        // Se usa forceDelete() para quitar físicamente las filas; de lo contrario
+        // el soft-delete deja los registros en la tabla y la FK sigue bloqueando al padre.
+        foreach ($contrato->contratoCamiones as $contratoCamion) {
+            // Obtener todos los IDs de tramos (raíz e hijos) de este contrato camión,
+            // incluyendo los que ya estén soft-deleted
+            $tramoIds = $contratoCamion->tramos()->withTrashed()->pluck('id');
+
+            // 1. Eliminar pagos de cliente (dependen de tramos)
+            PagoCliente::withTrashed()->whereIn('tramo_id', $tramoIds)->forceDelete();
+
+            // 2. Eliminar tramos (dependen de contrato_camiones)
+            $contratoCamion->tramos()->withTrashed()->forceDelete();
+
+            // 3. Eliminar pagos de camión (dependen de contrato_camiones)
+            PagoCamion::withTrashed()->where('contrato_camion_id', $contratoCamion->id)->forceDelete();
+
+            // 4. Eliminar el contrato camión (físico, no usa SoftDeletes)
+            $contratoCamion->delete();
         }
 
+        // 5. Eliminar pagos de proveedor (dependen de contratos)
+        PagoProveedor::withTrashed()->where('contrato_id', $contrato->id)->forceDelete();
+
         $contrato->delete();
-        Alert::success('Eliminación', 'Contrato eliminado con éxito.');
+        Alert::success('Eliminación', 'Contrato y todos sus registros asociados eliminados con éxito.');
         return redirect()->route('contratos.index');
     }
 

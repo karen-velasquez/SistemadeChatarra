@@ -40,6 +40,14 @@ class CamionConductorController extends Controller
         return redirect()->route('camiones.index', ['tab' => 'conductores']);
     }
 
+    public function reiniciarAsignacion($uuid)
+    {
+        $asignacion = CamionConductor::where('uuid', $uuid)->firstOrFail();
+        $asignacion->update(['fecha_fin' => null]);
+        Alert::success('Reinicio', 'Asignación reactivada con éxito.');
+        return redirect()->route('camiones.index', ['tab' => 'conductores']);
+    }
+
     // Endpoint: camiones con propietario y conductor actual
     public function camionesConDetalle()
     {

@@ -85,7 +85,7 @@
         <div class="d-flex align-items-center gap-2 flex-wrap">
 
             @can('contratos.edit')
-                @if($tramo->estado !== 'Desactivado')
+                @if(!($enviosCerrados ?? false) && $tramo->estado !== 'Desactivado')
                     {{-- Botón llegada: visible si está en ruta --}}
                     @if($tramo->estado === 'En ruta')
                         <button class="btn btn-sm btn-outline-success"
@@ -151,8 +151,8 @@
                             <i class="bi bi-slash-circle"></i>
                         </button>
                     @endif
-                @else
-                    {{-- Solo mostrar botón reactivar si está desactivado --}}
+                @elseif(!($enviosCerrados ?? false))
+                    {{-- Solo mostrar botón reactivar si está desactivado y envíos abiertos --}}
                     @if($nivel > 0)
                         <button class="btn btn-sm btn-outline-success"
                             title="Reactivar tramo"
@@ -221,5 +221,6 @@
         'tramo'               => $hijo,
         'nivel'               => $nivel + 1,
         'camionesDisponibles' => $camionesDisponibles,
+        'enviosCerrados'      => $enviosCerrados ?? false,
     ])
 @endforeach

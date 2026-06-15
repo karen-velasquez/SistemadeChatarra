@@ -280,7 +280,7 @@
             <form id="formNuevaCuenta" method="POST" action="">
                 @csrf
                 <input type="hidden" name="redirect_to" value="index">
-                <input type="hidden" name="_idempotency_token" id="idempotencyTokenEmpresaCuenta" value="{{ $tokenEmpresa ?? '' }}">
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenEmpresaCuenta" value="{{ $tokenEmpresaCuenta ?? '' }}">
                 <div class="modal-body">
                     <p class="text-muted small mb-3"><span class="text-danger">*</span> Todos los campos marcados son obligatorios.</p>
                     <div class="row g-3">
@@ -714,12 +714,16 @@ function resetModal() {
     document.getElementById('tituloModal').innerText    = 'Nueva Empresa';
     var btnG = document.getElementById('btnGuardar');
     btnG.innerText = 'Registrar';
-    btnG.disabled  = false;
+    btnG.disabled  = true;
     document.getElementById('methodEmpresa').value      = 'POST';
     document.getElementById('formEmpresa').action       = '{{ route("empresas.store") }}';
     fetch('{{ route("empresas.nuevo-token") }}')
-        .then(r => r.json())
-        .then(d => { document.getElementById('idempotencyTokenEmpresa').value = d.token; });
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(d => {
+            document.getElementById('idempotencyTokenEmpresa').value = d.token;
+            document.getElementById('btnGuardar').disabled = false;
+        })
+        .catch(() => { document.getElementById('btnGuardar').disabled = false; });
     document.getElementById('formEmpresa').reset();
     document.getElementById('nit_contador').textContent = '0 / 15';
     document.getElementById('tel_pais').value           = 'Bolivia';
@@ -781,6 +785,12 @@ function abrirModalCuenta(uuid, nombre) {
 
     // Forzar botón deshabilitado
     document.getElementById('btnGuardarCuenta').disabled = true;
+
+    // Pedir token fresco al servidor
+    fetch('{{ route("empresas.nuevo-token-cuenta") }}')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => { document.getElementById('idempotencyTokenEmpresaCuenta').value = d.token; })
+        .catch(() => {});
 
     // Reactivar validación y ejecutarla
     window.validacionCuentaActiva = true;

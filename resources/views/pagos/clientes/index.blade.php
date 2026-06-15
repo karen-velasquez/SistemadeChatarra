@@ -90,19 +90,27 @@
                     usa <strong>Opciones → Registrar precio/t</strong> para ingresarlo y habilitar el cobro.
                 </p>
 
-                {{-- ===== SELECTOR DE CLIENTE ===== --}}
+                {{-- ===== FILTROS ===== --}}
                 <div class="row g-2 align-items-end mb-3">
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <label class="form-label fw-semibold mb-1"><i class="bi bi-people"></i> Filtrar por cliente</label>
-                        <select class="form-select" id="filtro_cliente" onchange="filtrarPorCliente(this.value)">
+                        <select class="form-select" id="filtro_cliente" onchange="aplicarFiltros()">
                             <option value="">— Todos los clientes —</option>
                             @foreach($clientes as $cli)
                                 <option value="{{ $cli->id }}">{{ $cli->nombre }}</option>
                             @endforeach
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-lock"></i> Estado de envíos</label>
+                        <select class="form-select" id="filtro_envios" onchange="aplicarFiltros()">
+                            <option value="">— Todos —</option>
+                            <option value="0">Envíos abiertos</option>
+                            <option value="1">Envíos cerrados</option>
+                        </select>
+                    </div>
                     <div class="col-auto">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="filtrarPorCliente('')">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltros()">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </button>
                     </div>
@@ -155,7 +163,7 @@
                                 $pct         = $deuda > 0 ? min(100, round($cobrado / $deuda * 100)) : 0;
                                 $rowClass    = $tienePrecio && $saldo <= 0 ? 'table-success' : ($tienePrecio ? '' : 'table-warning');
                             @endphp
-                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}">
+                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}">
                                 <td><strong>{{ $t->cliente->nombre ?? '—' }}</strong></td>
                                 <td>
                                     <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid ?? '') }}"
@@ -717,17 +725,31 @@ const canDeleteCobro = {{ auth()->user()->can('pagos_clientes.destroy') ? 'true'
 
 let _clienteActual = null;
 
-// ===== Filtro por cliente en la tabla =====
-function filtrarPorCliente(clienteId) {
-    document.getElementById('filtro_cliente').value = clienteId;
-    const filas = document.querySelectorAll('#tabla_cobros tbody tr');
+// ===== Filtros de la tabla =====
+function aplicarFiltros() {
+    const clienteId = document.getElementById('filtro_cliente').value;
+    const envios    = document.getElementById('filtro_envios').value;
+    const filas     = document.querySelectorAll('#tabla_cobros tbody tr');
     let count = 0;
     filas.forEach(function (fila) {
-        const visible = !clienteId || fila.dataset.clienteId === clienteId;
+        const okCliente = !clienteId || fila.dataset.clienteId === clienteId;
+        const okEnvios  = envios === '' || fila.dataset.enviosCerrados === envios;
+        const visible   = okCliente && okEnvios;
         fila.style.display = visible ? '' : 'none';
         if (visible) count++;
     });
     document.getElementById('lbl_count_visible').textContent = count;
+}
+
+function limpiarFiltros() {
+    document.getElementById('filtro_cliente').value = '';
+    document.getElementById('filtro_envios').value  = '';
+    aplicarFiltros();
+}
+
+function filtrarPorCliente(clienteId) {
+    document.getElementById('filtro_cliente').value = clienteId;
+    aplicarFiltros();
 }
 
 // ===== Modal precio/tonelada =====

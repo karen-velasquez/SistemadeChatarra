@@ -23,13 +23,21 @@ class EmpresaController extends Controller
         $bancos   = Banco::whereNull('deleted_at')->where('activo', true)->orderBy('nombre')->get();
         $monedas  = \App\Models\Parametro::where('tipo', 'tipo_moneda')->whereNull('deleted_at')->orderBy('valor')->get();
         $tokenEmpresa = $this->generarToken('empresa_store_token');
-        return view('empresas.index', compact('empresas', 'bancos', 'monedas', 'tokenEmpresa'));
+        $tokenEmpresaCuenta = $this->generarToken('empresa_cuenta_store_token');
+        return view('empresas.index', compact('empresas', 'bancos', 'monedas', 'tokenEmpresa', 'tokenEmpresaCuenta'));
     }
 
     public function nuevoToken()
     {
         return response()->json([
             'token' => $this->generarToken('empresa_store_token'),
+        ]);
+    }
+
+    public function nuevoTokenCuenta()
+    {
+        return response()->json([
+            'token' => $this->forzarToken('empresa_cuenta_store_token'),
         ]);
     }
 

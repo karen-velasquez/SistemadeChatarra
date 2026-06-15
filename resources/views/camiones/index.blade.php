@@ -364,7 +364,13 @@
                                                     </a>
                                                     @endcan
                                                 @else
-                                                    <span class="text-muted">-</span>
+                                                    @can('conductores.edit')
+                                                    <a href="{{ route('conductores.reiniciar', $a->uuid) }}"
+                                                        class="btn btn-success btn-sm"
+                                                        onclick="return confirm('¿Reiniciar esta asignación? Se marcará como activa nuevamente.')">
+                                                        <i class="bi bi-arrow-counterclockwise"></i> Reiniciar
+                                                    </a>
+                                                    @endcan
                                                 @endif
                                             </td>
                                         </tr>
@@ -440,10 +446,12 @@
                                 name="placa" id="cam_placa"
                                 placeholder="Ej: 2345-ABC"
                                 oninput="aplicarMascaraPlaca(this)"
+                                onblur="verificarPlacaExistente()"
                                 maxlength="10"
                                 required>
                             <small id="cam_placa_hint" class="text-muted">Bolivia: 2345-ABC (4 dígitos-3 letras)</small>
                             @error('placa')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div id="cam_placa_existente" class="d-none mt-2"></div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Tipo Vehículo <span class="text-danger">(*)</span></label>
@@ -689,9 +697,11 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">N° Documento de Identidad <span class="text-danger">(*)</span></label>
-                            <input type="text" class="form-control @error('ci') is-invalid @enderror" name="ci" id="op_ci" maxlength="20" required>
+                            <input type="text" class="form-control @error('ci') is-invalid @enderror" name="ci" id="op_ci" maxlength="20" required
+                                onblur="verificarCiExistente()">
                             <small id="op_ci_hint" class="text-muted">Seleccione primero el país del documento</small>
                             @error('ci')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div id="op_ci_existente" class="d-none mt-2"></div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Tipo Operador <span class="text-danger">(*)</span></label>
@@ -1411,22 +1421,67 @@
         input.multiple = true;
     }
 
+    function verificarPlacaExistente() {
+        // Solo en modo "Nuevo" (método POST)
+        if (document.getElementById('methodCamion').value !== 'POST') return;
+
+        const placa = document.getElementById('cam_placa').value.trim().toUpperCase();
+        const banner = document.getElementById('cam_placa_existente');
+        if (!placa) { banner.className = 'd-none mt-2'; banner.innerHTML = ''; return; }
+
+        const url = '{{ route("camiones.buscar-placa") }}?placa=' + encodeURIComponent(placa);
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(camion => {
+                if (!camion) { banner.className = 'd-none mt-2'; banner.innerHTML = ''; return; }
+
+                const desc = camion.marca_label + ' ' + (camion.modelo ?? '') + ' — ' + camion.tipo_label;
+                banner.className = 'mt-2';
+                banner.innerHTML =
+                    '<div class="alert alert-warning py-2 mb-0">' +
+                        '<i class="bi bi-exclamation-triangle-fill me-1"></i>' +
+                        'La placa <strong>' + camion.placa + '</strong> ya está registrada' +
+                        ' (' + desc.trim() + ').' +
+                        '<div class="mt-2">' +
+                            '<button type="button" class="btn btn-sm btn-primary" onclick="cargarCamionExistente()">' +
+                                '<i class="bi bi-pencil me-1"></i>Editar este camión' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>';
+                window._camionEncontrado = camion;
+            })
+            .catch(() => { banner.className = 'd-none mt-2'; banner.innerHTML = ''; });
+    }
+
+    function cargarCamionExistente() {
+        if (!window._camionEncontrado) return;
+        document.getElementById('cam_placa_existente').className = 'd-none mt-2';
+        document.getElementById('cam_placa_existente').innerHTML = '';
+        editarCamion(window._camionEncontrado, window._camionEncontrado.fotos ?? []);
+        window._camionEncontrado = null;
+    }
+
     // Reset y abrir modal camión en modo Nuevo
     function resetModalCamion() {
         document.getElementById('tituloCamion').innerText = 'Nuevo Camión';
         var btnC = document.getElementById('btnCamion');
         btnC.innerText = 'Registrar';
-        btnC.disabled  = false;
+        btnC.disabled  = true;
         document.getElementById('methodCamion').value     = 'POST';
         document.getElementById('formCamion').action      = '{{ route("camiones.store") }}';
         fetch('{{ route("camiones.nuevo-token") }}')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(d => {
                 document.getElementById('idempotencyTokenCamion').value    = d.camion_token;
                 document.getElementById('idempotencyTokenOperador').value  = d.operador_token;
                 document.getElementById('idempotencyTokenConductor').value = d.conductor_token;
-            });
+                document.getElementById('btnCamion').disabled = false;
+            })
+            .catch(() => { document.getElementById('btnCamion').disabled = false; });
         document.getElementById('formCamion').reset();
+        document.getElementById('cam_placa_existente').className = 'd-none mt-2';
+        document.getElementById('cam_placa_existente').innerHTML = '';
+        window._camionEncontrado = null;
         document.getElementById('ruatActualInfo').classList.add('d-none');
         document.getElementById('galeriaFotos').classList.add('d-none');
         document.getElementById('galeriaFotosContenido').innerHTML = '';
@@ -1552,26 +1607,73 @@
         });
     }
 
+    const _tipoLabel = { propietario: 'Propietario', chofer: 'Chofer', ambos: 'Propietario y Chofer' };
+
+    function verificarCiExistente() {
+        // Solo actuar en modo "Nuevo" (método POST)
+        if (document.getElementById('methodOperador').value !== 'POST') return;
+
+        const ci = document.getElementById('op_ci').value.trim();
+        const banner = document.getElementById('op_ci_existente');
+        if (!ci) { banner.className = 'd-none mt-2'; banner.innerHTML = ''; return; }
+
+        const url = '{{ route("operadores.buscar-ci") }}?ci=' + encodeURIComponent(ci);
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(op => {
+                if (!op) { banner.className = 'd-none mt-2'; banner.innerHTML = ''; return; }
+
+                const tipoActual = _tipoLabel[op.tipo_operador] ?? op.tipo_operador;
+                banner.className = 'mt-2';
+                banner.innerHTML =
+                    '<div class="alert alert-warning py-2 mb-0">' +
+                        '<i class="bi bi-exclamation-triangle-fill me-1"></i>' +
+                        '<strong>' + op.nombre_completo + '</strong> ya está registrado como <strong>' + tipoActual + '</strong>.' +
+                        '<div class="mt-2 d-flex gap-2">' +
+                            '<button type="button" class="btn btn-sm btn-primary" onclick="cargarOperadorExistente()">' +
+                                '<i class="bi bi-pencil me-1"></i>Editar este registro' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>';
+                // Guardar referencia al operador encontrado para usarla al cargar
+                window._operadorEncontrado = op;
+            })
+            .catch(() => { banner.className = 'd-none mt-2'; banner.innerHTML = ''; });
+    }
+
+    function cargarOperadorExistente() {
+        if (!window._operadorEncontrado) return;
+        document.getElementById('op_ci_existente').className = 'd-none mt-2';
+        document.getElementById('op_ci_existente').innerHTML = '';
+        editarOperador(window._operadorEncontrado);
+        window._operadorEncontrado = null;
+    }
+
     // Reset modal operador
     function resetModalOperador() {
         document.getElementById('tituloOperador').innerText = 'Nuevo Operador';
         var btnO = document.getElementById('btnOperador');
         btnO.innerText = 'Registrar';
-        btnO.disabled  = false;
+        btnO.disabled  = true;
         document.getElementById('methodOperador').value = 'POST';
         document.getElementById('formOperador').action = '{{ route("operadores.store") }}';
         fetch('{{ route("camiones.nuevo-token") }}')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(d => {
                 document.getElementById('idempotencyTokenCamion').value    = d.camion_token;
                 document.getElementById('idempotencyTokenOperador').value  = d.operador_token;
                 document.getElementById('idempotencyTokenConductor').value = d.conductor_token;
-            });
+                document.getElementById('btnOperador').disabled = false;
+            })
+            .catch(() => { document.getElementById('btnOperador').disabled = false; });
         document.getElementById('formOperador').reset();
         document.getElementById('seccionLicencia').style.display = 'none';
         document.getElementById('seccionDocLicencia').classList.add('d-none');
         document.getElementById('op_carnet_info').classList.add('d-none');
         document.getElementById('op_licencia_info').classList.add('d-none');
+        document.getElementById('op_ci_existente').className = 'd-none mt-2';
+        document.getElementById('op_ci_existente').innerHTML = '';
+        window._operadorEncontrado = null;
         // Reset formato CI y selector de teléfono
         actualizarFormatoCI();
         document.getElementById('op_telefono_pais').value = 'Bolivia';

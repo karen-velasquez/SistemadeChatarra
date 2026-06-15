@@ -64,6 +64,7 @@ use Illuminate\Support\Facades\Route;
     //Camiones
     Route::get('camiones',[App\Http\Controllers\CamionController::class,'index'])->name('camiones.index')->middleware('permission:camiones.index');
     Route::get('camiones/nuevo-token',[App\Http\Controllers\CamionController::class,'nuevoToken'])->name('camiones.nuevo-token');
+    Route::get('camion/buscar-placa',[App\Http\Controllers\CamionController::class,'buscarPorPlaca'])->name('camiones.buscar-placa')->middleware('permission:camiones.index');
     Route::post('camion/store',[App\Http\Controllers\CamionController::class,'store'])->name('camiones.store')->middleware('permission:camiones.create');
     Route::put('camion/{camion}',[App\Http\Controllers\CamionController::class,'update'])->name('camiones.update')->middleware('permission:camiones.edit');
     Route::get('camion/{uuid}/edit',[App\Http\Controllers\CamionController::class,'edit'])->name('camiones.edit')->middleware('permission:camiones.edit');
@@ -72,6 +73,7 @@ use Illuminate\Support\Facades\Route;
     Route::delete('camion/foto/{foto}',[App\Http\Controllers\CamionController::class,'eliminarFoto'])->name('camiones.foto.destroy')->middleware('permission:camiones.edit');
 
     //Operadores de Transporte (propietarios y conductores)
+    Route::get('operador/buscar-ci',[App\Http\Controllers\OperadorTransporteController::class,'buscarPorCi'])->name('operadores.buscar-ci')->middleware('permission:operadores.index');
     Route::post('operador/store',[App\Http\Controllers\OperadorTransporteController::class,'store'])->name('operadores.store')->middleware('permission:operadores.create');
     Route::get('operador/{uuid}/edit',[App\Http\Controllers\OperadorTransporteController::class,'edit'])->name('operadores.edit')->middleware('permission:operadores.edit');
     Route::put('operador/{operador}',[App\Http\Controllers\OperadorTransporteController::class,'update'])->name('operadores.update')->middleware('permission:operadores.edit');
@@ -121,7 +123,8 @@ use Illuminate\Support\Facades\Route;
     Route::post('bancos/cuentas',[App\Http\Controllers\BancoController::class,'storeCuenta'])->name('bancos.cuenta.store')->middleware('permission:bancos.create');
     Route::put('bancos/cuentas/{uuid}',[App\Http\Controllers\BancoController::class,'updateCuenta'])->name('bancos.cuenta.update')->middleware('permission:bancos.edit');
     Route::get('bancos/cuentas/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroyCuenta'])->name('bancos.cuenta.destroy')->middleware('permission:bancos.destroy');
-    Route::get('bancos/nuevo-token',[App\Http\Controllers\BancoController::class,'nuevoToken'])->name('bancos.nuevo-token');
+    Route::get('bancos/nuevo-token-banco',[App\Http\Controllers\BancoController::class,'nuevoTokenBanco'])->name('bancos.nuevo-token-banco');
+    Route::get('bancos/nuevo-token-cuenta',[App\Http\Controllers\BancoController::class,'nuevoTokenCuenta'])->name('bancos.nuevo-token-cuenta');
     Route::put('bancos/{uuid}',[App\Http\Controllers\BancoController::class,'update'])->name('bancos.update')->middleware('permission:bancos.edit');
     Route::get('bancos/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroy'])->name('bancos.destroy')->middleware('permission:bancos.destroy');
 
@@ -162,6 +165,7 @@ use Illuminate\Support\Facades\Route;
     //Asignación de conductores a camiones
     Route::post('conductor/store',[App\Http\Controllers\CamionConductorController::class,'store'])->name('conductores.store')->middleware('permission:conductores.create');
     Route::get('conductor/{uuid}/finalizar',[App\Http\Controllers\CamionConductorController::class,'finalizarAsignacion'])->name('conductores.finalizar')->middleware('permission:conductores.edit');
+    Route::get('conductor/{uuid}/reiniciar',[App\Http\Controllers\CamionConductorController::class,'reiniciarAsignacion'])->name('conductores.reiniciar')->middleware('permission:conductores.edit');
 
     //Endpoints de consulta
     Route::get('api/camiones/detalle',[App\Http\Controllers\CamionConductorController::class,'camionesConDetalle'])->name('camiones.detalle');
@@ -188,6 +192,7 @@ use Illuminate\Support\Facades\Route;
     // Empresas (tesorería)
     Route::get('empresas', [App\Http\Controllers\EmpresaController::class, 'index'])->name('empresas.index')->middleware('permission:empresas.index');
     Route::get('empresas/nuevo-token',[App\Http\Controllers\EmpresaController::class,'nuevoToken'])->name('empresas.nuevo-token');
+    Route::get('empresas/nuevo-token-cuenta',[App\Http\Controllers\EmpresaController::class,'nuevoTokenCuenta'])->name('empresas.nuevo-token-cuenta');
     Route::post('empresas/store', [App\Http\Controllers\EmpresaController::class, 'store'])->name('empresas.store')->middleware('permission:empresas.create');
     Route::get('empresas/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'edit'])->name('empresas.edit')->middleware('permission:empresas.edit');
     Route::put('empresas/{uuid}', [App\Http\Controllers\EmpresaController::class, 'update'])->name('empresas.update')->middleware('permission:empresas.edit');

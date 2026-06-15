@@ -112,6 +112,12 @@
             <div class="card">
                 <div class="card-body">
 
+                    @if($contrato->envios_cerrados)
+                    <div class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-lock-fill fs-5"></i>
+                        <span><strong>Envíos cerrados.</strong> Este contrato está en modo solo lectura. No se pueden agregar ni modificar camiones o tramos.</span>
+                    </div>
+                    @endif
                     <ul class="nav nav-tabs" id="camionesTab" role="tablist">
                         <li class="nav-item">
                             <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-lista" type="button">
@@ -120,11 +126,13 @@
                             </button>
                         </li>
                         @can('contratos.edit')
+                        @if(!$contrato->envios_cerrados)
                         <li class="nav-item">
                             <button id="tab-asignar" class="nav-link @if($errors->any()) active @endif" data-bs-toggle="tab" data-bs-target="#pane-agregar" type="button">
                                 <i class="bi bi-plus-circle"></i> Asignar Camión
                             </button>
                         </li>
+                        @endif
                         @endcan
                     </ul>
 
@@ -160,7 +168,7 @@
                                                     {{ $estadoEntrega }}
                                                 </span>
                                                 @can('contratos.edit')
-                                                    @if($estadoEntrega !== 'Entregado')
+                                                    @if(!$contrato->envios_cerrados && $estadoEntrega !== 'Entregado')
                                                         <button class="btn btn-sm {{ $cc->activo ? 'btn-outline-warning' : 'btn-outline-success' }}"
                                                             onclick="confirmarToggleCC('{{ $cc->uuid }}', '{{ $cc->camion->placa }}', {{ $cc->activo ? 'true' : 'false' }})"
                                                             title="{{ $cc->activo ? 'Desactivar asignación' : 'Reactivar asignación' }}">
@@ -189,7 +197,7 @@
                                             <small class="text-muted"><i class="bi bi-info-circle"></i> Sin tramos registrados.</small>
                                         @else
                                             @foreach($tramosRaiz as $tramo)
-                                                @include('contratos.partials.tramo', ['tramo' => $tramo, 'nivel' => 0, 'camionesDisponibles' => $camionesDisponibles])
+                                                @include('contratos.partials.tramo', ['tramo' => $tramo, 'nivel' => 0, 'camionesDisponibles' => $camionesDisponibles, 'enviosCerrados' => $contrato->envios_cerrados])
                                             @endforeach
                                         @endif
                                     </div>

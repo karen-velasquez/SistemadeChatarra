@@ -119,12 +119,16 @@ function resetModalCliente() {
     document.getElementById('tituloCliente').innerHTML ='<i class="bi bi-person-plus "></i> Nuevo Cliente';
     var btn = document.getElementById('btnCliente');
     btn.innerText = 'Registrar';
-    btn.disabled = false;
+    btn.disabled = true;
     document.getElementById('methodCliente').value = 'POST';
     document.getElementById('formCliente').action = '{{ route("clientes.store")}}';
     fetch('{{ route("clientes.nuevo-token") }}')
-        .then(r => r.json())
-        .then(d => { document.getElementById('idempotencyTokenCliente').value = d.token; });
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(d => {
+            document.getElementById('idempotencyTokenCliente').value = d.token;
+            document.getElementById('btnCliente').disabled = false;
+        })
+        .catch(() => { document.getElementById('btnCliente').disabled = false; });
     limpiarFormularioCliente();
 }
 document.getElementById('formCliente').addEventListener('submit', function(e) {

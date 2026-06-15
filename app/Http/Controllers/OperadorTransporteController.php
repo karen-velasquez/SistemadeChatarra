@@ -22,6 +22,38 @@ class OperadorTransporteController extends Controller
         return view('camiones.index', compact('operadores'));
     }
 
+    public function buscarPorCi(\Illuminate\Http\Request $request)
+    {
+        $ci = trim($request->query('ci', ''));
+        if (!$ci) {
+            return response()->json(null);
+        }
+        $operador = OperadorTransporte::whereNull('deleted_at')->where('ci', $ci)->first();
+        if (!$operador) {
+            return response()->json(null);
+        }
+        return response()->json([
+            'id'               => $operador->id,
+            'uuid'             => $operador->uuid,
+            'nombre_completo'  => $operador->nombre_completo,
+            'tipo_operador'    => $operador->tipo_operador,
+            'ci'               => $operador->ci,
+            'ci_pais_id'       => $operador->ci_pais_id,
+            'nombre'               => $operador->nombre,
+            'apellido_paterno'     => $operador->apellido_paterno,
+            'apellido_materno'     => $operador->apellido_materno,
+            'telefono'             => $operador->telefono,
+            'email'                => $operador->email,
+            'direccion'            => $operador->direccion,
+            'estado'               => $operador->estado,
+            'licencia_numero'      => $operador->licencia_numero,
+            'licencia_pais_id'     => $operador->licencia_pais_id,
+            'licencia_vencimiento' => $operador->licencia_vencimiento?->format('Y-m-d'),
+            'doc_carnet'           => $operador->doc_carnet,
+            'doc_licencia'         => $operador->doc_licencia,
+        ]);
+    }
+
     public function store(OperadorTransporteRequest $request)
     {
         if (!$this->tokenValido('operador_store_token', $request->input('_idempotency_token'))) {

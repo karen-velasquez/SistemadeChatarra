@@ -755,11 +755,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function pedirTokenFresco(rutaToken, campoId, onListo) {
+    fetch(rutaToken)
+        .then(r => { if (!r.ok) throw new Error('error'); return r.json(); })
+        .then(d => {
+            document.getElementById(campoId).value = d.token;
+            if (onListo) onListo();
+        })
+        .catch(() => {
+            // Si el fetch falla, no bloqueamos — el token del HTML inicial sigue en el campo
+        });
+}
+
 function resetModalBanco() {
     document.getElementById('tituloBanco').textContent = 'Nuevo Banco';
     var btnB = document.getElementById('btnBanco');
     btnB.textContent = 'Registrar';
-    btnB.disabled    = false;
+    btnB.disabled    = true;
     document.getElementById('methodBanco').value       = 'POST';
     document.getElementById('formBanco').action        = '{{ route("bancos.store") }}';
     document.getElementById('banco_nombre').value      = '';
@@ -767,23 +779,24 @@ function resetModalBanco() {
     document.getElementById('banco_swift').value       = '';
     document.getElementById('banco_codigo').value      = '';
     document.getElementById('sec_codigo_banco').style.display = 'none';
-    // Obtener token fresco del servidor
-    fetch('{{ route("bancos.nuevo-token") }}')
-        .then(r => r.json())
-        .then(d => { document.getElementById('idempotencyTokenBanco').value = d.banco_token; });
+    pedirTokenFresco('{{ route("bancos.nuevo-token-banco") }}', 'idempotencyTokenBanco', function() {
+        document.getElementById('btnBanco').disabled = false;
+        document.getElementById('btnBanco').textContent = 'Registrar';
+    });
 }
 
 function resetModalCuenta() {
     document.getElementById('tituloCuenta').textContent  = 'Nueva Cuenta Bancaria';
     var btnC = document.getElementById('btnCuenta');
     btnC.innerHTML = '<i class="bi bi-save"></i> Registrar Cuenta';
-    btnC.disabled  = false;
+    btnC.disabled  = true;
     document.getElementById('methodCuenta').value        = 'POST';
     document.getElementById('formCuenta').action         = '{{ route("bancos.cuenta.store") }}';
-    // Obtener token fresco del servidor
-    fetch('{{ route("bancos.nuevo-token") }}')
-        .then(r => r.json())
-        .then(d => { document.getElementById('idempotencyTokenCuenta').value = d.cuenta_token; });
+    pedirTokenFresco('{{ route("bancos.nuevo-token-cuenta") }}', 'idempotencyTokenCuenta', function() {
+        var b = document.getElementById('btnCuenta');
+        b.disabled = false;
+        b.innerHTML = '<i class="bi bi-save"></i> Registrar Cuenta';
+    });
     document.getElementById('tipo_titular').value        = '';
 
     // Deshabilitar todos los campos
