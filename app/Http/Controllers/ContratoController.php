@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Camion;
 use App\Models\Contrato;
+use App\Models\Tramo;
 use App\Models\Cliente;
 use App\Models\PagoCamion;
 use App\Models\PagoCliente;
@@ -299,6 +300,11 @@ class ContratoController extends Controller
         $tokenContratoCamion     = $this->generarToken('contrato_camion_store_token');
         $tokenTramoTransbordo    = $this->generarToken('tramo_transbordo_store_token');
 
-        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas', 'empresas', 'tokenContratoCamion', 'tokenTramoTransbordo'));
+        $tramoErrorLlegada = null;
+        if (session('abrirModalLlegada')) {
+            $tramoErrorLlegada = Tramo::where('uuid', session('abrirModalLlegada'))->first();
+        }
+
+        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas', 'empresas', 'tokenContratoCamion', 'tokenTramoTransbordo', 'tramoErrorLlegada'));
     }
 }

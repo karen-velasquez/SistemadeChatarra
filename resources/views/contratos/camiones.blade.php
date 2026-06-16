@@ -376,6 +376,15 @@
                 @csrf
                 <input type="hidden" name="origen" value="camiones">
                 <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+                    @if($errors->llegada->any())
+                    <div class="alert alert-danger py-2 mb-3" id="errores_llegada_backend">
+                        <ul class="mb-0 ps-3">
+                            @foreach($errors->llegada->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
                     <div class="alert alert-light border mb-3 py-2">
                         <small class="text-muted">Tramo:</small><br>
                         <strong id="llegada_tramo_info"></strong>
@@ -823,6 +832,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('modalLlegada').addEventListener('input', validarFormLlegada);
     document.getElementById('modalLlegada').addEventListener('change', validarFormLlegada);
+    document.getElementById('formLlegada').addEventListener('submit', submitLlegada);
 
     // Re-inicializar Select2 cuando se abre el tab de agregar
     $('button[data-bs-target="#pane-agregar"]').on('shown.bs.tab', function () {
@@ -970,27 +980,84 @@ function validarFormAsignar() {
 }
 
 function validarFormLlegada() {
-    const peso    = document.getElementById('inp_peso_llegada')?.value;
-    const fecha   = document.getElementById('inp_fecha_llegada')?.value;
-    const accion  = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
-    const cliente        = document.getElementById('sel_cliente')?.value;
-    const empresa        = document.getElementById('sel_empresa_factura')?.value;
-    const clienteDiv     = document.getElementById('sel_cliente_div')?.value;
-    const empresaDiv     = document.getElementById('sel_empresa_factura_div')?.value;
-    const tnParcial      = document.getElementById('cam_inp_tn_parcial')?.value;
-    const destNuevo      = document.querySelector('#sec_parcial_cam [name="destino_nuevo_tramo"]')?.value.trim();
-    const btn = document.getElementById('btn_confirmar_llegada');
+    const peso   = document.getElementById('inp_peso_llegada')?.value;
+    const fecha  = document.getElementById('inp_fecha_llegada')?.value;
+    const accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
+    const btn    = document.getElementById('btn_confirmar_llegada');
     if (!btn) return;
-
-    let ok = peso && fecha && accion;
-    if (accion === 'entregado') ok = ok && cliente && empresa;
-    if (accion === 'div_carga') ok = ok && clienteDiv && empresaDiv && tnParcial && destNuevo;
-
+    const ok = !!(peso && fecha && accion);
     btn.disabled  = !ok;
     btn.className = ok ? 'btn btn-success' : 'btn btn-secondary';
 }
 
+function submitLlegada(e) {
+    e.preventDefault();
+
+    // Limpiar errores anteriores
+    document.querySelectorAll('#formLlegada .error-llegada').forEach(el => el.remove());
+    document.querySelectorAll('#formLlegada .is-invalid-llegada').forEach(el => el.classList.remove('is-invalid-llegada', 'border-danger'));
+
+    const accion    = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
+    const errores   = [];
+
+    function marcarError(elId, msg) {
+        errores.push(msg);
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.classList.add('is-invalid-llegada', 'border-danger');
+        const div = document.createElement('div');
+        div.className = 'text-danger small mt-1 error-llegada';
+        div.textContent = msg;
+        el.parentNode.appendChild(div);
+    }
+
+    if (accion === 'entregado') {
+        const cliente = document.getElementById('sel_cliente')?.value;
+        const empresa = document.getElementById('sel_empresa_factura')?.value;
+        if (!cliente) marcarError('sel_cliente', 'Debe seleccionar el cliente que recibe la carga.');
+        if (!empresa) marcarError('sel_empresa_factura', 'Debe seleccionar la empresa que facturará.');
+    }
+
+    if (accion === 'div_carga') {
+        const clienteDiv = document.getElementById('sel_cliente_div')?.value;
+        const empresaDiv = document.getElementById('sel_empresa_factura_div')?.value;
+        const tnParcial  = document.getElementById('cam_inp_tn_parcial')?.value;
+        const destNuevo  = document.querySelector('#sec_parcial_cam [name="destino_nuevo_tramo"]')?.value.trim();
+        if (!clienteDiv) marcarError('sel_cliente_div', 'Debe seleccionar el cliente que recibe la carga.');
+        if (!empresaDiv) marcarError('sel_empresa_factura_div', 'Debe seleccionar la empresa que facturará.');
+        if (!tnParcial || parseFloat(tnParcial) <= 0) marcarError('cam_inp_tn_parcial_display', 'Debe ingresar las toneladas entregadas.');
+        if (!destNuevo) marcarError('cam_inp_destino_nuevo', 'Debe ingresar el destino del nuevo tramo.');
+    }
+
+    if (errores.length > 0) {
+        const primero = document.querySelector('#formLlegada .error-llegada');
+        if (primero) primero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+
+    // Deshabilitar campos de la sección oculta para que no se envíen
+    if (accion === 'entregado') {
+        ['sel_cliente_div', 'sel_empresa_factura_div', 'inp_direccion_entrega_div'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.disabled = true;
+        });
+        document.querySelectorAll('#sec_parcial_cam [name="tn_parcial"], #sec_parcial_cam [name="destino_nuevo_tramo"]').forEach(function(el) {
+            el.disabled = true;
+        });
+    } else if (accion === 'div_carga') {
+        ['sel_cliente', 'sel_empresa_factura', 'inp_direccion_entrega'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.disabled = true;
+        });
+    }
+
+    document.getElementById('formLlegada').removeEventListener('submit', submitLlegada);
+    document.getElementById('formLlegada').submit();
+}
+
 function accionCamionCambiada(accion) {
+    document.querySelectorAll('#formLlegada .error-llegada').forEach(el => el.remove());
+    document.querySelectorAll('#formLlegada .is-invalid-llegada').forEach(el => el.classList.remove('is-invalid-llegada', 'border-danger'));
     const secCliente        = document.getElementById('sec_cliente');
     const secEmpresa        = document.getElementById('sec_empresa_factura');
     const secPrecio         = document.getElementById('sec_precio_venta');
@@ -1326,5 +1393,47 @@ function calcTotalVenta() {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
     });
 });
+
+@if(isset($tramoErrorLlegada) && $tramoErrorLlegada && $errors->llegada->any())
+// Reabrir modal de llegada con los datos del tramo que falló
+document.addEventListener('DOMContentLoaded', function () {
+    const t = {
+        uuid:       '{{ $tramoErrorLlegada->uuid }}',
+        info:       '{{ addslashes($tramoErrorLlegada->origen . " → " . $tramoErrorLlegada->destino . " (" . $tramoErrorLlegada->camion->placa . ")") }}',
+        pesoSalida: {{ $tramoErrorLlegada->peso_salida }},
+        fechaSalida:'{{ $tramoErrorLlegada->fecha_salida->format("Y-m-d") }}',
+        camionId:   {{ $tramoErrorLlegada->camion_id }},
+        conductorId:{{ $tramoErrorLlegada->conductor_id ?? 'null' }},
+        tipoTramo:  '{{ $tramoErrorLlegada->tipo_tramo }}',
+    };
+    abrirModalLlegada(t.uuid, t.info, t.pesoSalida, t.fechaSalida, t.camionId, t.conductorId, t.tipoTramo);
+
+    // Restaurar campos del old input
+    @if(old('peso_llegada'))
+        document.getElementById('inp_peso_llegada').value         = '{{ old("peso_llegada") }}';
+        document.getElementById('inp_peso_llegada_display').value = new Intl.NumberFormat('es-BO', {minimumFractionDigits:2,maximumFractionDigits:2}).format({{ old("peso_llegada") }});
+        document.getElementById('aviso_peso_requerido').style.display = 'none';
+        ['accion_entregado','accion_div_carga','accion_transbordo'].forEach(function(id){
+            const el = document.getElementById(id);
+            if (el) el.disabled = false;
+        });
+    @endif
+    @if(old('fecha_llegada'))
+        document.getElementById('inp_fecha_llegada').value = '{{ old("fecha_llegada") }}';
+    @endif
+    @if(old('accion'))
+        const radioOld = document.querySelector('#formLlegada input[name="accion"][value="{{ old("accion") }}"]');
+        if (radioOld) { radioOld.checked = true; accionCamionCambiada('{{ old("accion") }}'); }
+    @endif
+    @if(old('cliente_id'))
+        document.getElementById('sel_cliente').value = '{{ old("cliente_id") }}';
+    @endif
+    @if(old('empresa_facturadora_id'))
+        document.getElementById('sel_empresa_factura').value = '{{ old("empresa_facturadora_id") }}';
+    @endif
+
+    validarFormLlegada();
+});
+@endif
 </script>
 @endsection

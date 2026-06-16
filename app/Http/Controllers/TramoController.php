@@ -22,17 +22,21 @@ class TramoController extends Controller
     {
         $tramo = Tramo::where('uuid', $uuid)->firstOrFail();
 
-        $request->validate([
-            'peso_llegada'         => 'required|numeric|min:0.001',
-            'fecha_llegada'        => 'required|date|after_or_equal:' . $tramo->fecha_salida->format('Y-m-d'),
-            'accion'               => 'required|in:entregado,frontera,transbordo,div_carga',
+        $desdeSegimiento = $request->input('origen') === 'seguimiento';
+        $rutaRetorno = $desdeSegimiento
+            ? redirect()->route('seguimiento.index')
+            : redirect()->route('contratos.camiones', $tramo->contratoCamion->contrato->uuid);
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'peso_llegada'            => 'required|numeric|min:0.001',
+            'fecha_llegada'           => 'required|date|after_or_equal:' . $tramo->fecha_salida->format('Y-m-d'),
+            'accion'                  => 'required|in:entregado,frontera,transbordo,div_carga',
             'cliente_id'              => 'required_if:accion,entregado,div_carga|nullable|exists:clientes,id',
             'empresa_facturadora_id'  => 'required_if:accion,entregado,div_carga|nullable|exists:empresas,id',
             'precio_por_tonelada'     => 'nullable|numeric|min:0',
-            'moneda_venta'         => 'nullable|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
-            'descuento_porcentaje' => 'nullable|numeric|min:0|max:60',
-            'observaciones_llegada'=> 'nullable|string|max:500',
-            // Campos división de carga
+            'moneda_venta'            => 'nullable|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
+            'descuento_porcentaje'    => 'nullable|numeric|min:0|max:60',
+            'observaciones_llegada'   => 'nullable|string|max:500',
             'tn_parcial'              => 'required_if:accion,div_carga|nullable|numeric|min:0.001',
             'destino_nuevo_tramo'     => 'required_if:accion,div_carga|nullable|string|max:150',
             'camion_nuevo_id'         => 'nullable|exists:camiones,id',
@@ -40,22 +44,26 @@ class TramoController extends Controller
             'fecha_salida_nuevo_tramo'=> 'nullable|date',
             'tipo_tramo_nuevo'        => 'nullable|in:Internacional,Nacional',
         ], [
-            'peso_llegada.required'           => 'Debe ingresar el peso que llegó al destino.',
-            'peso_llegada.min'                => 'El peso debe ser mayor a 0.',
-            'fecha_llegada.required'          => 'Debe ingresar la fecha en que llegó la carga.',
-            'fecha_llegada.after_or_equal'    => 'La fecha de llegada no puede ser anterior a la fecha de salida (' . $tramo->fecha_salida->format('d/m/Y') . ').',
-            'accion.required'                 => 'Debe indicar qué ocurrió cuando llegó la carga.',
+            'peso_llegada.required'               => 'Debe ingresar el peso que llegó al destino.',
+            'peso_llegada.min'                    => 'El peso debe ser mayor a 0.',
+            'fecha_llegada.required'              => 'Debe ingresar la fecha en que llegó la carga.',
+            'fecha_llegada.after_or_equal'        => 'La fecha de llegada no puede ser anterior a la fecha de salida (' . $tramo->fecha_salida->format('d/m/Y') . ').',
+            'accion.required'                     => 'Debe indicar qué ocurrió cuando llegó la carga.',
             'cliente_id.required_if'              => 'Debe seleccionar el cliente al que se entregó la carga.',
             'empresa_facturadora_id.required_if'  => 'Debe seleccionar la empresa que facturará esta entrega.',
-            'tn_parcial.required_if'          => 'Debe indicar las toneladas entregadas al primer cliente.',
-            'tn_parcial.min'                  => 'Las toneladas entregadas deben ser mayores a 0.',
-            'destino_nuevo_tramo.required_if' => 'Debe indicar el destino del nuevo tramo.',
-            'camion_nuevo_id.required_if'     => 'Debe seleccionar el camión para el nuevo tramo.',
-            'conductor_nuevo_id.required_if'  => 'Debe seleccionar el conductor para el nuevo tramo.',
-            'fecha_salida_nuevo_tramo.required_if' => 'Debe indicar la fecha de salida del nuevo tramo.',
-            'descuento_porcentaje.min'        => 'El descuento no puede ser negativo.',
-            'descuento_porcentaje.max'        => 'El descuento no puede superar el 60%.',
+            'tn_parcial.required_if'              => 'Debe indicar las toneladas entregadas al primer cliente.',
+            'tn_parcial.min'                      => 'Las toneladas entregadas deben ser mayores a 0.',
+            'destino_nuevo_tramo.required_if'     => 'Debe indicar el destino del nuevo tramo.',
+            'descuento_porcentaje.min'            => 'El descuento no puede ser negativo.',
+            'descuento_porcentaje.max'            => 'El descuento no puede superar el 60%.',
         ]);
+
+        if ($validator->fails()) {
+            return $rutaRetorno
+                ->withErrors($validator, 'llegada')
+                ->withInput()
+                ->with('abrirModalLlegada', $uuid);
+        }
 
         $esDivision = $request->accion === 'div_carga';
 
