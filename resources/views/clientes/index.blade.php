@@ -108,6 +108,13 @@
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type ="text/javascript"></script>
 <script src="{{ asset('assets/js/forms/contactosVarios.js') }}" type ="text/javascript"></script>
 <script>
+@if($errors->any())
+document.addEventListener('DOMContentLoaded', function () {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCliente')).show();
+    validarFormCliente();
+});
+@endif
+
 function validarFormCliente() {
     const nombre  = document.getElementById('cli_nombre')?.value.trim();
     const nit     = document.getElementById('cli_nit')?.value.trim();

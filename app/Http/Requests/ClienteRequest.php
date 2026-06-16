@@ -17,6 +17,7 @@ class ClienteRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'nit.unique'             => 'Ya existe un cliente registrado con este NIT / CI / RUC.',
             'direcciones.required'   => 'Debe registrar al menos una dirección de entrega.',
             'direcciones.min'        => 'Debe registrar al menos una dirección de entrega.',
             'direcciones.*.required' => 'La dirección no puede estar vacía.',

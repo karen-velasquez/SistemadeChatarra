@@ -20,6 +20,13 @@ class ProveedorRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
+    public function messages(): array
+    {
+        return [
+            'nit.unique' => 'Ya existe un proveedor registrado con este NIT / CI / RUC.',
+        ];
+    }
+
     public function rules(): array
     {
         return [

@@ -116,6 +116,12 @@
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script src="{{ asset('assets/js/forms/contactosVarios.js') }}"type ="text/javascript"></script>
 <script>
+@if($errors->any())
+document.addEventListener('DOMContentLoaded', function () {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalProveedor')).show();
+});
+@endif
+
  window.limpiarFormularioProveedor = function () {
     document.getElementById('formProveedor').reset();
     document.getElementById('telefonos-container').innerHTML = '';

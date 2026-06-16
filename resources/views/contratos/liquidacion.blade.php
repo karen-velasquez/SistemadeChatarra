@@ -82,11 +82,11 @@
                         <div class="text-white opacity-75" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px">Balance neto</div>
                         @if($neta < 0)
                             <span class="badge bg-danger fs-6">
-                                <i class="bi bi-arrow-down-circle me-1"></i>{{ number_format(abs($neta), 3) }} t merma
+                                <i class="bi bi-arrow-down-circle me-1"></i>{{ number_format(abs($neta), 2, ',', '.') }} t merma
                             </span>
                         @elseif($neta > 0)
                             <span class="badge bg-success fs-6">
-                                <i class="bi bi-arrow-up-circle me-1"></i>{{ number_format($neta, 3) }} t excedente
+                                <i class="bi bi-arrow-up-circle me-1"></i>{{ number_format($neta, 2, ',', '.') }} t excedente
                             </span>
                         @else
                             <span class="badge bg-secondary fs-6">
@@ -100,20 +100,20 @@
                 <div class="d-flex border-bottom" @if($loop->first) id="liq-resumen" @endif style="background:#f8f9fa">
                     <div class="flex-fill text-center py-2 px-3 border-end">
                         <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px">Total pactado</div>
-                        <div class="fw-bold" style="font-size:1rem">{{ number_format($grupo['total_pactado'], 3) }} t</div>
+                        <div class="fw-bold" style="font-size:1rem">{{ number_format($grupo['total_pactado'], 2, ',', '.') }} t</div>
                     </div>
                     <div class="flex-fill text-center py-2 px-3 border-end">
                         <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px">Total declarado</div>
-                        <div class="fw-bold" style="font-size:1rem;color:#1976d2">{{ number_format($grupo['total_declarado'], 3) }} t</div>
+                        <div class="fw-bold" style="font-size:1rem;color:#1976d2">{{ number_format($grupo['total_declarado'], 2, ',', '.') }} t</div>
                     </div>
                     <div class="flex-fill text-center py-2 px-3 border-end">
                         <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px">Total llegado</div>
-                        <div class="fw-bold" style="font-size:1rem">{{ number_format($grupo['total_entregado'], 3) }} t</div>
+                        <div class="fw-bold" style="font-size:1rem">{{ number_format($grupo['total_entregado'], 2, ',', '.') }} t</div>
                     </div>
                     <div class="flex-fill text-center py-2 px-3">
                         <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px">Diferencia neta</div>
                         <div class="fw-bold {{ $neta < 0 ? 'text-danger' : ($neta > 0 ? 'text-success' : 'text-muted') }}" style="font-size:1rem">
-                            {{ $neta >= 0 ? '+' : '' }}{{ number_format($neta, 3) }} t
+                            {{ $neta >= 0 ? '+' : '' }}{{ number_format($neta, 2, ',', '.') }} t
                         </div>
                     </div>
                 </div>
@@ -151,26 +151,26 @@
                                 <td>
                                     <small>{{ $c->envios_cerrados_at?->format('d/m/Y H:i') ?? '—' }}</small>
                                 </td>
-                                <td class="text-end fw-semibold">{{ number_format($c->toneladas_contrato, 3) }} t</td>
-                                <td class="text-end" style="color:#1976d2">{{ number_format($declaradas, 3) }} t</td>
-                                <td class="text-end">{{ number_format($c->toneladas_entregadas, 3) }} t</td>
+                                <td class="text-end fw-semibold">{{ number_format($c->toneladas_contrato, 2, ',', '.') }} t</td>
+                                <td class="text-end" style="color:#1976d2">{{ number_format($declaradas, 2, ',', '.') }} t</td>
+                                <td class="text-end">{{ number_format($c->toneladas_entregadas, 2, ',', '.') }} t</td>
                                 <td class="text-end fw-bold {{ $diffPactado < 0 ? 'text-danger' : ($diffPactado > 0 ? 'text-success' : 'text-muted') }}">
-                                    {{ $diffPactado >= 0 ? '+' : '' }}{{ number_format($diffPactado, 3) }} t
+                                    {{ $diffPactado >= 0 ? '+' : '' }}{{ number_format($diffPactado, 2, ',', '.') }} t
                                 </td>
                                 <td class="text-end fw-bold {{ $diff < 0 ? 'text-danger' : ($diff > 0 ? 'text-success' : 'text-muted') }}">
-                                    {{ $diff >= 0 ? '+' : '' }}{{ number_format($diff, 3) }} t
+                                    {{ $diff >= 0 ? '+' : '' }}{{ number_format($diff, 2, ',', '.') }} t
                                 </td>
                                 <td class="text-center">
                                     @if($diffPactado < 0)
                                         <span class="badge bg-danger">
                                             <i class="bi bi-exclamation-triangle me-1"></i>Merma
                                         </span>
-                                        <small class="text-muted d-block" style="font-size:.65rem">Faltan {{ number_format(abs($diffPactado), 3) }} t de lo pactado</small>
+                                        <small class="text-muted d-block" style="font-size:.65rem">Faltan {{ number_format(abs($diffPactado), 2, ',', '.') }} t de lo pactado</small>
                                     @elseif($diffPactado > 0)
                                         <span class="badge bg-success">
                                             <i class="bi bi-plus-circle me-1"></i>Excedente
                                         </span>
-                                        <small class="text-muted d-block" style="font-size:.65rem">Llegaron {{ number_format($diffPactado, 3) }} t más de lo pactado</small>
+                                        <small class="text-muted d-block" style="font-size:.65rem">Llegaron {{ number_format($diffPactado, 2, ',', '.') }} t más de lo pactado</small>
                                     @else
                                         <span class="badge bg-secondary">Exacto</span>
                                     @endif
@@ -182,14 +182,14 @@
                         <tfoot>
                             <tr style="background:#f0f4ff;font-weight:600">
                                 <td class="ps-3" colspan="2">Subtotal {{ $prov->nombre ?? '' }}</td>
-                                <td class="text-end">{{ number_format($grupo['total_pactado'], 3) }} t</td>
-                                <td class="text-end" style="color:#1976d2">{{ number_format($grupo['total_declarado'], 3) }} t</td>
-                                <td class="text-end">{{ number_format($grupo['total_entregado'], 3) }} t</td>
+                                <td class="text-end">{{ number_format($grupo['total_pactado'], 2, ',', '.') }} t</td>
+                                <td class="text-end" style="color:#1976d2">{{ number_format($grupo['total_declarado'], 2, ',', '.') }} t</td>
+                                <td class="text-end">{{ number_format($grupo['total_entregado'], 2, ',', '.') }} t</td>
                                 <td class="text-end {{ $grupo['diferencia_pactado_llegado'] < 0 ? 'text-danger' : ($grupo['diferencia_pactado_llegado'] > 0 ? 'text-success' : 'text-muted') }}">
-                                    {{ $grupo['diferencia_pactado_llegado'] >= 0 ? '+' : '' }}{{ number_format($grupo['diferencia_pactado_llegado'], 3) }} t
+                                    {{ $grupo['diferencia_pactado_llegado'] >= 0 ? '+' : '' }}{{ number_format($grupo['diferencia_pactado_llegado'], 2, ',', '.') }} t
                                 </td>
                                 <td class="text-end {{ $neta < 0 ? 'text-danger' : ($neta > 0 ? 'text-success' : 'text-muted') }}">
-                                    {{ $neta >= 0 ? '+' : '' }}{{ number_format($neta, 3) }} t
+                                    {{ $neta >= 0 ? '+' : '' }}{{ number_format($neta, 2, ',', '.') }} t
                                 </td>
                                 <td class="text-center">
                                     @if($grupo['diferencia_pactado_llegado'] < 0)

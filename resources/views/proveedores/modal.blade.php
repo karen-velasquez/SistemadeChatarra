@@ -42,7 +42,10 @@
 
                         <div class="col-md-4">
                             <label class="form-label">NIT / CI / RUC <strong class="text-danger">(*)</strong></label>
-                            <input type="number" class="form-control validar-nit" name="nit" id="prov_nit" required>
+                            <input type="number" class="form-control validar-nit {{ $errors->has('nit') ? 'is-invalid' : '' }}" name="nit" id="prov_nit" required value="{{ old('nit') }}">
+                            @if($errors->has('nit'))
+                                <div class="invalid-feedback d-block">{{ $errors->first('nit') }}</div>
+                            @endif
                         </div>
 
                         <div class="col-md-4">
