@@ -108,7 +108,7 @@
             $pctCuentas     = $saldoTotal > 0 ? min(100, round($saldoEmpresa / $saldoTotal * 100)) : 0;
         @endphp
         <div class="col-12 col-sm-6 col-xl-4">
-            <div class="card border-0 shadow-sm h-100" data-empresa-uuid="{{ $empresa->uuid }}" data-total-cuentas="{{ $empresa->cuentas->count() }}" data-saldo-total="{{ number_format($saldoEmpresa, 2) }}">
+            <div class="card border-0 shadow-sm h-100" data-empresa-uuid="{{ $empresa->uuid }}" data-total-cuentas="{{ $empresa->cuentas->count() }}" data-saldo-total="{{ number_format($saldoEmpresa, 2, ',', '.') }}">
                 <div class="card-body d-flex flex-column pt-4">
 
                     {{-- Header empresa --}}
@@ -186,7 +186,7 @@
                             @endif
                         </div>
                         <div class="fs-5 fw-bold {{ $saldoEmpresa >= 0 ? 'text-success' : 'text-danger' }} mb-1">
-                            BOB {{ number_format($saldoEmpresa, 2) }}
+                            BOB {{ number_format($saldoEmpresa, 2, ',', '.') }}
                         </div>
                         @if($saldoTotal > 0)
                         <div class="progress" style="height:5px;">
@@ -228,7 +228,7 @@
                                     </div>
                                     <div class="text-end ms-2 flex-shrink-0">
                                         <div class="small fw-bold {{ $cuenta->saldo_actual >= 0 ? 'text-success' : 'text-danger' }}">
-                                            BOB {{ number_format($cuenta->saldo_actual, 2) }}
+                                            BOB {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}
                                         </div>
                                         @if($saldoEmpresa > 0)
                                         <div class="text-muted" style="font-size:.65rem">{{ $pctCuenta }}%</div>
@@ -273,9 +273,9 @@
 <div class="modal fade" id="modalNuevaCuenta" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header position-relative">
                 <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Nueva Cuenta — <span id="nc_empresa_nombre"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-3" data-bs-dismiss="modal"></button>
             </div>
             <form id="formNuevaCuenta" method="POST" action="">
                 @csrf
@@ -321,10 +321,8 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Saldo inicial <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" name="saldo_inicial" id="nc_saldo_inicial" class="form-control" required min="0" value="0.00"
-                                   placeholder="0.00"
-                                   oninput="if(this.value < 0) this.value = 0; validarFormularioCuenta()"
-                                   onblur="this.value = parseFloat(this.value || 0).toFixed(2)">
+                            <input type="text" inputmode="numeric" id="nc_saldo_inicial_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="saldo_inicial" id="nc_saldo_inicial" value="0">
                         </div>
                     </div>
                 </div>
@@ -341,9 +339,9 @@
 <div class="modal fade" id="modalEmpresa" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header position-relative">
                 <h5 class="modal-title"><i class="bi bi-building"></i> <span id="tituloModal">Nueva Empresa</span></h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 position-absolute top-0 end-0 mt-2 me-3">
                     <button type="button"
                             class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                             data-tour-modal="#modalEmpresa"
@@ -763,7 +761,7 @@ function validarFormularioCuenta() {
                             numeroCuenta.value.trim() !== '' &&
                             moneda.value !== '' &&
                             saldoInicial.value !== '' &&
-                            !isNaN(parseFloat(saldoInicial.value));
+                            !isNaN(parseFloat(saldoInicial.value.replace(',', '.')));
 
     btnGuardar.disabled = !formularioValido;
 }
@@ -780,7 +778,8 @@ function abrirModalCuenta(uuid, nombre) {
     document.getElementById('nc_banco').value = '';
     document.getElementById('nc_numero_cuenta').value = '';
     document.getElementById('nc_moneda').value = 'BOB';
-    document.getElementById('nc_saldo_inicial').value = '0.00';
+    document.getElementById('nc_saldo_inicial_display').value = '';
+    document.getElementById('nc_saldo_inicial').value = '0';
     document.getElementById('nc_contador').textContent = '0 / 20';
 
     // Forzar botón deshabilitado
@@ -856,5 +855,41 @@ function verInfoEmpresa(uuid) {
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalInfoEmpresa')).show();
         });
 }
+// ── Cajero saldo inicial nueva cuenta ──
+(function() {
+    var display = document.getElementById('nc_saldo_inicial_display');
+    var hidden  = document.getElementById('nc_saldo_inicial');
+    if (!display || !hidden) return;
+
+    function textoANumero(v) {
+        return parseFloat(v.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+    function formatear(n) {
+        return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    }
+
+    display.addEventListener('input', function() {
+        var raw = this.value.replace(/[^0-9,]/g, '');
+        var partes = raw.split(',');
+        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+        partes = raw.split(',');
+        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+        var diff  = nuevo.length - this.value.length;
+        var pos   = (this.selectionStart || 0) + diff;
+        this.value = nuevo;
+        try { this.setSelectionRange(pos, pos); } catch(_) {}
+        hidden.value = textoANumero(nuevo) || 0;
+        validarFormularioCuenta();
+    });
+
+    display.addEventListener('blur', function() {
+        var n = textoANumero(this.value);
+        this.value  = n > 0 ? formatear(n) : '';
+        hidden.value = n;
+        validarFormularioCuenta();
+    });
+})();
 </script>
 @endsection

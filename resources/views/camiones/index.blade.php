@@ -98,7 +98,7 @@
                                             <td>{{ $c->tipoVehiculo->valor ?? '-' }}</td>
                                             <td>{{ $c->marca->valor ?? '-' }} {{ $c->modelo }}</td>
                                             <td>{{ $c->anio }}</td>
-                                            <td>{{ number_format($c->capacidad_kg / 1000, 3) }} t</td>
+                                            <td>{{ number_format($c->capacidad_kg / 1000, 2, ',', '.') }} t</td>
                                             <td>{{ $c->color ?? '-' }}</td>
                                             <td>{{ $c->propietario?->nombre_completo ?? '-' }}</td>
                                             <td>
@@ -512,14 +512,14 @@
                         {{-- Fila 3: Capacidad / Color / Propietario --}}
                         <div class="col-md-4">
                             <label class="form-label">Capacidad (toneladas) <span class="text-danger">(*)</span></label>
-                            <input type="text"
+                            <input type="text" inputmode="numeric"
                                 class="form-control @error('capacidad_tn') is-invalid @enderror"
-                                name="capacidad_tn" id="cam_capacidad"
-                                inputmode="decimal"
-                                placeholder="Ej: 25.5"
+                                id="cam_capacidad_display"
+                                placeholder="0,00"
                                 autocomplete="off"
                                 required>
-                            <small id="capacidad_hint" class="text-muted">Mínimo 3.5 tn — máximo 3 decimales.</small>
+                            <input type="hidden" name="capacidad_tn" id="cam_capacidad">
+                            <small id="capacidad_hint" class="text-muted">Mínimo 3,5 tn — 2 decimales.</small>
                             @error('capacidad_tn')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
@@ -857,12 +857,11 @@
                         <div class="col-12">
                             <label class="form-label">Camión <span class="text-danger">(*)</span></label>
                             <select class="form-select @error('camion_id') is-invalid @enderror"
-                                name="camion_id" id="asig_camion_id"
-                                onchange="cargarConductoresCamion(this)" required>
+                                name="camion_id" id="asig_camion_id" required>
                                 <option value="">-- Seleccione camión --</option>
                                 @foreach($camiones as $c)
                                     <option value="{{ $c->id }}" data-uuid="{{ $c->uuid }}">
-                                        {{ $c->placa }} — {{ $c->marca->valor ?? '-' }} {{ $c->modelo }} ({{ number_format($c->capacidad_kg/1000,1) }} t)
+                                        {{ $c->placa }} — {{ $c->marca->valor ?? '-' }} {{ $c->modelo }} ({{ number_format($c->capacidad_kg/1000, 2, ',', '.') }} t)
                                     </option>
                                 @endforeach
                             </select>
@@ -1288,45 +1287,76 @@
             }
         });
 
-        // Validación en tiempo real de capacidad en toneladas
-        const capInput = document.getElementById('cam_capacidad');
-        const capHint  = document.getElementById('capacidad_hint');
-        const capMin   = 3.5;
+        // ── Capacidad: patrón cajero (formato boliviano) ─────────────────────
+        (function () {
+            const display = document.getElementById('cam_capacidad_display');
+            const hidden  = document.getElementById('cam_capacidad');
+            const hint    = document.getElementById('capacidad_hint');
+            const capMin  = 3.5;
 
-        capInput.addEventListener('keydown', function (e) {
-            const teclaControl = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key);
-            if (teclaControl) return;
-            if (!/[0-9.]/.test(e.key)) { e.preventDefault(); return; }
-            if (e.key === '.' && this.value.includes('.')) { e.preventDefault(); return; }
-            const partes = (this.value + e.key).split('.');
-            if (partes[1] !== undefined && partes[1].length >= 3 && e.key !== '.') { e.preventDefault(); return; }
-        });
-
-        capInput.addEventListener('input', function () {
-            let val = this.value.replace(/[^0-9.]/g, '');
-            const partes = val.split('.');
-            if (partes.length > 2) val = partes[0] + '.' + partes.slice(1).join('');
-            if (partes[1] !== undefined && partes[1].length > 3)
-                val = partes[0] + '.' + partes[1].substring(0, 3);
-            this.value = val;
-
-            const num = parseFloat(val);
-            if (val === '' || isNaN(num)) {
-                this.classList.remove('is-invalid', 'is-valid');
-                capHint.className   = 'text-muted';
-                capHint.textContent = 'Mínimo 3.5 tn — máximo 3 decimales.';
-                return;
+            function textoANumero(txt) {
+                return parseFloat(txt.replace(/\./g, '').replace(',', '.')) || 0;
             }
-            if (num < capMin) {
-                this.classList.add('is-invalid'); this.classList.remove('is-valid');
-                capHint.className   = 'text-danger';
-                capHint.textContent = '⚠ La capacidad mínima es 3.5 tn.';
-            } else {
-                this.classList.remove('is-invalid'); this.classList.add('is-valid');
-                capHint.className   = 'text-success';
-                capHint.textContent = '✓ Capacidad válida (' + num.toFixed(3) + ' tn)';
+            function formatear(num) {
+                return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
             }
-        });
+            function actualizarHint(num, vacio) {
+                if (vacio) {
+                    display.classList.remove('is-invalid', 'is-valid');
+                    hint.className   = 'text-muted';
+                    hint.textContent = 'Mínimo 3,5 tn — 2 decimales.';
+                } else if (num < capMin) {
+                    display.classList.add('is-invalid'); display.classList.remove('is-valid');
+                    hint.className   = 'text-danger';
+                    hint.textContent = '⚠ La capacidad mínima es 3,5 tn.';
+                } else {
+                    display.classList.remove('is-invalid'); display.classList.add('is-valid');
+                    hint.className   = 'text-success';
+                    hint.textContent = '✓ Capacidad válida (' + formatear(num) + ' tn)';
+                }
+            }
+
+            display.addEventListener('input', function () {
+                let raw = this.value.replace(/[^0-9,]/g, '');
+                const partes = raw.split(',');
+                if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+                if (partes[1] !== undefined && partes[1].length > 2)
+                    raw = partes[0] + ',' + partes[1].substring(0, 2);
+
+                const [ent, dec] = raw.split(',');
+                const entF  = (ent || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                const nuevo = dec !== undefined ? entF + ',' + dec : entF;
+                const diff  = nuevo.length - this.value.length;
+                const pos   = (this.selectionStart || 0) + diff;
+                this.value  = nuevo;
+                try { this.setSelectionRange(pos, pos); } catch(_) {}
+
+                const num = textoANumero(nuevo);
+                hidden.value = nuevo === '' ? '' : num;
+                actualizarHint(num, raw === '');
+            });
+
+            display.addEventListener('blur', function () {
+                const num = textoANumero(this.value);
+                if (num > 0) {
+                    this.value   = formatear(num);
+                    hidden.value = num;
+                    actualizarHint(num, false);
+                } else {
+                    this.value   = '';
+                    hidden.value = '';
+                    actualizarHint(0, true);
+                }
+            });
+
+            // Exponer función para cargar valor al editar
+            window._capCargar = function (valorTn) {
+                const num = parseFloat(valorTn) || 0;
+                display.value = num > 0 ? formatear(num) : '';
+                hidden.value  = num > 0 ? num : '';
+                actualizarHint(num, num === 0);
+            };
+        })();
     });
 
     // ── Gestión de fotos nuevas (lista visual) ────────────────────────────────
@@ -1517,7 +1547,7 @@
         document.getElementById('cam_marca_id').value     = camion.marca_id ?? '';
         document.getElementById('cam_modelo').value       = camion.modelo;
         document.getElementById('cam_anio').value         = camion.anio;
-        document.getElementById('cam_capacidad').value    = (camion.capacidad_kg / 1000).toFixed(3);
+        _capCargar(camion.capacidad_kg / 1000);
         document.getElementById('cam_color').value        = camion.color ?? '';
         document.getElementById('cam_estado').value       = camion.estado;
         document.getElementById('cam_propietario').value  = camion.propietario_id ?? '';
@@ -1735,60 +1765,82 @@
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalOperador')).show();
     }
 
-    // ── Asignación: carga conductores relacionados al camión seleccionado ────
-    function cargarConductoresCamion(select) {
-        const option = select.options[select.selectedIndex];
-        const uuid   = option ? option.dataset.uuid : null;
-        const selectConductor = document.getElementById('asig_conductor_id');
-        const hint            = document.getElementById('asig_conductor_hint');
-
-        selectConductor.innerHTML = '<option value="">— Cargando... —</option>';
-        selectConductor.disabled  = true;
-        hint.classList.add('d-none');
-
-        if (!uuid) {
-            selectConductor.innerHTML = '<option value="">— Primero seleccione un camión —</option>';
-            return;
+    // ── Asignación: inicializar Select2 en los selects del modal ────
+    $('#modalAsignacion').on('shown.bs.modal', function () {
+        if (!$('#asig_camion_id').data('select2')) {
+            $('#asig_camion_id').select2({
+                placeholder: 'Busque por placa, marca o modelo...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#modalAsignacion'),
+                language: { noResults: () => 'No se encontró ningún camión.', searching: () => 'Buscando...' }
+            });
+            $('#asig_camion_id').on('change', function () {
+                const uuid = $(this).find(':selected').data('uuid') || '';
+                _resetConductorAsig();
+                if (uuid) _cargarConductoresCamion(uuid);
+            });
         }
+    });
+
+    function _resetConductorAsig() {
+        const sel  = document.getElementById('asig_conductor_id');
+        const hint = document.getElementById('asig_conductor_hint');
+        if ($.fn.select2 && $(sel).data('select2')) $(sel).select2('destroy');
+        sel.innerHTML = '<option value="">— Primero seleccione un camión —</option>';
+        sel.disabled  = true;
+        hint.classList.add('d-none');
+    }
+
+    function _cargarConductoresCamion(uuid) {
+        const sel  = document.getElementById('asig_conductor_id');
+        const hint = document.getElementById('asig_conductor_hint');
+
+        sel.innerHTML = '<option value="">— Cargando... —</option>';
+        sel.disabled  = true;
+        hint.classList.add('d-none');
 
         fetch('{{ url("api/camion") }}/' + uuid + '/conductores-disponibles', {
             headers: { 'Accept': 'application/json' }
         })
         .then(r => r.json())
         .then(conductores => {
-            selectConductor.innerHTML = '';
-
             if (conductores.length === 0) {
-                selectConductor.innerHTML = '<option value="">— Todos los conductores ya están asignados a este camión —</option>';
-                selectConductor.disabled = true;
+                sel.innerHTML = '<option value="">— Todos los conductores ya están asignados a este camión —</option>';
+                sel.disabled  = true;
                 hint.classList.add('d-none');
                 return;
             }
 
-            selectConductor.innerHTML = '<option value="">— Seleccione conductor —</option>';
+            sel.innerHTML = '<option value="">— Seleccione conductor —</option>';
             conductores.forEach(function(c) {
                 const op = document.createElement('option');
                 op.value       = c.id;
                 op.textContent = c.nombre + ' — Lic: ' + (c.licencia || 'S/N');
-                selectConductor.appendChild(op);
+                sel.appendChild(op);
             });
-
-            selectConductor.disabled = false;
+            sel.disabled = false;
             hint.classList.remove('d-none');
+
+            // Inicializar Select2 en el conductor
+            $(sel).select2({
+                placeholder: 'Busque por nombre...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#modalAsignacion'),
+                language: { noResults: () => 'No se encontró ningún conductor.', searching: () => 'Buscando...' }
+            });
         })
         .catch(() => {
-            selectConductor.innerHTML = '<option value="">— Error al cargar conductores —</option>';
-            selectConductor.disabled = true;
+            sel.innerHTML = '<option value="">— Error al cargar conductores —</option>';
+            sel.disabled  = true;
         });
     }
 
-    // Limpiar conductor al abrir el modal de asignación
+    // Resetear el modal al abrirse
     document.getElementById('modalAsignacion').addEventListener('show.bs.modal', function () {
-        const sel = document.getElementById('asig_camion_id');
-        sel.value = '';
-        document.getElementById('asig_conductor_id').innerHTML = '<option value="">— Primero seleccione un camión —</option>';
-        document.getElementById('asig_conductor_id').disabled = true;
-        document.getElementById('asig_conductor_hint').classList.add('d-none');
+        $('#asig_camion_id').val(null).trigger('change.select2');
+        _resetConductorAsig();
     });
 
     // Bloqueo anti-doble-submit

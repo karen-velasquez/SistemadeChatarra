@@ -112,13 +112,13 @@
                             </td>
                             <td>{{ $p->concepto }}</td>
                             <td class="text-end fw-semibold">
-                                {{ $p->moneda }} {{ number_format($p->monto_original, 2) }}
+                                {{ $p->moneda }} {{ number_format($p->monto_original, 2, ',', '.') }}
                             </td>
                             <td class="text-end text-success">
-                                {{ $p->moneda }} {{ number_format($p->monto_devuelto, 2) }}
+                                {{ $p->moneda }} {{ number_format($p->monto_devuelto, 2, ',', '.') }}
                             </td>
                             <td class="text-end text-danger fw-semibold">
-                                {{ $p->moneda }} {{ number_format($p->monto_pendiente, 2) }}
+                                {{ $p->moneda }} {{ number_format($p->monto_pendiente, 2, ',', '.') }}
                             </td>
                             <td class="text-center">
                                 @if($p->estado === 'pagado')
@@ -186,7 +186,7 @@
                                 @foreach($empresas as $empresa)
                                     <optgroup label="{{ $empresa->nombre }}">
                                         @foreach($empresa->cuentas as $cuenta)
-                                            <option value="{{ $cuenta->id }}" data-moneda="{{ $cuenta->moneda }}" data-saldo="{{ $cuenta->saldo_actual }}">{{ $cuenta->nombre_cuenta }} ({{ $cuenta->moneda }}) — Saldo: {{ number_format($cuenta->saldo_actual, 2) }}</option>
+                                            <option value="{{ $cuenta->id }}" data-moneda="{{ $cuenta->moneda }}" data-saldo="{{ $cuenta->saldo_actual }}">{{ $cuenta->nombre_cuenta }} ({{ $cuenta->moneda }}) — Saldo: {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}</option>
                                         @endforeach
                                     </optgroup>
                                 @endforeach
@@ -207,7 +207,8 @@
                         </div>
                         <div class="col-12 col-sm-4">
                             <label class="form-label">Monto <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.01" name="monto" id="montoPrestamo" class="form-control" required min="0.01" oninput="validarMontoPrestamo()" onkeydown="return limitarDigitosMonto(event, this)">
+                            <input type="text" inputmode="numeric" id="montoPrestamo_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="monto" id="montoPrestamo" value="">
                             <div class="form-text" id="saldoHint"></div>
                         </div>
                         <div class="col-12 col-sm-4">
@@ -299,7 +300,7 @@ function filtrarDestino() {
     const inputMonto = document.getElementById('montoPrestamo');
     inputMonto.max = saldo > 0 ? saldo : '';
     document.getElementById('saldoHint').innerHTML = origenId
-        ? 'Saldo disponible: <strong>' + moneda + ' ' + saldo.toFixed(2) + '</strong>'
+        ? 'Saldo disponible: <strong>' + moneda + ' ' + _fmtPI(saldo) + '</strong>'
         : '';
     validarMontoPrestamo();
 
@@ -318,39 +319,29 @@ function filtrarDestino() {
     });
 }
 
-function limitarDigitosMonto(e, input) {
-    const teclaPermitida = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','.'].includes(e.key);
-    if (teclaPermitida) return true;
-    if (!/\d/.test(e.key)) return false;
-    const partes = input.value.split('.');
-    const enteros = partes[0] ?? '';
-    const decimales = partes[1] ?? null;
-    // Si el cursor está en la parte decimal, limitar a 2 dígitos
-    const cursorPos = input.selectionStart;
-    const puntoIdx  = input.value.indexOf('.');
-    if (puntoIdx !== -1 && cursorPos > puntoIdx) {
-        if (decimales && decimales.length >= 2) return false;
-    } else {
-        // Parte entera: máximo 10 dígitos
-        if (enteros.replace(/[^0-9]/g,'').length >= 10) return false;
-    }
-    return true;
+function _fmtPI(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
+}
+function _parsePI(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 
 function validarMontoPrestamo() {
     const origenSel = document.getElementById('cuentaOrigen');
     const saldo     = parseFloat(origenSel.selectedOptions[0]?.dataset.saldo ?? 0);
-    const input     = document.getElementById('montoPrestamo');
+    const disp      = document.getElementById('montoPrestamo_display');
+    const hidden    = document.getElementById('montoPrestamo');
     const moneda    = origenSel.selectedOptions[0]?.dataset.moneda ?? '';
 
-    if (!origenSel.value || !input.value) return;
+    if (!origenSel.value || !hidden.value) return;
 
-    if (parseFloat(input.value) > saldo) {
-        input.value = saldo.toFixed(2);
+    if (_parsePI(disp.value) > saldo) {
+        disp.value   = _fmtPI(saldo);
+        hidden.value = saldo;
     }
 
     document.getElementById('saldoHint').innerHTML =
-        'Saldo disponible: <strong>' + moneda + ' ' + saldo.toFixed(2) + '</strong>';
+        'Saldo disponible: <strong>' + moneda + ' ' + _fmtPI(saldo) + '</strong>';
 }
 
 function abrirDevolucion(uuid, concepto, montoPendiente, moneda) {
@@ -358,8 +349,37 @@ function abrirDevolucion(uuid, concepto, montoPendiente, moneda) {
     document.getElementById('montoDevolucion').max   = montoPendiente;
     document.getElementById('montoDevolucion').value = montoPendiente;
     document.getElementById('infoDevolucion').innerHTML =
-        '<strong>' + concepto + '</strong><br>Pendiente: <strong>' + moneda + ' ' + parseFloat(montoPendiente).toFixed(2) + '</strong>';
+        '<strong>' + concepto + '</strong><br>Pendiente: <strong>' + moneda + ' ' + _fmtPI(montoPendiente) + '</strong>';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDevolucion')).show();
 }
+
+// ── Cajero monto préstamo ──
+(function() {
+    function _txt2num(v) { return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0; }
+    var disp   = document.getElementById('montoPrestamo_display');
+    var hidden = document.getElementById('montoPrestamo');
+    if (!disp || !hidden) return;
+    disp.addEventListener('input', function() {
+        var raw    = this.value.replace(/[^0-9,]/g, '');
+        var partes = raw.split(',');
+        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+        partes = raw.split(',');
+        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+        var diff  = nuevo.length - this.value.length;
+        var pos   = (this.selectionStart || 0) + diff;
+        this.value = nuevo;
+        try { this.setSelectionRange(pos, pos); } catch(_) {}
+        hidden.value = _txt2num(nuevo) || '';
+        validarMontoPrestamo();
+    });
+    disp.addEventListener('blur', function() {
+        var n = _txt2num(this.value);
+        this.value   = n > 0 ? _fmtPI(n) : '';
+        hidden.value = n > 0 ? n : '';
+        validarMontoPrestamo();
+    });
+})();
 </script>
 @endsection

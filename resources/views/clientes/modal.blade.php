@@ -65,8 +65,16 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">DIRECCIONES</label>
+                            <label class="form-label">DIRECCIONES <strong class="text-danger">(*)</strong></label>
                             <div id="direcciones-container"></div>
+                            <div id="direcciones-error" class="invalid-feedback d-none" style="display:none!important">
+                                Debe registrar al menos una dirección.
+                            </div>
+                            @if($errors->has('direcciones') || $errors->has('direcciones.*'))
+                                <div class="text-danger small mt-1">
+                                    {{ $errors->first('direcciones') ?: $errors->first('direcciones.*') }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>

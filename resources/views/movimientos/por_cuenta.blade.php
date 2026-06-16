@@ -65,7 +65,7 @@
                 <div class="card-body pt-4 d-flex flex-column justify-content-center">
                     <div class="text-muted small">Saldo Actual</div>
                     <div class="fs-5 fw-bold {{ $cuenta->saldo_actual >= 0 ? 'text-primary' : 'text-danger' }}">
-                        {{ $cuenta->moneda }} {{ number_format($cuenta->saldo_actual, 2) }}
+                        {{ $cuenta->moneda }} {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}
                     </div>
                 </div>
             </div>
@@ -74,7 +74,7 @@
             <div class="card border-0 shadow-sm h-100 text-center">
                 <div class="card-body pt-4 d-flex flex-column justify-content-center">
                     <div class="text-muted small">Total Ingresos</div>
-                    <div class="fs-5 fw-bold text-success">BOB {{ number_format($totalIngresos, 2) }}</div>
+                    <div class="fs-5 fw-bold text-success">BOB {{ number_format($totalIngresos, 2, ',', '.') }}</div>
                 </div>
             </div>
         </div>
@@ -82,7 +82,7 @@
             <div class="card border-0 shadow-sm h-100 text-center">
                 <div class="card-body pt-4 d-flex flex-column justify-content-center">
                     <div class="text-muted small">Total Egresos</div>
-                    <div class="fs-5 fw-bold text-danger">BOB {{ number_format($totalEgresos, 2) }}</div>
+                    <div class="fs-5 fw-bold text-danger">BOB {{ number_format($totalEgresos, 2, ',', '.') }}</div>
                 </div>
             </div>
         </div>
@@ -96,7 +96,7 @@
                 &nbsp;|&nbsp; <strong>N° Cuenta:</strong> {{ $cuenta->numero_cuenta }}
             @endif
             &nbsp;|&nbsp; <strong>Moneda:</strong> {{ $cuenta->moneda }}
-            &nbsp;|&nbsp; <strong>Saldo Inicial:</strong> {{ $cuenta->moneda }} {{ number_format($cuenta->saldo_inicial, 2) }}
+            &nbsp;|&nbsp; <strong>Saldo Inicial:</strong> {{ $cuenta->moneda }} {{ number_format($cuenta->saldo_inicial, 2, ',', '.') }}
         </span>
     </div>
     @endif

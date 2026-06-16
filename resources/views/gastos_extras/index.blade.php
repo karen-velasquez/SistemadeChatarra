@@ -45,7 +45,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted fw-semibold">Total Gastos</small>
-                        <h4 class="fw-bold mt-2 mb-0">BOB {{ number_format($total,2) }}</h4>
+                        <h4 class="fw-bold mt-2 mb-0">BOB {{ number_format($total,2,',','.') }}</h4>
                     </div>
                     <div class="bg-primary bg-opacity-10 rounded-circle p-3">
                         <i class="bi bi-cash-stack text-primary fs-3"></i>
@@ -59,7 +59,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted fw-semibold">Pendientes</small>
-                        <h4 class="fw-bold mt-2 mb-0">BOB {{ number_format($pendientes,2) }}</h4>
+                        <h4 class="fw-bold mt-2 mb-0">BOB {{ number_format($pendientes,2,',','.') }}</h4>
                     </div>
                     <div class="bg-warning bg-opacity-10 rounded-circle p-3">
                         <i class="bi bi-hourglass-split text-warning fs-3"></i>
@@ -73,7 +73,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted fw-semibold">Pagados</small>
-                        <h4 class="fw-bold mt-2 mb-0">BOB {{ number_format($pagados,2) }}</h4>
+                        <h4 class="fw-bold mt-2 mb-0">BOB {{ number_format($pagados,2,',','.') }}</h4>
                     </div>
                     <div class="bg-success bg-opacity-10 rounded-circle p-3">
                         <i class="bi bi-check-circle text-success fs-3"></i>
@@ -144,7 +144,7 @@
                                             <div class="fw-bold">{{ $c->numero_contrato }}</div>
                                             <small class="text-muted">{{ $c->proveedor->nombre ?? '-' }}</small>
                                         </td>
-                                        <td><strong>BOB {{ number_format($c->total_gastos,2) }}</strong></td>
+                                        <td><strong>BOB {{ number_format($c->total_gastos,2,',','.') }}</strong></td>
                                         <td>
                                             <button class="btn btn-primary btn-sm" onclick='verDetalles(@json($c->gastos_detalle), "{{ $c->numero_contrato }}")'><i class="bi bi-eye"></i> Ver Detalles</button>
                                         </td>
@@ -201,6 +201,10 @@
 <script>window.gastosExtrasConfig = {updateBaseUrl: "{{ url('/gastos_extras') }}"};</script>
 <script src="{{ asset('assets/js/forms/validacionGastos.js') }}"></script>
 <script>
+function _fmtG(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
+}
+
 function verDetalles(gastos, contrato) {
     let html = '';
     document.getElementById('tituloDetalle').innerText = 'Contrato: ' + contrato;
@@ -242,36 +246,24 @@ function verDetalles(gastos, contrato) {
 
     <div class="fw-bold">
         ${escapeHtml(valorSeguro(g.moneda))}
-        ${parseFloat(g.monto || 0).toFixed(2)}
+        ${_fmtG(g.monto)}
     </div>
 
     ${
         g.moneda !== 'BOB'
         ? `
             <div class="small text-muted mt-1">
-
                 TC:
-                <strong>
-                    ${parseFloat(g.tipo_cambio || 0).toFixed(2)}
-                </strong>
-
+                <strong>${_fmtG(g.tipo_cambio)}</strong>
                 <br>
-
                 BOB:
-                <strong class="text-success">
-                    ${parseFloat(g.monto_bolivianos || 0).toFixed(2)}
-                </strong>
-
+                <strong class="text-success">${_fmtG(g.monto_bolivianos)}</strong>
             </div>
         `
         : `
             <div class="small text-success mt-1">
-
                 BOB:
-                <strong>
-                    ${parseFloat(g.monto_bolivianos || g.monto || 0).toFixed(2)}
-                </strong>
-
+                <strong>${_fmtG(g.monto_bolivianos || g.monto)}</strong>
             </div>
         `
     }

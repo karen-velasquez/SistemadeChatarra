@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Contrato;
+use App\Models\Tramo;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -132,7 +134,16 @@ public function store(ClienteRequest $request)
     }
     public function destroy($uuid)
     {
-        $cliente=Cliente::where('uuid',$uuid)->firstOrFail();
+        $cliente = Cliente::where('uuid', $uuid)->firstOrFail();
+
+        $enUso = Contrato::where('cliente_id', $cliente->id)->exists()
+               || Tramo::where('cliente_id', $cliente->id)->exists();
+
+        if ($enUso) {
+            Alert::error('No permitido', 'Este cliente no puede eliminarse porque está siendo usado en contratos o tramos de transporte.');
+            return redirect()->route('clientes.index');
+        }
+
         $cliente->delete();
         Alert::success('Eliminacion', 'Cliente Eliminado con exito!!!');
         return redirect()->route('clientes.index');

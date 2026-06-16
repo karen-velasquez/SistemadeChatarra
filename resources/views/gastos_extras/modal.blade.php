@@ -91,7 +91,8 @@
 
                         <div class="col-md-4">
                             <label class="form-label">MONTO <strong class="text-danger">(*)</strong></label>
-                            <input type="number" step="0.01" min="0.01" name="monto" id="monto" class="form-control" required>
+                            <input type="text" inputmode="numeric" id="monto_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="monto" id="monto" value="">
                             <small id="mensaje_monto" class="text-muted">Ingrese un monto mayor a 0.</small>
                         </div>
 
@@ -106,7 +107,8 @@
 
                         <div class="col-md-4" id="contenedor_tipo_cambio">
                             <label class="form-label">TIPO DE CAMBIO<span id="asterisco_tipo_cambio" class="text-danger d-none">(*)</span></label>
-                            <input type="number" step="0.01" min="0.01" name="tipo_cambio" id="tipo_cambio" class="form-control">
+                            <input type="text" inputmode="numeric" id="tipo_cambio_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="">
                             <small id="mensaje_tipo_cambio" class="text-muted">No es necesario cuando la moneda es BOB.</small>
                         </div>
 
@@ -163,6 +165,56 @@
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
             });
+
+            // ── Cajero monto y tipo_cambio ──
+            (function() {
+                function _txt2num(v) {
+                    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+                }
+                function _fmt(n) {
+                    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+                }
+                function _initCajero(displayId, hiddenId, onChangeCb) {
+                    var disp   = document.getElementById(displayId);
+                    var hidden = document.getElementById(hiddenId);
+                    if (!disp || !hidden) return;
+                    disp.addEventListener('input', function() {
+                        var raw    = this.value.replace(/[^0-9,]/g, '');
+                        var partes = raw.split(',');
+                        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+                        partes = raw.split(',');
+                        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+                        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+                        var diff  = nuevo.length - this.value.length;
+                        var pos   = (this.selectionStart || 0) + diff;
+                        this.value = nuevo;
+                        try { this.setSelectionRange(pos, pos); } catch(_) {}
+                        hidden.value = _txt2num(nuevo) || '';
+                        if (onChangeCb) onChangeCb();
+                    });
+                    disp.addEventListener('blur', function() {
+                        var n = _txt2num(this.value);
+                        this.value   = n > 0 ? _fmt(n) : '';
+                        hidden.value = n > 0 ? n : '';
+                        if (onChangeCb) onChangeCb();
+                    });
+                }
+                _initCajero('monto_display',      'monto',      function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); });
+                _initCajero('tipo_cambio_display', 'tipo_cambio', function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); });
+
+                // Exponer función para cargar valores al editar
+                window._cargarGastoEnModal = window._cargarGastoEnModal || function() {};
+                var _origCargar = window._cargarGastoEnModal;
+                window._cargarCajeroGasto = function(monto, tipoCambio) {
+                    var dm = document.getElementById('monto_display');
+                    var hm = document.getElementById('monto');
+                    var dt = document.getElementById('tipo_cambio_display');
+                    var ht = document.getElementById('tipo_cambio');
+                    if (dm && hm && monto > 0) { dm.value = _fmt(monto); hm.value = monto; }
+                    if (dt && ht && tipoCambio > 0) { dt.value = _fmt(tipoCambio); ht.value = tipoCambio; }
+                };
+            })();
             </script>
         </div>
     </div>

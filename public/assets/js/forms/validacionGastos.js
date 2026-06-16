@@ -87,9 +87,9 @@ function restaurarCamposModalGasto() {
         'categoria',
         'nueva_categoria',
         'concepto',
-        'monto',
+        'monto_display',
         'moneda',
-        'tipo_cambio',
+        'tipo_cambio_display',
         'fecha',
         'estado_switch',
         'metodo_pago',
@@ -119,9 +119,9 @@ function ocultarCamposParaMarcarPagado() {
         'categoria',
         'nueva_categoria',
         'concepto',
-        'monto',
+        'monto_display',
         'moneda',
-        'tipo_cambio',
+        'tipo_cambio_display',
         'estado_switch'
     ];
 
@@ -207,9 +207,15 @@ function editarGasto(gasto) {
     document.getElementById('nueva_categoria').value = '';
     document.getElementById('categoria').value = gasto.categoria ?? '';
     document.getElementById('concepto').value = gasto.concepto ?? '';
-    document.getElementById('monto').value = gasto.monto ?? '';
+    var _montoEdit = parseFloat(gasto.monto) || 0;
+    var _tcEdit    = parseFloat(gasto.tipo_cambio) || 0;
+    document.getElementById('monto').value = _montoEdit || '';
+    var _mdEdit = document.getElementById('monto_display');
+    if (_mdEdit) _mdEdit.value = _montoEdit > 0 ? _fmtGasto(_montoEdit) : '';
     document.getElementById('moneda').value = gasto.moneda ?? '';
-    document.getElementById('tipo_cambio').value = gasto.tipo_cambio ?? '';
+    document.getElementById('tipo_cambio').value = _tcEdit || '';
+    var _tcdEdit = document.getElementById('tipo_cambio_display');
+    if (_tcdEdit) _tcdEdit.value = _tcEdit > 0 ? _fmtGasto(_tcEdit) : '';
     document.getElementById('nombre_titular').value = gasto.nombre_titular ?? '';
     document.getElementById('fecha').value = fechaSolo(gasto.fecha) === '-' ? '' : fechaSolo(gasto.fecha);
     document.getElementById('cuenta_bancaria').value = gasto.cuenta_bancaria_id ?? '';
@@ -253,9 +259,15 @@ function marcarPagado(gasto) {
     document.getElementById('nueva_categoria').value = '';
     document.getElementById('categoria').value = gasto.categoria ?? '';
     document.getElementById('concepto').value = gasto.concepto ?? '';
-    document.getElementById('monto').value = gasto.monto ?? '';
+    var _montoMp = parseFloat(gasto.monto) || 0;
+    var _tcMp    = parseFloat(gasto.tipo_cambio) || 0;
+    document.getElementById('monto').value = _montoMp || '';
+    var _mdMp = document.getElementById('monto_display');
+    if (_mdMp) _mdMp.value = _montoMp > 0 ? _fmtGasto(_montoMp) : '';
     document.getElementById('moneda').value = gasto.moneda ?? '';
-    document.getElementById('tipo_cambio').value = gasto.tipo_cambio ?? '';
+    document.getElementById('tipo_cambio').value = _tcMp || '';
+    var _tcdMp = document.getElementById('tipo_cambio_display');
+    if (_tcdMp) _tcdMp.value = _tcMp > 0 ? _fmtGasto(_tcMp) : '';
     document.getElementById('nombre_titular').value = gasto.nombre_titular ?? '';
     document.getElementById('fecha').value = fechaSolo(gasto.fecha) === '-' ? '' : fechaSolo(gasto.fecha);
     document.getElementById('cuenta_bancaria').value = gasto.cuenta_bancaria_id ?? '';
@@ -274,7 +286,7 @@ function marcarPagado(gasto) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGastoExtra')).show();
 }
 function limpiarValidacionesVisuales() {
-    const campos = ['concepto', 'monto', 'nombre_titular', 'fecha', 'comprobante', 'metodo_pago'];
+    const campos = ['concepto', 'monto_display', 'nombre_titular', 'fecha', 'comprobante', 'metodo_pago'];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.classList.remove('is-valid', 'is-invalid');
@@ -370,21 +382,30 @@ function actualizarEstadoPago() {
         }
     }
 }
+function _fmtGasto(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+function _parseGasto(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
 function actualizarTipoCambio() {
     const moneda = document.getElementById('moneda');
-    const monto = document.getElementById('monto');
-    const tipoCambioInput = document.getElementById('tipo_cambio');
+    const montoHidden = document.getElementById('monto');
+    const tipoCambioDisplay = document.getElementById('tipo_cambio_display');
+    const tipoCambioHidden  = document.getElementById('tipo_cambio');
     const asteriscoTipoCambio = document.getElementById('asterisco_tipo_cambio');
     const mensajeTipoCambio = document.getElementById('mensaje_tipo_cambio');
-    if (!moneda || !monto || !tipoCambioInput) return;
-    const monedaValor = moneda.value;
-    const montoValor = parseFloat(monto.value) || 0;
-    const tipoCambioValor = parseFloat(tipoCambioInput.value) || 0;
+    if (!moneda || !montoHidden || !tipoCambioDisplay) return;
+    const monedaValor    = moneda.value;
+    const montoValor     = parseFloat(montoHidden.value) || 0;
+    const tipoCambioValor = _parseGasto(tipoCambioDisplay.value);
 
     if (monedaValor === 'BOB') {
-        tipoCambioInput.value = '';
-        tipoCambioInput.disabled = true;
-        tipoCambioInput.required = false;
+        tipoCambioDisplay.value = '';
+        if (tipoCambioHidden) tipoCambioHidden.value = '';
+        tipoCambioDisplay.disabled = true;
+        if (tipoCambioHidden) tipoCambioHidden.disabled = true;
         if (asteriscoTipoCambio) asteriscoTipoCambio.classList.add('d-none');
         mostrarContenedor('contenedor_tipo_cambio', false);
         if (mensajeTipoCambio) {
@@ -395,13 +416,13 @@ function actualizarTipoCambio() {
     }
 
     mostrarContenedor('contenedor_tipo_cambio', true);
-    tipoCambioInput.disabled = false;
-    tipoCambioInput.required = true;
+    tipoCambioDisplay.disabled = false;
+    if (tipoCambioHidden) tipoCambioHidden.disabled = false;
     if (asteriscoTipoCambio) asteriscoTipoCambio.classList.remove('d-none');
     if (!mensajeTipoCambio) return;
     if (montoValor > 0 && tipoCambioValor > 0) {
         const totalBob = montoValor * tipoCambioValor;
-        mensajeTipoCambio.innerHTML = `${montoValor.toFixed(2)} ${monedaValor} = <strong>${totalBob.toFixed(2)} BOB</strong>`;
+        mensajeTipoCambio.innerHTML = `${_fmtGasto(montoValor)} ${monedaValor} = <strong>${_fmtGasto(totalBob)} BOB</strong>`;
         mensajeTipoCambio.className = 'text-success';
     } else {
         mensajeTipoCambio.innerText = 'Ingrese el monto y el tipo de cambio para calcular el equivalente en BOB.';
@@ -418,9 +439,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const metodoPago = document.getElementById('metodo_pago');
     const nombreTitular = document.getElementById('nombre_titular');
     const comprobante = document.getElementById('comprobante');
-    const monto = document.getElementById('monto');
+    const monto = document.getElementById('monto_display');
     const moneda = document.getElementById('moneda');
-    const tipoCambioInput = document.getElementById('tipo_cambio');
+    const tipoCambioInput = document.getElementById('tipo_cambio_display');
     const concepto = document.getElementById('concepto');
     const fecha = document.getElementById('fecha');
     if (categoria) {
@@ -503,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function () {
         monto.addEventListener('input', function () {
             actualizarTipoCambio();
             const mensaje = document.getElementById('mensaje_monto');
-            if (parseFloat(this.value) <= 0 || this.value === '') {
+            if (_parseGasto(this.value) <= 0 || this.value === '') {
                 this.classList.add('is-invalid');
                 this.classList.remove('is-valid');
                 if (mensaje) {

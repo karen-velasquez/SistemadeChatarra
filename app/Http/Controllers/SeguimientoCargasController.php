@@ -38,7 +38,7 @@ class SeguimientoCargasController extends Controller
             'entregado'     => Tramo::whereNull('deleted_at')->where('estado', 'Entregado')->count(),
         ];
 
-        $clientes = Cliente::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
+        $clientes = Cliente::with(['pais', 'contacts' => fn($q) => $q->where('tipo', 'direccion')->whereNull('deleted_at')])->whereNull('deleted_at')->orderBy('nombre')->get();
 
         $proveedores = Proveedor::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
 

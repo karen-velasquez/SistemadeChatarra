@@ -51,7 +51,7 @@
                     </div>
                     <div>
                         <div class="text-muted small">Saldo General</div>
-                        <div class="fs-5 fw-bold text-primary">BOB {{ number_format($saldoGeneral, 2) }}</div>
+                        <div class="fs-5 fw-bold text-primary">BOB {{ number_format($saldoGeneral, 2, ',', '.') }}</div>
                     </div>
                 </div>
             </div>
@@ -65,7 +65,7 @@
                     </div>
                     <div>
                         <div class="text-muted small">Total Ingresos</div>
-                        <div class="fs-5 fw-bold text-success">BOB {{ number_format($totalIngresos, 2) }}</div>
+                        <div class="fs-5 fw-bold text-success">BOB {{ number_format($totalIngresos, 2, ',', '.') }}</div>
                     </div>
                 </div>
             </div>
@@ -79,7 +79,7 @@
                     </div>
                     <div>
                         <div class="text-muted small">Total Egresos</div>
-                        <div class="fs-5 fw-bold text-danger">BOB {{ number_format($totalEgresos, 2) }}</div>
+                        <div class="fs-5 fw-bold text-danger">BOB {{ number_format($totalEgresos, 2, ',', '.') }}</div>
                     </div>
                 </div>
             </div>
@@ -107,7 +107,7 @@
                     <div class="mb-3">
                         <div class="text-muted small mb-1">Saldo total</div>
                         <div class="fs-4 fw-bold {{ $empresa->cuentas->sum('saldo_actual') >= 0 ? 'text-success' : 'text-danger' }}">
-                            BOB {{ number_format($empresa->cuentas->sum('saldo_actual'), 2) }}
+                            BOB {{ number_format($empresa->cuentas->sum('saldo_actual'), 2, ',', '.') }}
                         </div>
                         <small class="text-muted">{{ $empresa->cuentas->count() }} {{ $empresa->cuentas->count() === 1 ? 'cuenta' : 'cuentas' }}</small>
                     </div>

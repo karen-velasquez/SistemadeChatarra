@@ -20,6 +20,8 @@ class Tramo extends Model
         'camion_id',
         'conductor_id',
         'cliente_id',
+        'direccion_entrega',
+        'empresa_facturadora_id',
         'origen',
         'destino',
         'tipo_tramo',

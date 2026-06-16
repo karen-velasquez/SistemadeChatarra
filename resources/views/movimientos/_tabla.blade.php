@@ -78,7 +78,7 @@
                     @endif
                 </td>
                 <td class="text-end fw-semibold text-nowrap {{ $anulado ? 'text-muted text-decoration-line-through' : ($m->tipo === 'ingreso' ? 'text-success' : 'text-danger') }}">
-                    {{ $m->tipo === 'ingreso' ? '+' : '-' }} Bs {{ number_format($m->monto_bolivianos, 2) }}
+                    {{ $m->tipo === 'ingreso' ? '+' : '-' }} Bs {{ number_format($m->monto_bolivianos, 2, ',', '.') }}
                 </td>
                 <td class="text-nowrap">
                     @if($m->codigo_seguimiento)

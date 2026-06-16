@@ -120,7 +120,7 @@
                             {{ $disponibleTransbordo <= 0 ? 'disabled' : '' }}>
                             <i class="bi bi-arrow-down-right"></i> Agregar transbordo
                             @if($disponibleTransbordo > 0)
-                                <span class="badge bg-light text-dark ms-1">{{ number_format($disponibleTransbordo, 3) }} t disp.</span>
+                                <span class="badge bg-light text-dark ms-1">{{ number_format($disponibleTransbordo, 2, ',', '.') }} t disp.</span>
                             @else
                                 <span class="badge bg-danger ms-1">Sin toneladas</span>
                             @endif
@@ -175,21 +175,21 @@
         @if($nivel === 0 && $tramo->peso_declarado)
             <small class="text-muted">
                 <i class="bi bi-tag"></i> Declarado por proveedor:
-                <strong>{{ number_format($tramo->peso_declarado, 3) }} t</strong>
+                <strong>{{ number_format($tramo->peso_declarado, 2, ',', '.') }} t</strong>
             </small>
         @elseif($nivel > 0 && $tramo->peso_salida)
             <small class="text-muted">
                 <i class="bi bi-box-arrow-up"></i> Salida:
-                <strong>{{ number_format($tramo->peso_salida, 3) }} t</strong>
+                <strong>{{ number_format($tramo->peso_salida, 2, ',', '.') }} t</strong>
             </small>
         @endif
         @if($tramo->peso_llegada)
             @php $diff = $tramo->peso_salida ? $tramo->peso_salida - $tramo->peso_llegada : 0; @endphp
             <small class="{{ $diff > 0 ? 'text-warning' : 'text-success' }}">
                 <i class="bi bi-box-arrow-in-down"></i> Llegada:
-                <strong>{{ number_format($tramo->peso_llegada, 3) }} t</strong>
+                <strong>{{ number_format($tramo->peso_llegada, 2, ',', '.') }} t</strong>
                 @if($diff > 0)
-                    <span class="text-danger">(−{{ number_format($diff, 3) }} t)</span>
+                    <span class="text-danger">(−{{ number_format($diff, 2, ',', '.') }} t)</span>
                 @endif
             </small>
         @endif

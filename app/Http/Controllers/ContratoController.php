@@ -10,6 +10,7 @@ use App\Models\PagoCliente;
 use App\Models\PagoProveedor;
 use App\Models\Proveedor;
 use App\Models\OperadorTransporte;
+use App\Models\Empresa;
 use App\Models\Parametro;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -289,13 +290,15 @@ class ContratoController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $clientes = Cliente::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
+        $clientes = Cliente::with(['pais', 'contacts' => fn($q) => $q->where('tipo', 'direccion')->whereNull('deleted_at')])->whereNull('deleted_at')->orderBy('nombre')->get();
 
         $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
+
+        $empresas = Empresa::whereNull('deleted_at')->orderBy('nombre')->get();
 
         $tokenContratoCamion     = $this->generarToken('contrato_camion_store_token');
         $tokenTramoTransbordo    = $this->generarToken('tramo_transbordo_store_token');
 
-        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas', 'tokenContratoCamion', 'tokenTramoTransbordo'));
+        return view('contratos.camiones', compact('contrato', 'camionesDisponibles', 'choferes', 'clientes', 'monedas', 'empresas', 'tokenContratoCamion', 'tokenTramoTransbordo'));
     }
 }

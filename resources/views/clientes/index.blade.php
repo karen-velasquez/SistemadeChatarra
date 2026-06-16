@@ -108,35 +108,60 @@
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type ="text/javascript"></script>
 <script src="{{ asset('assets/js/forms/contactosVarios.js') }}" type ="text/javascript"></script>
 <script>
+function validarFormCliente() {
+    const nombre  = document.getElementById('cli_nombre')?.value.trim();
+    const nit     = document.getElementById('cli_nit')?.value.trim();
+    const pais    = document.getElementById('cli_pais_id')?.value;
+    const dirs    = Array.from(document.querySelectorAll('#direcciones-container .direccion-input'))
+                         .filter(i => i.value.trim().length >= 5);
+    const ok = !!nombre && !!nit && !!pais && dirs.length > 0;
+    const btn = document.getElementById('btnCliente');
+    if (btn) btn.disabled = !ok;
+}
+
 window.limpiarFormularioCliente = function () {
     document.getElementById('formCliente').reset();
     document.getElementById('telefonos-container').innerHTML = '';
     document.getElementById('direcciones-container').innerHTML = '';
     agregarTelefonoInput();
     agregarDireccionInput();
+    validarFormCliente();
 };
 function resetModalCliente() {
     document.getElementById('tituloCliente').innerHTML ='<i class="bi bi-person-plus "></i> Nuevo Cliente';
-    var btn = document.getElementById('btnCliente');
-    btn.innerText = 'Registrar';
-    btn.disabled = true;
     document.getElementById('methodCliente').value = 'POST';
     document.getElementById('formCliente').action = '{{ route("clientes.store")}}';
     fetch('{{ route("clientes.nuevo-token") }}')
         .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-        .then(d => {
-            document.getElementById('idempotencyTokenCliente').value = d.token;
-            document.getElementById('btnCliente').disabled = false;
-        })
-        .catch(() => { document.getElementById('btnCliente').disabled = false; });
+        .then(d => { document.getElementById('idempotencyTokenCliente').value = d.token; })
+        .catch(() => {});
     limpiarFormularioCliente();
 }
+
+document.getElementById('formCliente').addEventListener('input', validarFormCliente);
+document.getElementById('formCliente').addEventListener('change', validarFormCliente);
+document.getElementById('direcciones-container').addEventListener('input', function(e) {
+    if (e.target.classList.contains('direccion-input')) {
+        const errDiv = document.getElementById('direcciones-error');
+        if (errDiv) errDiv.style.display = 'none';
+        validarFormCliente();
+    }
+});
+
 document.getElementById('formCliente').addEventListener('submit', function(e) {
     var btn = document.getElementById('btnCliente');
     if (btn.disabled) { e.preventDefault(); return; }
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 });
+
+new MutationObserver(validarFormCliente).observe(
+    document.getElementById('direcciones-container'),
+    { childList: true, subtree: true }
+);
+
+validarFormCliente();
+
 function editarCliente(cliente) {
     const baseUrl = "{{ url('/') }}";
     document.getElementById('tituloCliente').innerHTML = '<i class="bi bi-pencil-square"></i> Editar Cliente';
@@ -165,6 +190,7 @@ function editarCliente(cliente) {
     } else {
         direcciones.forEach((d, i) => agregarDireccionInput(d.valor, i === 0));
     }
+    validarFormCliente();
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCliente')).show();
 }
 </script>

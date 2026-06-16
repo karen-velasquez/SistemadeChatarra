@@ -179,19 +179,19 @@
                                     <small>{{ $t->fecha_llegada?->format('d/m/Y') ?? '—' }}</small>
                                     <small class="text-muted d-block">{{ $t->destino }}</small>
                                 </td>
-                                <td class="text-end">{{ number_format($t->peso_llegada, 3) }}</td>
+                                <td class="text-end">{{ number_format($t->peso_llegada, 2, ',', '.') }}</td>
                                 <td class="text-end">
                                     @if($tienePrecio)
                                         <small class="text-muted">{{ $mon }}</small>
-                                        <strong>{{ number_format($t->precio_por_tonelada, 4) }}</strong>
+                                        <strong>{{ number_format($t->precio_por_tonelada, 2, ',', '.') }}</strong>
                                     @else
                                         <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Sin precio</span>
                                     @endif
                                 </td>
-                                <td class="text-end fw-semibold">{{ $tienePrecio ? $mon.' '.number_format($deuda,2) : '—' }}</td>
-                                <td class="text-end text-success fw-semibold">{{ $tienePrecio ? $mon.' '.number_format($cobrado,2) : '—' }}</td>
+                                <td class="text-end fw-semibold">{{ $tienePrecio ? $mon.' '.number_format($deuda, 2, ',', '.') : '—' }}</td>
+                                <td class="text-end text-success fw-semibold">{{ $tienePrecio ? $mon.' '.number_format($cobrado, 2, ',', '.') : '—' }}</td>
                                 <td class="text-end {{ $tienePrecio && $saldo > 0 ? 'text-danger fw-semibold' : 'text-success' }}">
-                                    {{ $tienePrecio ? $mon.' '.number_format($saldo,2) : '—' }}
+                                    {{ $tienePrecio ? $mon.' '.number_format($saldo, 2, ',', '.') : '—' }}
                                 </td>
                                 <td>
                                     @if(!$tienePrecio)
@@ -213,7 +213,7 @@
                                             @can('pagos_clientes.create')
                                             @if(!$tienePrecio)
                                             <li>
-                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}')">
+                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}', null)">
                                                     <i class="bi bi-tag text-warning me-2"></i> Registrar precio/t
                                                 </button>
                                             </li>
@@ -227,7 +227,7 @@
                                             @endif
                                             @if($cobrado == 0)
                                             <li>
-                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}')">
+                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}', {{ $t->precio_por_tonelada ?? 'null' }})">
                                                     <i class="bi bi-pencil text-secondary me-2"></i> Editar precio/t
                                                 </button>
                                             </li>
@@ -290,8 +290,9 @@
                         <div class="col-md-7">
                             <label class="form-label fw-semibold">Precio por tonelada <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <input type="number" step="0.0001" min="0.0001" class="form-control"
-                                    name="precio_por_tonelada" placeholder="0.0000" required>
+                                <input type="text" inputmode="numeric" class="form-control"
+                                    id="precio_display" placeholder="0,00" autocomplete="off">
+                                <input type="hidden" name="precio_por_tonelada" id="precio_hidden" value="">
                                 <span class="input-group-text">/ t</span>
                             </div>
                         </div>
@@ -419,9 +420,9 @@
                             <label class="form-label fw-semibold">Monto <span class="text-danger">(*)</span></label>
                             <div class="input-group">
                                 <span class="input-group-text fw-bold" id="cobro_lbl_moneda_monto">BOB</span>
-                                <input type="number" step="0.01" min="0.01" class="form-control"
-                                    name="monto" id="cobro_inp_monto" required disabled placeholder="0.00"
-                                    oninput="calcEquivalente(); validarBobroCobro();">
+                                <input type="text" inputmode="numeric" class="form-control"
+                                    id="cobro_inp_monto_display" disabled placeholder="0,00" autocomplete="off">
+                                <input type="hidden" name="monto" id="cobro_inp_monto" value="">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -436,9 +437,10 @@
                                 Tipo de cambio <span class="text-danger">*</span>
                                 <small class="text-muted fw-normal">— 1 <span id="cobro_lbl_moneda_tc"></span> = BOB</small>
                             </label>
-                            <input type="number" step="0.0001" min="0.0001" class="form-control"
-                                name="tipo_cambio" id="cobro_inp_tipo_cambio"
-                                placeholder="0.0000" oninput="calcEquivalente(); validarBobroCobro();" disabled>
+                            <input type="text" inputmode="numeric" class="form-control"
+                                id="cobro_inp_tipo_cambio_display"
+                                placeholder="0,0000" autocomplete="off" disabled>
+                            <input type="hidden" name="tipo_cambio" id="cobro_inp_tipo_cambio" value="">
                         </div>
 
                         <div id="cobro_sec_equivalente" style="display:none;" class="col-12">
@@ -571,8 +573,9 @@
                         {{-- Fila 3: Monto + Tipo Cambio (si aplica) + Código --}}
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Monto Total Recibido <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.01" min="0.01" name="monto_total" id="cm_monto"
-                                   class="form-control" required placeholder="0.00" disabled oninput="actualizarResumenMasivo()">
+                            <input type="text" inputmode="numeric" id="cm_monto_display"
+                                   class="form-control" placeholder="0,00" disabled autocomplete="off">
+                            <input type="hidden" name="monto_total" id="cm_monto" value="">
                         </div>
                         <div class="col-md-3" id="cm_sec_tc" style="display:none;">
                             <label class="form-label fw-semibold">Tipo de Cambio <span class="text-danger">(*)</span></label>
@@ -753,17 +756,36 @@ function filtrarPorCliente(clienteId) {
 }
 
 // ===== Modal precio/tonelada =====
-function abrirModalPrecio(tramoId, label, contrato) {
+function abrirModalPrecio(tramoId, label, contrato, precio) {
     document.getElementById('precio_label').textContent    = label;
     document.getElementById('precio_contrato').textContent = 'Contrato: ' + contrato;
     document.getElementById('formPrecio').action = url_global + '/pagos/clientes/' + tramoId + '/precio';
+    var disp   = document.getElementById('precio_display');
+    var hidden = document.getElementById('precio_hidden');
+    if (precio && parseFloat(precio) > 0) {
+        hidden.value = precio;
+        disp.value   = _fmtC(precio);
+    } else {
+        hidden.value = '';
+        disp.value   = '';
+    }
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPrecio')).show();
 }
 
 // ===== Modal cobro =====
+function _fmtC(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
+}
+function _fmtC4(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(parseFloat(n) || 0);
+}
+function _parseFmtC(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
 function _setCamposCobro(habilitado) {
     ['cobro_tipo_pago','cobro_cuenta_destino','cobro_metodo_pago',
-     'cobro_inp_monto','cobro_fecha','cobro_obs'].forEach(id => {
+     'cobro_inp_monto_display','cobro_fecha','cobro_obs'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = !habilitado;
     });
@@ -773,8 +795,9 @@ function abrirModalCobro(tramoId, label, saldo, moneda, clienteId) {
     moneda = moneda || 'BOB';
     document.getElementById('cobro_tramo_id').value           = tramoId;
     document.getElementById('cobro_tramo_label').textContent  = label;
-    document.getElementById('cobro_saldo_label').textContent  = parseFloat(saldo).toFixed(2) + ' ' + moneda;
+    document.getElementById('cobro_saldo_label').textContent  = _fmtC(saldo) + ' ' + moneda;
     document.getElementById('cobro_info_tramo').style.display = 'block';
+    document.getElementById('cobro_inp_monto_display').value  = '';
     document.getElementById('cobro_inp_monto').value          = '';
     document.getElementById('cobro_aviso_sin_cuenta').style.display = 'none';
     document.getElementById('cobro_sec_codigo').style.display       = 'none';
@@ -833,12 +856,13 @@ function cargarCuentasCliente(clienteId) {
 
 // ===== Moneda / tipo de cambio =====
 function toggleTipoCambio(moneda) {
-    const secTC    = document.getElementById('cobro_sec_tipo_cambio');
-    const secEquiv = document.getElementById('cobro_sec_equivalente');
-    const inpTC    = document.getElementById('cobro_inp_tipo_cambio');
-    const inpBob   = document.getElementById('cobro_inp_tipo_cambio_bob');
-    const lblMonto = document.getElementById('cobro_lbl_moneda_monto');
-    const lblTC    = document.getElementById('cobro_lbl_moneda_tc');
+    const secTC     = document.getElementById('cobro_sec_tipo_cambio');
+    const secEquiv  = document.getElementById('cobro_sec_equivalente');
+    const inpTCDisp = document.getElementById('cobro_inp_tipo_cambio_display');
+    const inpTC     = document.getElementById('cobro_inp_tipo_cambio');
+    const inpBob    = document.getElementById('cobro_inp_tipo_cambio_bob');
+    const lblMonto  = document.getElementById('cobro_lbl_moneda_monto');
+    const lblTC     = document.getElementById('cobro_lbl_moneda_tc');
 
     document.getElementById('cobro_moneda_pago').value = moneda;
     lblMonto.textContent = moneda;
@@ -846,15 +870,14 @@ function toggleTipoCambio(moneda) {
     if (moneda === 'BOB') {
         secTC.style.display    = 'none';
         secEquiv.style.display = 'none';
-        inpTC.disabled  = true;
-        inpTC.value     = '';
-        inpBob.disabled = false;
-        inpBob.value    = '1';
+        inpTCDisp.disabled = true;
+        inpTCDisp.value    = '';
+        inpTC.value        = '';
+        inpBob.value       = '1';
     } else {
         secTC.style.display = 'block';
-        inpTC.disabled  = false;
-        inpBob.disabled = true;
-        lblTC.textContent = moneda;
+        inpTCDisp.disabled  = false;
+        lblTC.textContent   = moneda;
         calcEquivalente();
     }
 }
@@ -867,7 +890,7 @@ function calcEquivalente() {
     const secEquiv = document.getElementById('cobro_sec_equivalente');
     const lblEquiv = document.getElementById('cobro_lbl_equivalente');
     if (monto > 0 && tc > 0) {
-        lblEquiv.textContent   = 'Bs ' + (monto * tc).toFixed(2);
+        lblEquiv.textContent   = 'Bs ' + _fmtC(monto * tc);
         secEquiv.style.display = 'block';
     } else {
         secEquiv.style.display = 'none';
@@ -892,7 +915,7 @@ function validarBobroCobro() {
     const tipo          = document.getElementById('cobro_tipo_pago').value;
     const cuentaDest    = document.getElementById('cobro_cuenta_destino').value;
     const metodo        = document.getElementById('cobro_metodo_pago').value;
-    const monto         = parseFloat(document.getElementById('cobro_inp_monto').value) || 0;
+    const monto         = parseFloat(document.getElementById('cobro_inp_monto').value) || 0;  // hidden
     const fecha         = document.getElementById('cobro_fecha').value;
     const codigoVisible = document.getElementById('cobro_sec_codigo').style.display !== 'none';
     const codigo        = document.getElementById('cobro_codigo').value.trim();
@@ -927,26 +950,26 @@ function verDetalle(tramoId) {
                 <div class="col-6 col-md-3">
                     <div class="border rounded p-2 text-center">
                         <div class="text-muted small">Peso llegada</div>
-                        <strong>${parseFloat(d.peso_llegada||0).toFixed(3)} t</strong>
+                        <strong>${_fmtC(d.peso_llegada||0)} t</strong>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="border rounded p-2 text-center">
                         <div class="text-muted small">Precio / t</div>
-                        <strong>${mon} ${parseFloat(d.precio_por_tonelada||0).toFixed(4)}</strong>
+                        <strong>${mon} ${_fmtC4(d.precio_por_tonelada||0)}</strong>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="border rounded p-2 text-center">
                         <div class="text-muted small">Total deuda</div>
-                        <strong>${mon} ${parseFloat(d.monto_deuda||0).toFixed(2)}</strong>
+                        <strong>${mon} ${_fmtC(d.monto_deuda||0)}</strong>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="border rounded p-2 text-center bg-${parseFloat(d.saldo)<=0?'success':'warning'} bg-opacity-10">
                         <div class="text-muted small">Saldo</div>
                         <strong class="${parseFloat(d.saldo)<=0?'text-success':'text-danger'}">
-                            ${mon} ${parseFloat(d.saldo||0).toFixed(2)}
+                            ${mon} ${_fmtC(d.saldo||0)}
                         </strong>
                     </div>
                 </div>
@@ -978,7 +1001,7 @@ function verDetalle(tramoId) {
                     const badge  = p.anulado ? 'bg-secondary text-decoration-line-through' : (badgeTipo[p.tipo] || 'bg-secondary');
                     const tcLine = esBob ? '' :
                         `<br><span class="badge bg-light text-secondary border" style="font-size:.7rem;">
-                            TC: 1 ${p.moneda_pago} = ${parseFloat(p.tipo_cambio).toFixed(4)} Bs
+                            TC: 1 ${p.moneda_pago} = ${_fmtC4(p.tipo_cambio)} Bs
                         </span>`;
 
                     // Cuenta origen (cliente)
@@ -1016,7 +1039,7 @@ function verDetalle(tramoId) {
 
                     html += `<tr class="${rowClass}">
                         <td><span class="badge ${badge}">${p.tipo}</span>${anuloBadge}</td>
-                        <td class="text-end"><span class="fw-semibold" style="${montoStyle}">${flag} ${p.moneda_pago} ${parseFloat(p.monto).toFixed(2)}</span>${tcLine}</td>
+                        <td class="text-end"><span class="fw-semibold" style="${montoStyle}">${flag} ${p.moneda_pago} ${_fmtC(p.monto)}</span>${tcLine}</td>
                         <td><small>${p.fecha}</small></td>
                         <td><small>${p.metodo}</small></td>
                         <td>${celOrigen}</td>
@@ -1088,7 +1111,7 @@ function actualizarMonedaPorCuenta() {
 const _tramosData = @json($tramosMasivoData);
 
 function _setCamposMasivo(habilitado) {
-    ['cm_cuenta_origen','cm_cuenta_destino','cm_fecha','cm_metodo','cm_monto','cm_obs'].forEach(id => {
+    ['cm_cuenta_origen','cm_cuenta_destino','cm_fecha','cm_metodo','cm_monto_display','cm_obs'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = !habilitado;
     });
@@ -1096,6 +1119,7 @@ function _setCamposMasivo(habilitado) {
 
 function abrirCobroMasivo() {
     document.getElementById('cm_cliente').value           = '';
+    document.getElementById('cm_monto_display').value     = '';
     document.getElementById('cm_monto').value             = '';
     document.getElementById('cm_tbody').innerHTML         = '';
     document.getElementById('cm_contenedor_tramos').style.display = 'none';
@@ -1175,10 +1199,10 @@ function cargarTramasMasivo() {
             <td><small class="fw-semibold">${t.contrato}</small></td>
             <td><small>${t.camion}</small></td>
             <td><small>${t.fecha}</small></td>
-            <td class="text-end"><small>${t.moneda} ${t.deuda.toFixed(2)}</small></td>
-            <td class="text-end text-success"><small>${t.moneda} ${t.cobrado.toFixed(2)}</small></td>
+            <td class="text-end"><small>${t.moneda} ${_fmtC(t.deuda)}</small></td>
+            <td class="text-end text-success"><small>${t.moneda} ${_fmtC(t.cobrado)}</small></td>
             <td class="text-end fw-semibold text-danger" data-saldo="${t.saldo}" data-moneda="${t.moneda}">
-                <small>${t.moneda} ${t.saldo.toFixed(2)}</small>
+                <small>${t.moneda} ${_fmtC(t.saldo)}</small>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -1209,8 +1233,8 @@ function actualizarResumenMasivo() {
     resumen.style.display = checks.length > 0 ? 'block' : 'none';
 
     document.getElementById('cm_res_cant').textContent  = checks.length;
-    document.getElementById('cm_res_saldo').textContent = moneda + ' ' + saldoTotal.toFixed(2);
-    document.getElementById('cm_res_monto').textContent = moneda + ' ' + monto.toFixed(2);
+    document.getElementById('cm_res_saldo').textContent = moneda + ' ' + _fmtC(saldoTotal);
+    document.getElementById('cm_res_monto').textContent = moneda + ' ' + _fmtC(monto);
 
     const estadoEl     = document.getElementById('cm_res_estado');
     const cuentaOrigen  = document.getElementById('cm_cuenta_origen').value;
@@ -1295,6 +1319,73 @@ function guardarEditarCobro() {
         btn.innerHTML = '<i class="bi bi-save me-1"></i>Guardar cambios';
     });
 }
+
+// ── Cajero precio/t ──
+(function() {
+    function _txt2num(v) { return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0; }
+    var disp   = document.getElementById('precio_display');
+    var hidden = document.getElementById('precio_hidden');
+    if (!disp || !hidden) return;
+    disp.addEventListener('input', function() {
+        var raw    = this.value.replace(/[^0-9,]/g, '');
+        var partes = raw.split(',');
+        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+        partes = raw.split(',');
+        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+        var diff  = nuevo.length - this.value.length;
+        var pos   = (this.selectionStart || 0) + diff;
+        this.value = nuevo;
+        try { this.setSelectionRange(pos, pos); } catch(_) {}
+        hidden.value = _txt2num(nuevo) || '';
+    });
+    disp.addEventListener('blur', function() {
+        var n = _txt2num(this.value);
+        this.value   = n > 0 ? _fmtC(n) : '';
+        hidden.value = n > 0 ? n : '';
+    });
+})();
+
+// ── Cajero monto y tipo_cambio en Registrar Cobro ──
+(function() {
+    function _txt2num(v) {
+        return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+    }
+    function _initCajero(displayId, hiddenId, decimals, onChangeCb) {
+        var disp   = document.getElementById(displayId);
+        var hidden = document.getElementById(hiddenId);
+        if (!disp || !hidden) return;
+        disp.addEventListener('input', function() {
+            var raw    = this.value.replace(/[^0-9,]/g, '');
+            var partes = raw.split(',');
+            if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+            partes = raw.split(',');
+            if (partes[1] !== undefined) partes[1] = partes[1].slice(0, decimals);
+            var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            var diff  = nuevo.length - this.value.length;
+            var pos   = (this.selectionStart || 0) + diff;
+            this.value = nuevo;
+            try { this.setSelectionRange(pos, pos); } catch(_) {}
+            hidden.value = _txt2num(nuevo) || '';
+            if (onChangeCb) onChangeCb();
+        });
+        disp.addEventListener('blur', function() {
+            var n = _txt2num(this.value);
+            if (decimals === 4) {
+                this.value = n > 0 ? _fmtC4(n) : '';
+            } else {
+                this.value = n > 0 ? _fmtC(n) : '';
+            }
+            hidden.value = n > 0 ? n : '';
+            if (onChangeCb) onChangeCb();
+        });
+    }
+    _initCajero('cobro_inp_monto_display',      'cobro_inp_monto',         2, function() { calcEquivalente(); validarBobroCobro(); });
+    _initCajero('cobro_inp_tipo_cambio_display', 'cobro_inp_tipo_cambio',   4, function() { calcEquivalente(); validarBobroCobro(); });
+    _initCajero('cm_monto_display',              'cm_monto',                2, function() { actualizarResumenMasivo(); });
+})();
 
 // Bloqueo anti-doble-submit cobro cliente
 document.getElementById('formCobroCliente').addEventListener('submit', function(e) {

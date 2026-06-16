@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ciudad;
+use App\Models\Contrato;
 use App\Models\Proveedor;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
@@ -136,10 +137,15 @@ class ProveedorController extends Controller
 
     public function destroy($uuid)
     {
-        $proveedor=Proveedor::where('uuid',$uuid)->firstOrFail();
-        $proveedor->delete();
-        Alert::success('Eliminacion', 'proveedor Eliminado con exito!!!');
+        $proveedor = Proveedor::where('uuid', $uuid)->firstOrFail();
 
+        if (Contrato::where('proveedor_id', $proveedor->id)->exists()) {
+            Alert::error('No permitido', 'Este proveedor no puede eliminarse porque está asociado a uno o más contratos.');
+            return redirect()->route('proveedores.index');
+        }
+
+        $proveedor->delete();
+        Alert::success('Eliminacion', 'Proveedor Eliminado con exito!!!');
         return redirect()->route('proveedores.index');
     }   
 }

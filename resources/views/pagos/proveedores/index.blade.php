@@ -109,10 +109,10 @@
                                         {{ $c->tipo_contrato }}
                                     </span>
                                 </td>
-                                <td class="text-end">{{ $mon }} {{ number_format($total, 2) }}</td>
-                                <td class="text-end text-success">{{ $mon }} {{ number_format($pagado, 2) }}</td>
+                                <td class="text-end">{{ $mon }} {{ number_format($total, 2, ',', '.') }}</td>
+                                <td class="text-end text-success">{{ $mon }} {{ number_format($pagado, 2, ',', '.') }}</td>
                                 <td class="text-end {{ $saldo > 0 ? 'text-danger fw-semibold' : 'text-success' }}">
-                                    {{ $mon }} {{ number_format($saldo, 2) }}
+                                    {{ $mon }} {{ number_format($saldo, 2, ',', '.') }}
                                 </td>
                                 <td style="min-width:160px;">
                                     @php
@@ -136,15 +136,15 @@
                                         </div>
                                         <div class="small text-muted mb-2" style="font-size:.7rem;">
                                             @if($tEntregadas > 0)
-                                                <span class="text-success fw-semibold">{{ number_format($tEntregadas, 2) }}t cliente</span>
+                                                <span class="text-success fw-semibold">{{ number_format($tEntregadas, 2, ',', '.') }}t cliente</span>
                                                 @if($tTransito > 0 || $tPendiente > 0) &nbsp;·&nbsp; @endif
                                             @endif
                                             @if($tTransito > 0)
-                                                <span style="color:#0ea5e9;">{{ number_format($tTransito, 2) }}t en ruta</span>
+                                                <span style="color:#0ea5e9;">{{ number_format($tTransito, 2, ',', '.') }}t en ruta</span>
                                                 @if($tPendiente > 0) &nbsp;·&nbsp; @endif
                                             @endif
                                             @if($tPendiente > 0)
-                                                <span class="text-muted">{{ number_format($tPendiente, 2) }}t pend.</span>
+                                                <span class="text-muted">{{ number_format($tPendiente, 2, ',', '.') }}t pend.</span>
                                             @endif
                                         </div>
                                     @else
@@ -152,8 +152,8 @@
                                     @endif
                                     {{-- Barra pagos --}}
                                     <div class="small lh-1 mb-1">
-                                        <span class="fw-semibold {{ $saldo <= 0 ? 'text-success' : '' }}">{{ number_format($pagado, 2) }} {{ $mon }}</span>
-                                        <span class="text-muted">/ {{ number_format($total, 2) }}</span>
+                                        <span class="fw-semibold {{ $saldo <= 0 ? 'text-success' : '' }}">{{ number_format($pagado, 2, ',', '.') }} {{ $mon }}</span>
+                                        <span class="text-muted">/ {{ number_format($total, 2, ',', '.') }}</span>
                                     </div>
                                     <div class="progress mb-1" style="height:6px;" title="Pagado: {{ $pctPago }}%">
                                         <div class="progress-bar {{ $saldo <= 0 ? 'bg-success' : 'bg-primary' }}" style="width:{{ $pctPago }}%"></div>
@@ -161,7 +161,7 @@
                                     <div class="small" style="font-size:.7rem;">
                                         <span class="{{ $saldo <= 0 ? 'text-success fw-semibold' : 'text-primary' }}">{{ $pctPago }}% pagado</span>
                                         @if($saldo > 0)
-                                            &nbsp;·&nbsp;<span class="text-danger">{{ number_format($saldo, 2) }} pendiente</span>
+                                            &nbsp;·&nbsp;<span class="text-danger">{{ number_format($saldo, 2, ',', '.') }} pendiente</span>
                                         @endif
                                     </div>
                                 </td>
@@ -250,7 +250,7 @@
                                         data-moneda="{{ $c->moneda ?? 'BOB' }}"
                                         data-proveedor-id="{{ $c->proveedor_id }}">
                                         {{ $c->numero_contrato }} — {{ $c->proveedor->nombre ?? '—' }}
-                                        (Saldo: {{ $c->moneda }} {{ number_format($c->saldo_pendiente_proveedor, 2) }})
+                                        (Saldo: {{ $c->moneda }} {{ number_format($c->saldo_pendiente_proveedor, 2, ',', '.') }})
                                     </option>
                                 @endforeach
                             </select>
@@ -289,9 +289,9 @@
                                         <label class="form-label fw-semibold mb-1">Monto <span class="text-danger">*</span></label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text fw-bold" id="lbl_moneda_monto">BOB</span>
-                                            <input type="number" step="0.01" min="0.01" class="form-control"
-                                                name="monto" id="inp_monto" required placeholder="0.00"
-                                                oninput="calcEquivalente()">
+                                            <input type="text" inputmode="numeric" class="form-control"
+                                                id="inp_monto_display" placeholder="0,00" autocomplete="off">
+                                            <input type="hidden" name="monto" id="inp_monto" value="">
                                         </div>
                                     </div>
 
@@ -301,9 +301,9 @@
                                             <small class="text-muted fw-normal">— 1 <span id="lbl_moneda_tc"></span> equivale a:</small>
                                         </label>
                                         <div class="input-group input-group-sm">
-                                            <input type="number" step="0.0001" min="0.0001" class="form-control"
-                                                name="tipo_cambio" id="inp_tipo_cambio"
-                                                placeholder="0.0000" oninput="calcEquivalente()" disabled>
+                                            <input type="text" inputmode="numeric" class="form-control"
+                                                id="inp_tipo_cambio_display" placeholder="0,0000" autocomplete="off" disabled>
+                                            <input type="hidden" name="tipo_cambio" id="inp_tipo_cambio" value="">
                                             <span class="input-group-text">BOB</span>
                                         </div>
                                     </div>
@@ -320,7 +320,7 @@
                                 </div>
                             </div>
                         </div>
-                        <input type="hidden" name="tipo_cambio" id="inp_tipo_cambio_bob" value="1">
+                        <input type="hidden" id="inp_tipo_cambio_bob" value="1">
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Fecha de Pago <span class="text-danger">(*)</span></label>
@@ -390,6 +390,47 @@
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
             });
+
+            // ── Cajero monto y tipo_cambio ──
+            (function() {
+                function _txt2num(v) {
+                    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+                }
+                function _fmt2(n) {
+                    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+                }
+                function _fmt4(n) {
+                    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(n);
+                }
+                function _initCajero(displayId, hiddenId, decimals, onChangeCb) {
+                    var disp   = document.getElementById(displayId);
+                    var hidden = document.getElementById(hiddenId);
+                    if (!disp || !hidden) return;
+                    disp.addEventListener('input', function() {
+                        var raw    = this.value.replace(/[^0-9,]/g, '');
+                        var partes = raw.split(',');
+                        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+                        partes = raw.split(',');
+                        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, decimals);
+                        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+                        var diff  = nuevo.length - this.value.length;
+                        var pos   = (this.selectionStart || 0) + diff;
+                        this.value = nuevo;
+                        try { this.setSelectionRange(pos, pos); } catch(_) {}
+                        hidden.value = _txt2num(nuevo) || '';
+                        if (onChangeCb) onChangeCb();
+                    });
+                    disp.addEventListener('blur', function() {
+                        var n = _txt2num(this.value);
+                        this.value   = n > 0 ? (decimals === 4 ? _fmt4(n) : _fmt2(n)) : '';
+                        hidden.value = n > 0 ? n : '';
+                        if (onChangeCb) onChangeCb();
+                    });
+                }
+                _initCajero('inp_monto_display',      'inp_monto',         2, function() { if (typeof calcEquivalente === 'function') calcEquivalente(); });
+                _initCajero('inp_tipo_cambio_display', 'inp_tipo_cambio',   4, function() { if (typeof calcEquivalente === 'function') calcEquivalente(); });
+            })();
             </script>
         </div>
     </div>
@@ -521,6 +562,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function toggleTipoCambio(moneda) {
     const secTC    = document.getElementById('sec_tipo_cambio');
     const secEquiv = document.getElementById('sec_equivalente');
+    const inpTCDisp = document.getElementById('inp_tipo_cambio_display');
     const inpTC    = document.getElementById('inp_tipo_cambio');
     const inpBob   = document.getElementById('inp_tipo_cambio_bob');
     const lblMonto = document.getElementById('lbl_moneda_monto');
@@ -532,15 +574,14 @@ function toggleTipoCambio(moneda) {
     if (moneda === 'BOB') {
         secTC.style.display    = 'none';
         secEquiv.style.display = 'none';
-        inpTC.disabled  = true;
-        inpTC.value     = '';
-        inpBob.disabled = false;
-        inpBob.value    = '1';
+        inpTCDisp.disabled = true;
+        inpTCDisp.value    = '';
+        inpTC.value        = '';
+        inpBob.value       = '1';
     } else {
-        secTC.style.display = 'block';
-        inpTC.disabled  = false;
-        inpBob.disabled = true;
-        lblTC.textContent = moneda;
+        secTC.style.display    = 'block';
+        inpTCDisp.disabled = false;
+        lblTC.textContent  = moneda;
         calcEquivalente();
     }
 }
@@ -553,7 +594,7 @@ function calcEquivalente() {
     const secEquiv = document.getElementById('sec_equivalente');
     const lblEquiv = document.getElementById('lbl_equivalente');
     if (monto > 0 && tc > 0) {
-        lblEquiv.textContent = 'Bs ' + (monto * tc).toFixed(2);
+        lblEquiv.textContent = 'Bs ' + _fmtP(monto * tc);
         secEquiv.style.display = 'block';
     } else {
         secEquiv.style.display = 'none';
@@ -564,7 +605,7 @@ function abrirModalPago(contratoId, label, saldo, moneda, proveedorId) {
     document.getElementById('pago_contrato_id').value        = contratoId;
     document.getElementById('sel_contrato').value            = contratoId;
     document.getElementById('pago_contrato_label').textContent = label;
-    document.getElementById('pago_saldo_label').textContent  = parseFloat(saldo).toFixed(2) + ' ' + (moneda || 'BOB');
+    document.getElementById('pago_saldo_label').textContent  = _fmtP(saldo) + ' ' + (moneda || 'BOB');
     document.getElementById('pago_info_contrato').style.display = 'block';
     document.getElementById('sec_seleccionar_contrato').style.display = 'none';
 
@@ -583,7 +624,7 @@ function cambiarContrato(contratoId) {
     document.getElementById('pago_contrato_id').value          = contratoId;
     document.getElementById('pago_contrato_label').textContent = opt.dataset.label;
     const mon = opt.dataset.moneda || 'BOB';
-    document.getElementById('pago_saldo_label').textContent    = parseFloat(opt.dataset.saldo).toFixed(2) + ' ' + mon;
+    document.getElementById('pago_saldo_label').textContent    = _fmtP(opt.dataset.saldo) + ' ' + mon;
     document.getElementById('pago_info_contrato').style.display = 'block';
 
     document.getElementById('moneda_pago').value = mon;
@@ -644,6 +685,13 @@ function editPpToggleTc(moneda) {
     }
 }
 
+function _fmtP(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
+}
+function _fmtPtc(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(parseFloat(n) || 0);
+}
+
 function verDetalle(contratoId) {
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle'));
     document.getElementById('det_body').innerHTML =
@@ -661,20 +709,20 @@ function verDetalle(contratoId) {
                 <div class="col-6 col-md-4">
                     <div class="border rounded p-2 text-center">
                         <div class="text-muted small">Total acordado</div>
-                        <strong>${mon} ${parseFloat(d.monto_total||0).toFixed(2)}</strong>
+                        <strong>${mon} ${_fmtP(d.monto_total||0)}</strong>
                     </div>
                 </div>
                 <div class="col-6 col-md-4">
                     <div class="border rounded p-2 text-center">
                         <div class="text-muted small">Pagado</div>
-                        <strong class="text-success">${mon} ${parseFloat(d.total_pagado||0).toFixed(2)}</strong>
+                        <strong class="text-success">${mon} ${_fmtP(d.total_pagado||0)}</strong>
                     </div>
                 </div>
                 <div class="col-6 col-md-4">
                     <div class="border rounded p-2 text-center bg-${parseFloat(d.saldo_pendiente)<=0?'success':'warning'} bg-opacity-10">
                         <div class="text-muted small">Saldo</div>
                         <strong class="${parseFloat(d.saldo_pendiente)<=0?'text-success':'text-danger'}">
-                            ${mon} ${parseFloat(d.saldo_pendiente||0).toFixed(2)}
+                            ${mon} ${_fmtP(d.saldo_pendiente||0)}
                         </strong>
                     </div>
                 </div>
@@ -691,7 +739,7 @@ function verDetalle(contratoId) {
                     const esBob   = p.moneda_pago === 'BOB';
                     const flag    = monedaFlag[p.moneda_pago] || '';
                     const badge   = badgeTipo[p.tipo] || 'bg-secondary';
-                    const tcLine  = esBob ? '' : `<span class="text-muted ms-1" style="font-size:.7rem">TC: 1 ${p.moneda_pago} = ${parseFloat(p.tipo_cambio).toFixed(4)} Bs</span>`;
+                    const tcLine  = esBob ? '' : `<span class="text-muted ms-1" style="font-size:.7rem">TC: 1 ${p.moneda_pago} = ${_fmtPtc(p.tipo_cambio)} Bs</span>`;
 
                     // Cuenta destino
                     let destLine = '';
@@ -713,7 +761,7 @@ function verDetalle(contratoId) {
                         <div class="d-flex align-items-start gap-3">
                             <div class="pt-1"><span class="badge ${badge}">${p.tipo}</span></div>
                             <div class="flex-grow-1">
-                                <div class="fw-semibold">${flag} ${p.moneda_pago} ${parseFloat(p.monto).toFixed(2)}${tcLine}</div>
+                                <div class="fw-semibold">${flag} ${p.moneda_pago} ${_fmtP(p.monto)}${tcLine}</div>
                                 <div class="text-muted small">${p.fecha} &nbsp;·&nbsp; ${p.metodo}${p.codigo ? ' &nbsp;·&nbsp; ' + p.codigo : ''}${origLine}</div>
                                 ${destLine}
                             </div>

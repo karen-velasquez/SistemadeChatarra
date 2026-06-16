@@ -145,15 +145,15 @@
                                 </td>
                                 <td class="text-end">
                                     @if(!$esBob)
-                                        <span class="fw-semibold">{{ $p->moneda_pago }} {{ number_format($p->monto, 2) }}</span>
-                                        <small class="text-muted d-block" style="font-size:.7rem;">TC: {{ number_format($p->tipo_cambio, 4) }}</small>
+                                        <span class="fw-semibold">{{ $p->moneda_pago }} {{ number_format($p->monto, 2, ',', '.') }}</span>
+                                        <small class="text-muted d-block" style="font-size:.7rem;">TC: {{ number_format($p->tipo_cambio, 4, ',', '.') }}</small>
                                     @else
-                                        <span class="fw-semibold">Bs {{ number_format($p->monto, 2) }}</span>
+                                        <span class="fw-semibold">Bs {{ number_format($p->monto, 2, ',', '.') }}</span>
                                     @endif
                                 </td>
                                 <td class="text-end">
                                     @if(!$esBob)
-                                        <span class="fw-semibold text-primary">Bs {{ number_format($p->monto_en_bob, 2) }}</span>
+                                        <span class="fw-semibold text-primary">Bs {{ number_format($p->monto_en_bob, 2, ',', '.') }}</span>
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif

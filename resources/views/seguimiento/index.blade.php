@@ -79,23 +79,44 @@
         </div>
     </div>
 
-    {{-- Filtro por proveedor --}}
+    {{-- Filtros --}}
     <div class="card mb-3">
         <div class="card-body py-2">
             <div class="row g-2 align-items-center">
                 <div class="col-auto">
-                    <label class="form-label fw-semibold mb-0"><i class="bi bi-box-seam me-1"></i>Filtrar por proveedor:</label>
+                    <label class="form-label fw-semibold mb-0"><i class="bi bi-box-seam me-1"></i>Proveedor:</label>
                 </div>
-                <div class="col-md-4">
-                    <select class="form-select form-select-sm" id="filtro_proveedor_seg" onchange="filtrarPorProveedorSeg(this.value)">
-                        <option value="">— Todos los proveedores —</option>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filtro_proveedor_seg" onchange="aplicarFiltrosSeg()">
+                        <option value="">— Todos —</option>
                         @foreach($proveedores as $prov)
                             <option value="{{ $prov->id }}">{{ $prov->nombre }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-auto">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="filtrarPorProveedorSeg('')">
+                    <label class="form-label fw-semibold mb-0"><i class="bi bi-truck me-1"></i>Tipo transporte:</label>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="filtro_tipo_tramo_seg" onchange="aplicarFiltrosSeg()">
+                        <option value="">— Todos —</option>
+                        <option value="Nacional">Nacional</option>
+                        <option value="Internacional">Internacional</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label fw-semibold mb-0"><i class="bi bi-cash-stack me-1"></i>Estado flete:</label>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="filtro_flete_estado_seg" onchange="aplicarFiltrosSeg()">
+                        <option value="">— Todos —</option>
+                        <option value="sin_flete">Sin flete asignado</option>
+                        <option value="pendiente">Con saldo pendiente</option>
+                        <option value="pagado">Pagado completo</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosSeg()">
                         <i class="bi bi-x-circle"></i> Limpiar
                     </button>
                 </div>
@@ -158,7 +179,11 @@
                             </thead>
                             <tbody>
                                 @foreach($enRuta as $t)
-                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}">
+                                @php
+                                    $ccFlete = $t->contratoCamion;
+                                    $fleteEstado = !$ccFlete->monto_acordado ? 'sin_flete' : ($ccFlete->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
+                                @endphp
+                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado }}">
                                     <td>
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -190,7 +215,7 @@
                                             {{ $t->tipo_tramo }}
                                         </span>
                                     </td>
-                                    <td class="text-end">{{ number_format($t->peso_salida, 3) }} t</td>
+                                    <td class="text-end">{{ number_format($t->peso_salida, 2, ',', '.') }} t</td>
                                     <td>{{ $t->fecha_salida?->format('d/m/Y') ?? '—' }}</td>
                                     <td class="text-center">
                                         @php
@@ -287,8 +312,10 @@
                                 @php
                                     $yaAsignadoHijos      = (float) $t->tramosHijos()->where('activo', true)->sum('peso_salida');
                                     $disponibleTransbordo = round((float) $t->peso_llegada - $yaAsignadoHijos, 3);
+                                    $ccFlete2 = $t->contratoCamion;
+                                    $fleteEstado2 = !$ccFlete2->monto_acordado ? 'sin_flete' : ($ccFlete2->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
-                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}">
+                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado2 }}">
                                     <td>
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -320,9 +347,9 @@
                                         </span>
                                     </td>
                                     <td class="text-end">
-                                        {{ number_format($t->peso_llegada, 3) }} t
+                                        {{ number_format($t->peso_llegada, 2, ',', '.') }} t
                                         @if($disponibleTransbordo > 0)
-                                            <small class="text-warning d-block">{{ number_format($disponibleTransbordo, 3) }} t libres</small>
+                                            <small class="text-warning d-block">{{ number_format($disponibleTransbordo, 2, ',', '.') }} t libres</small>
                                         @endif
                                     </td>
                                     <td>{{ $t->fecha_llegada?->format('d/m/Y') ?? '—' }}</td>
@@ -420,7 +447,11 @@
                             </thead>
                             <tbody>
                                 @foreach($transbordado as $t)
-                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}">
+                                @php
+                                    $ccFlete3 = $t->contratoCamion;
+                                    $fleteEstado3 = !$ccFlete3->monto_acordado ? 'sin_flete' : ($ccFlete3->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
+                                @endphp
+                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado3 }}">
                                     <td>
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -451,7 +482,7 @@
                                             {{ $t->tipo_tramo }}
                                         </span>
                                     </td>
-                                    <td class="text-end">{{ number_format($t->peso_llegada, 3) }} t</td>
+                                    <td class="text-end">{{ number_format($t->peso_llegada, 2, ',', '.') }} t</td>
                                     <td>{{ $t->fecha_llegada?->format('d/m/Y') ?? '—' }}</td>
                                     <td class="text-center">
                                         @php
@@ -548,8 +579,11 @@
                             </thead>
                             <tbody>
                                 @foreach($entregados as $t)
-                                @php $cc = $t->contratoCamion; @endphp
-                                <tr class="{{ !$cc->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $cc->contrato->proveedor_id }}">
+                                @php
+                                    $cc = $t->contratoCamion;
+                                    $fleteEstado4 = !$cc->monto_acordado ? 'sin_flete' : ($cc->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
+                                @endphp
+                                <tr class="{{ !$cc->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $cc->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado4 }}">
                                     <td>
                                         <a href="{{ route('contratos.camiones', $cc->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -575,7 +609,7 @@
                                         </span>
                                     </td>
                                     <td class="text-end">
-                                        <strong class="text-success">{{ number_format($t->peso_llegada, 3) }} t</strong>
+                                        <strong class="text-success">{{ number_format($t->peso_llegada, 2, ',', '.') }} t</strong>
                                         @if($t->estado === 'Div. Carga')
                                             <span class="badge bg-info text-dark d-block mt-1"><i class="bi bi-pie-chart"></i> Div. Carga</span>
                                         @endif
@@ -719,7 +753,8 @@
                                         <label class="form-label fw-semibold mb-1">Monto <span class="text-danger">*</span></label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text fw-bold" id="seg_lbl_moneda">BOB</span>
-                                            <input type="number" step="0.01" min="0.01" class="form-control" name="monto" id="seg_inp_monto" required placeholder="0.00" oninput="segCalcEquiv()">
+                                            <input type="text" inputmode="numeric" class="form-control" id="seg_inp_monto_display" placeholder="0,00" autocomplete="off">
+                                            <input type="hidden" name="monto" id="seg_inp_monto" value="">
                                         </div>
                                     </div>
                                     <div class="col-md-5" id="seg_sec_tc" style="display:none;">
@@ -728,7 +763,8 @@
                                             <small class="text-muted fw-normal">— 1 <span id="seg_lbl_tc_moneda"></span> =</small>
                                         </label>
                                         <div class="input-group input-group-sm">
-                                            <input type="number" step="0.0001" min="0.0001" class="form-control" name="tipo_cambio" id="seg_inp_tc" placeholder="0.0000" oninput="segCalcEquiv()" disabled>
+                                            <input type="text" inputmode="numeric" class="form-control" id="seg_inp_tc_display" placeholder="0,0000" autocomplete="off" disabled>
+                                            <input type="hidden" name="tipo_cambio" id="seg_inp_tc" value="">
                                             <span class="input-group-text">BOB</span>
                                         </div>
                                     </div>
@@ -743,7 +779,7 @@
                                 </div>
                             </div>
                         </div>
-                        <input type="hidden" name="tipo_cambio" id="seg_inp_tc_bob" value="1">
+                        <input type="hidden" id="seg_inp_tc_bob" value="1">
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Método de Pago <span class="text-danger">*</span></label>
@@ -918,8 +954,9 @@
                                         <option value="{{ $moneda->valor }}">{{ $flags[$moneda->valor] ?? '' }} {{ $moneda->valor }}</option>
                                     @endforeach
                                 </select>
-                                <input type="number" step="0.01" min="0.01" class="form-control"
-                                    name="monto_acordado" required placeholder="0.00">
+                                <input type="text" inputmode="numeric" class="form-control"
+                                    id="flete_monto_display" required placeholder="0,00" autocomplete="off">
+                                <input type="hidden" name="monto_acordado" id="flete_monto_hidden">
                             </div>
                             <small class="text-muted">Monto pactado con el transportista.</small>
                         </div>
@@ -946,9 +983,9 @@
                             data-tour-modal="#modalLlegada"
                             data-steps='[
                                 {"intro":"📍 Aquí registras qué pasó cuando el camión <b>llegó</b> a su destino. Es el paso clave del seguimiento. Te explico los campos."},
-                                {"element":"#inp_peso_llegada","intro":"⚖️ <b>Peso al llegar</b>: las toneladas reales pesadas al llegar. Puede diferir del peso de salida (merma).","position":"bottom"},
+                                {"element":"#seg_inp_peso_llegada_display","intro":"⚖️ <b>Peso al llegar</b>: las toneladas reales pesadas al llegar. Puede diferir del peso de salida (merma).","position":"bottom"},
                                 {"element":"#inp_fecha_llegada","intro":"📅 <b>Fecha de llegada</b>. No puede ser anterior a la fecha de salida.","position":"bottom"},
-                                {"element":"#seg_accion_entregado","intro":"✅ <b>Entregado al cliente</b>: la carga llegó a su destino final. Pedirá el cliente y el precio de venta.","position":"right"},
+                                {"element":"#seg_accion_entregado","intro":"✅ <b>Entregado al cliente</b>: la carga llegó a su destino final. Pedirá el cliente, empresa y precio de venta.","position":"right"},
                                 {"element":"#seg_accion_parcial","intro":"🥧 <b>Div. Carga</b>: entregas una parte a un cliente y el resto continúa en otro camión. Se crean 2 tramos automáticamente.","position":"right"},
                                 {"element":"#seg_accion_transbordo","intro":"🔄 <b>Transbordo</b>: la carga cambia de camión y continúa (típico en frontera o cambio de unidad).","position":"right"},
                                 {"element":"#seg_chk_descuento","intro":"➖ Opcional: aplica un <b>descuento</b> al pago del camionero (ej. por chatarra en mal estado o faltante).","position":"top"},
@@ -969,10 +1006,10 @@
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label" id="lbl_peso_llegada">Peso al llegar (t) <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.001" min="0.001" class="form-control"
-                                name="peso_llegada" id="inp_peso_llegada" required placeholder="Toneladas reales pesadas"
-                                oninput="calcularRestanteParcial()">
+                            <label class="form-label">Peso al llegar (t) <span class="text-danger">(*)</span></label>
+                            <input type="text" inputmode="numeric" class="form-control"
+                                id="seg_inp_peso_llegada_display" required placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="peso_llegada" id="seg_inp_peso_llegada">
                             <small class="text-muted">Carga estipulada en el origen: <strong id="llegada_peso_max"></strong> t</small>
                         </div>
                         <div class="col-md-6">
@@ -981,103 +1018,196 @@
                             <small class="text-muted">No puede ser anterior a la fecha de salida.</small>
                         </div>
 
-                        {{-- Sección cliente (entregado normal y parcial) --}}
-                        <div class="col-12 d-none" id="seg_sec_cliente">
-                            <label class="form-label fw-semibold">Cliente que recibe la carga <span class="text-danger">(*)</span></label>
-                            <select class="form-select" name="cliente_id" id="seg_sel_cliente">
-                                <option value="">-- Seleccione un cliente --</option>
-                                @foreach($clientes as $cli)
-                                    <option value="{{ $cli->id }}">{{ $cli->nombre }}@if($cli->nit) — NIT: {{ $cli->nit }}@endif</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Precio de venta al cliente (entregado y entrega parcial) --}}
-                        <div class="col-12 d-none" id="seg_sec_precio_venta">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente</div>
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Moneda</label>
-                                        <select class="form-select form-select-sm" name="moneda_venta" id="seg_sel_moneda_venta">
-                                            @foreach($monedas as $moneda)
-                                                <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Precio por tonelada</label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" step="0.0001" min="0" class="form-control"
-                                                name="precio_por_tonelada" id="seg_inp_precio_ton"
-                                                placeholder="0.00">
-                                            <span class="input-group-text">/t</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Sección entrega parcial --}}
-                        <div class="col-12 d-none" id="seg_sec_parcial">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <h6 class="fw-semibold mb-3"><i class="bi bi-pie-chart text-info"></i> Datos de la entrega parcial</h6>
-                                <div class="alert alert-info py-2 mb-3">
-                                    <small><i class="bi bi-info-circle"></i> El campo <strong>"Peso al llegar"</strong> arriba indica el total que llegó. Ingresa abajo cuántas toneladas se entregan ahora a este cliente — el resto continuará en un nuevo tramo.</small>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">TN entregadas a este cliente <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.001" min="0.001" class="form-control"
-                                            name="tn_parcial" id="seg_inp_tn_parcial"
-                                            placeholder="0.000" oninput="calcularRestanteParcial()">
-                                        <small class="text-muted">TN para el nuevo tramo: <strong id="lbl_tn_restante">—</strong></small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="destino_nuevo_tramo"
-                                            id="seg_inp_destino_nuevo" maxlength="150"
-                                            placeholder="Ciudad / punto de entrega">
-                                    </div>
-                                </div>
-                                <input type="hidden" name="camion_nuevo_id" id="seg_hidden_camion_nuevo">
-                                <input type="hidden" name="conductor_nuevo_id" id="seg_hidden_conductor_nuevo">
-                                <input type="hidden" name="fecha_salida_nuevo_tramo" id="seg_hidden_fecha_nuevo">
-                                <input type="hidden" name="tipo_tramo_nuevo" id="seg_hidden_tipo_tramo_nuevo">
-                            </div>
-                        </div>
-
                         {{-- ¿Qué ocurrió al llegar? --}}
                         <div class="col-12">
                             <label class="form-label fw-semibold">¿Qué ocurrió al llegar? <span class="text-danger">(*)</span></label>
+                            <div id="seg_aviso_peso_requerido" class="text-muted small mb-2">
+                                <i class="bi bi-lock text-warning"></i> Ingresa primero el peso al llegar para habilitar estas opciones.
+                            </div>
                             <div class="d-flex flex-column gap-2 mt-1">
-                                <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="entregado" id="seg_accion_entregado" required
-                                        onchange="accionLlegadaCambiada('entregado')">
-                                    <label class="form-check-label" for="seg_accion_entregado">
-                                        <i class="bi bi-check-circle text-success"></i>
-                                        <strong>Entregado al cliente</strong>
-                                        <small class="d-block text-muted">La carga llegó a su destino final.</small>
-                                    </label>
+
+                                {{-- Opción: Entregado al cliente --}}
+                                <div class="border rounded p-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="accion" value="entregado" id="seg_accion_entregado" required disabled
+                                            onchange="segAccionLlegadaCambiada('entregado')">
+                                        <label class="form-check-label" for="seg_accion_entregado">
+                                            <i class="bi bi-check-circle text-success"></i>
+                                            <strong>Entregado al cliente</strong>
+                                            <small class="d-block text-muted">La carga llegó a su destino final.</small>
+                                        </label>
+                                    </div>
+                                    {{-- Cliente receptor --}}
+                                    <div class="d-none mt-3" id="seg_sec_cliente">
+                                        <label class="form-label fw-semibold">Cliente que recibe la carga <span class="text-danger">(*)</span></label>
+                                        <select class="form-select" name="cliente_id" id="seg_sel_cliente">
+                                            <option value="">-- Seleccione cliente y dirección --</option>
+                                            @foreach($clientes as $cli)
+                                                @if($cli->contacts->isEmpty())
+                                                    <option value="{{ $cli->id }}" data-direccion="">
+                                                        {{ $cli->nombre }} — Sin dirección registrada
+                                                    </option>
+                                                @else
+                                                    @foreach($cli->contacts as $dir)
+                                                        <option value="{{ $cli->id }}" data-direccion="{{ $dir->valor }}">
+                                                            {{ $cli->nombre }} — {{ $dir->valor }}
+                                                        </option>
+                                                    @endforeach
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        <input type="hidden" name="direccion_entrega" id="seg_inp_direccion_entrega">
+                                    </div>
+                                    {{-- Empresa que facturará --}}
+                                    <div class="d-none mt-3" id="seg_sec_empresa_factura">
+                                        <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">(*)</span></label>
+                                        <select class="form-select" name="empresa_facturadora_id" id="seg_sel_empresa_factura">
+                                            <option value="">-- Seleccione empresa --</option>
+                                            @foreach($empresas as $emp)
+                                                <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    {{-- Precio de venta al cliente --}}
+                                    <div class="d-none mt-3" id="seg_sec_precio_venta">
+                                        <div class="border rounded-3 p-3 bg-light">
+                                            <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente</div>
+                                            <div class="row g-2 align-items-end">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-1">Moneda</label>
+                                                    <select class="form-select form-select-sm" name="moneda_venta" id="seg_sel_moneda_venta">
+                                                        @foreach($monedas as $moneda)
+                                                            <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-1">Precio por tonelada</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="text" inputmode="numeric" class="form-control"
+                                                            id="seg_inp_precio_ton_display" placeholder="0,00" autocomplete="off">
+                                                        <input type="hidden" name="precio_por_tonelada" id="seg_inp_precio_ton">
+                                                        <span class="input-group-text">/t</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-1">Total estimado</label>
+                                                    <div id="seg_lbl_total_venta" class="form-control form-control-sm bg-white text-success fw-semibold">—</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="div_carga" id="seg_accion_parcial" required
-                                        onchange="accionLlegadaCambiada('div_carga')">
-                                    <label class="form-check-label" for="seg_accion_parcial">
-                                        <i class="bi bi-pie-chart text-info"></i>
-                                        <strong>Div. Carga</strong>
-                                        <small class="d-block text-muted">Entrega parte al cliente 1 y el restante continúa en otro camión al cliente 2. Se generan 2 tramos automáticamente.</small>
-                                    </label>
+
+                                {{-- Opción: Div. Carga --}}
+                                <div class="border rounded p-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="accion" value="div_carga" id="seg_accion_parcial" required disabled
+                                            onchange="segAccionLlegadaCambiada('div_carga')">
+                                        <label class="form-check-label" for="seg_accion_parcial">
+                                            <i class="bi bi-pie-chart text-info"></i>
+                                            <strong>Div. Carga</strong>
+                                            <small class="d-block text-muted">Entrega parte al cliente 1 y el restante continúa en otro camión al cliente 2. Se generan 2 tramos automáticamente.</small>
+                                        </label>
+                                    </div>
+                                    <div class="d-none mt-3" id="seg_sec_parcial">
+                                        <div class="border rounded-3 p-3 bg-light">
+                                            <div class="alert alert-info py-2 mb-3">
+                                                <small><i class="bi bi-info-circle"></i> El campo <strong>"Peso al llegar"</strong> arriba indica el total que llegó. Ingresa abajo cuántas toneladas se entregan ahora a este cliente — el resto continuará en un nuevo tramo.</small>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Cliente que recibe esta parte <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="cliente_id" id="seg_sel_cliente_div">
+                                                        <option value="">-- Seleccione cliente y dirección --</option>
+                                                        @foreach($clientes as $cli)
+                                                            @if($cli->contacts->isEmpty())
+                                                                <option value="{{ $cli->id }}" data-direccion="">
+                                                                    {{ $cli->nombre }} — Sin dirección registrada
+                                                                </option>
+                                                            @else
+                                                                @foreach($cli->contacts as $dir)
+                                                                    <option value="{{ $cli->id }}" data-direccion="{{ $dir->valor }}">
+                                                                        {{ $cli->nombre }} — {{ $dir->valor }}
+                                                                    </option>
+                                                                @endforeach
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                    <input type="hidden" name="direccion_entrega" id="seg_inp_direccion_entrega_div">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="empresa_facturadora_id" id="seg_sel_empresa_factura_div">
+                                                        <option value="">-- Seleccione empresa --</option>
+                                                        @foreach($empresas as $emp)
+                                                            <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">TN entregadas a este cliente <span class="text-danger">*</span></label>
+                                                    <input type="text" inputmode="numeric" class="form-control"
+                                                        id="seg_inp_tn_parcial_display" placeholder="0,00" autocomplete="off">
+                                                    <input type="hidden" name="tn_parcial" id="seg_inp_tn_parcial">
+                                                    <small class="text-muted">TN para el nuevo tramo: <strong id="seg_lbl_tn_restante">—</strong></small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" name="destino_nuevo_tramo"
+                                                        id="seg_inp_destino_nuevo" maxlength="150"
+                                                        placeholder="Ciudad / punto de entrega">
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="border rounded-3 p-3 bg-white">
+                                                        <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente (esta entrega)</div>
+                                                        <div class="row g-2 align-items-end">
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1">Moneda</label>
+                                                                <select class="form-select form-select-sm" name="moneda_venta" id="seg_sel_moneda_venta_div">
+                                                                    @foreach($monedas as $moneda)
+                                                                        <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1">Precio por tonelada</label>
+                                                                <div class="input-group input-group-sm">
+                                                                    <input type="text" inputmode="numeric" class="form-control"
+                                                                        id="seg_inp_precio_ton_div_display" placeholder="0,00" autocomplete="off">
+                                                                    <input type="hidden" name="precio_por_tonelada" id="seg_inp_precio_ton_div">
+                                                                    <span class="input-group-text">/t</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1">Total estimado</label>
+                                                                <div id="seg_lbl_total_venta_div" class="form-control form-control-sm bg-white text-success fw-semibold">—</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" name="camion_nuevo_id" id="seg_hidden_camion_nuevo">
+                                            <input type="hidden" name="conductor_nuevo_id" id="seg_hidden_conductor_nuevo">
+                                            <input type="hidden" name="fecha_salida_nuevo_tramo" id="seg_hidden_fecha_nuevo">
+                                            <input type="hidden" name="tipo_tramo_nuevo" id="seg_hidden_tipo_tramo_nuevo">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="transbordo" id="seg_accion_transbordo" required
-                                        onchange="accionLlegadaCambiada('transbordo')">
-                                    <label class="form-check-label" for="seg_accion_transbordo">
-                                        <i class="bi bi-arrow-left-right text-warning"></i>
-                                        <strong>Transbordando a otro(s) camión(es)</strong>
-                                        <small class="d-block text-muted">La carga continúa en otros camiones.</small>
-                                    </label>
+
+                                {{-- Opción: Transbordando --}}
+                                <div class="border rounded p-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="accion" value="transbordo" id="seg_accion_transbordo" required disabled
+                                            onchange="segAccionLlegadaCambiada('transbordo')">
+                                        <label class="form-check-label" for="seg_accion_transbordo">
+                                            <i class="bi bi-arrow-left-right text-warning"></i>
+                                            <strong>Transbordando a otro(s) camión(es)</strong>
+                                            <small class="d-block text-muted">La carga continúa en otros camiones.</small>
+                                        </label>
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
 
@@ -1224,6 +1354,13 @@
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script>
+function _fmtS(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
+}
+function _fmtS4(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(parseFloat(n) || 0);
+}
+
 const dtLang = {
     processing:  "Procesando...",
     search:      "Buscar:",
@@ -1273,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function abrirModalPagoSeg(ccId, label, saldo, moneda, conductorId, conductorNombre, propietarioId, propietarioNombre) {
     document.getElementById('seg_pago_cc_id').value              = ccId;
     document.getElementById('seg_pago_camion_label').textContent = label;
-    document.getElementById('seg_pago_saldo_label').textContent     = parseFloat(saldo).toFixed(2) + ' ' + (moneda || 'BOB');
+    document.getElementById('seg_pago_saldo_label').textContent     = _fmtS(saldo) + ' ' + (moneda || 'BOB');
     document.getElementById('seg_pago_saldo_lbl_texto').textContent = 'Saldo pendiente:';
 
     segReceptorActual = {
@@ -1289,8 +1426,10 @@ function abrirModalPagoSeg(ccId, label, saldo, moneda, conductorId, conductorNom
     document.getElementById('seg_cuenta_destino').innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>';
 
     // Resetear monto y TC
-    document.getElementById('seg_inp_monto').value = '';
-    document.getElementById('seg_inp_tc').value    = '';
+    document.getElementById('seg_inp_monto_display').value = '';
+    document.getElementById('seg_inp_monto').value         = '';
+    document.getElementById('seg_inp_tc_display').value    = '';
+    document.getElementById('seg_inp_tc').value            = '';
 
     // Guardar moneda para aplicarla cuando el modal esté visible (Bootstrap no permite cambiar el DOM antes)
     _segMonedaPendiente = moneda || 'BOB';
@@ -1321,15 +1460,15 @@ function segCargarHistorial(ccId) {
             <div class="d-flex gap-2 flex-wrap mb-3">
                 <div class="rounded-2 px-3 py-1 border text-center" style="min-width:90px">
                     <div class="text-muted" style="font-size:.7rem">ACORDADO</div>
-                    <div class="fw-semibold small">${mon} ${parseFloat(d.monto_neto||0).toFixed(2)}</div>
+                    <div class="fw-semibold small">${mon} ${_fmtS(d.monto_neto||0)}</div>
                 </div>
                 <div class="rounded-2 px-3 py-1 border text-center" style="min-width:90px">
                     <div class="text-muted" style="font-size:.7rem">PAGADO</div>
-                    <div class="fw-semibold small text-success">${mon} ${parseFloat(d.total_pagado||0).toFixed(2)}</div>
+                    <div class="fw-semibold small text-success">${mon} ${_fmtS(d.total_pagado||0)}</div>
                 </div>
                 <div class="rounded-2 px-3 py-1 border text-center ${parseFloat(d.saldo_pendiente)<=0?'bg-success bg-opacity-10':'bg-danger bg-opacity-10'}" style="min-width:90px">
                     <div class="text-muted" style="font-size:.7rem">SALDO</div>
-                    <div class="fw-semibold small ${parseFloat(d.saldo_pendiente)<=0?'text-success':'text-danger'}">${mon} ${parseFloat(d.saldo_pendiente||0).toFixed(2)}</div>
+                    <div class="fw-semibold small ${parseFloat(d.saldo_pendiente)<=0?'text-success':'text-danger'}">${mon} ${_fmtS(d.saldo_pendiente||0)}</div>
                 </div>
             </div>`;
 
@@ -1339,8 +1478,8 @@ function segCargarHistorial(ccId) {
                 const esBob   = p.moneda_pago === 'BOB';
                 const flag    = monedaFlag[p.moneda_pago] || '';
                 const badge   = badgeTipo[p.tipo] || 'bg-secondary';
-                const tcLine  = esBob ? '' : `<span class="text-muted ms-1" style="font-size:.7rem">TC: 1 ${p.moneda_pago} = ${parseFloat(p.tipo_cambio).toFixed(4)} Bs</span>`;
-                const bobLine = esBob ? '' : `<span class="text-primary ms-2 small">= Bs ${parseFloat(p.monto_bob).toFixed(2)}</span>`;
+                const tcLine  = esBob ? '' : `<span class="text-muted ms-1" style="font-size:.7rem">TC: 1 ${p.moneda_pago} = ${_fmtS4(p.tipo_cambio)} Bs</span>`;
+                const bobLine = esBob ? '' : `<span class="text-primary ms-2 small">= Bs ${_fmtS(p.monto_bob)}</span>`;
 
                 // Cuenta destino
                 let cuentaDestLine = '';
@@ -1366,7 +1505,7 @@ function segCargarHistorial(ccId) {
                     <div class="d-flex align-items-start gap-3">
                         <div class="pt-1"><span class="badge ${badge}">${p.tipo}</span></div>
                         <div class="flex-grow-1">
-                            <div class="fw-semibold">${flag} ${p.moneda_pago} ${parseFloat(p.monto).toFixed(2)}${tcLine}${bobLine}</div>
+                            <div class="fw-semibold">${flag} ${p.moneda_pago} ${_fmtS(p.monto)}${tcLine}${bobLine}</div>
                             <div class="text-muted small">${p.fecha} &nbsp;·&nbsp; ${p.metodo}${p.receptor ? ' &nbsp;·&nbsp; <span class="text-dark">' + p.receptor + '</span>' : ''}${cuentaOrigLine}</div>
                             ${cuentaDestLine}
                         </div>
@@ -1394,25 +1533,25 @@ function segCargarHistorial(ccId) {
 }
 
 function segToggleTC(moneda) {
-    const secTC    = document.getElementById('seg_sec_tc');
-    const secEquiv = document.getElementById('seg_sec_equiv');
-    const inpTC    = document.getElementById('seg_inp_tc');
-    const inpBob   = document.getElementById('seg_inp_tc_bob');
+    const secTC      = document.getElementById('seg_sec_tc');
+    const secEquiv   = document.getElementById('seg_sec_equiv');
+    const inpTCDisp  = document.getElementById('seg_inp_tc_display');
+    const inpTC      = document.getElementById('seg_inp_tc');
+    const inpBob     = document.getElementById('seg_inp_tc_bob');
 
-    document.getElementById('seg_moneda_pago').value    = moneda;
+    document.getElementById('seg_moneda_pago').value     = moneda;
     document.getElementById('seg_lbl_moneda').textContent = moneda;
 
     if (moneda === 'BOB') {
         secTC.style.display    = 'none';
         secEquiv.style.display = 'none';
-        inpTC.disabled  = true;
-        inpTC.value     = '';
-        inpBob.disabled = false;
-        inpBob.value    = '1';
+        inpTCDisp.disabled = true;
+        inpTCDisp.value    = '';
+        inpTC.value        = '';
+        inpBob.value       = '1';
     } else {
         secTC.style.display = 'block';
-        inpTC.disabled  = false;
-        inpBob.disabled = true;
+        inpTCDisp.disabled  = false;
         document.getElementById('seg_lbl_tc_moneda').textContent = moneda;
         segCalcEquiv();
     }
@@ -1425,12 +1564,45 @@ function segCalcEquiv() {
     const tc    = parseFloat(document.getElementById('seg_inp_tc').value) || 0;
     const secEquiv = document.getElementById('seg_sec_equiv');
     if (monto > 0 && tc > 0) {
-        document.getElementById('seg_lbl_equiv').textContent = (monto * tc).toFixed(2);
+        document.getElementById('seg_lbl_equiv').textContent = _fmtS(monto * tc);
         secEquiv.style.display = 'block';
     } else {
         secEquiv.style.display = 'none';
     }
 }
+
+// ── Cajero monto y tipo_cambio en Registrar Pago (seguimiento) ──
+(function() {
+    function _txt2num(v) { return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0; }
+    function _initCajero(displayId, hiddenId, decimals, onChangeCb) {
+        var disp   = document.getElementById(displayId);
+        var hidden = document.getElementById(hiddenId);
+        if (!disp || !hidden) return;
+        disp.addEventListener('input', function() {
+            var raw    = this.value.replace(/[^0-9,]/g, '');
+            var partes = raw.split(',');
+            if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+            partes = raw.split(',');
+            if (partes[1] !== undefined) partes[1] = partes[1].slice(0, decimals);
+            var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            var diff  = nuevo.length - this.value.length;
+            var pos   = (this.selectionStart || 0) + diff;
+            this.value = nuevo;
+            try { this.setSelectionRange(pos, pos); } catch(_) {}
+            hidden.value = _txt2num(nuevo) || '';
+            if (onChangeCb) onChangeCb();
+        });
+        disp.addEventListener('blur', function() {
+            var n = _txt2num(this.value);
+            this.value   = n > 0 ? (decimals === 4 ? _fmtS4(n) : _fmtS(n)) : '';
+            hidden.value = n > 0 ? n : '';
+            if (onChangeCb) onChangeCb();
+        });
+    }
+    _initCajero('seg_inp_monto_display', 'seg_inp_monto', 2, segCalcEquiv);
+    _initCajero('seg_inp_tc_display',    'seg_inp_tc',    4, segCalcEquiv);
+})();
 
 function segToggleCodigo(metodo) {
     document.getElementById('seg_sec_codigo').style.display = metodo === 'transferencia' ? 'block' : 'none';
@@ -1463,18 +1635,31 @@ function segCambiarReceptor(tipo) {
 }
 // ---- Fin pago desde seguimiento ----
 
-function filtrarPorProveedorSeg(proveedorId) {
+function aplicarFiltrosSeg() {
+    const proveedorId  = (document.getElementById('filtro_proveedor_seg')?.value    || '');
+    const tipoTramo    = (document.getElementById('filtro_tipo_tramo_seg')?.value   || '');
+    const fleteEstado  = (document.getElementById('filtro_flete_estado_seg')?.value || '');
     const tablas = ['tabla_en_ruta', 'tabla_transbordando', 'tabla_transbordado', 'tabla_entregados'];
     tablas.forEach(function(id) {
         const tabla = document.getElementById(id);
         if (!tabla) return;
         tabla.querySelectorAll('tbody tr').forEach(function(fila) {
-            const ok = !proveedorId || fila.dataset.proveedorId == proveedorId;
-            fila.style.display = ok ? '' : 'none';
+            const okProv  = !proveedorId || fila.dataset.proveedorId == proveedorId;
+            const okTipo  = !tipoTramo   || fila.dataset.tipoTramo  === tipoTramo;
+            const okFlete = !fleteEstado || fila.dataset.fleteEstado === fleteEstado;
+            fila.style.display = (okProv && okTipo && okFlete) ? '' : 'none';
         });
     });
-    const sel = document.getElementById('filtro_proveedor_seg');
-    if (sel) sel.value = proveedorId;
+}
+
+function limpiarFiltrosSeg() {
+    const sel1 = document.getElementById('filtro_proveedor_seg');
+    const sel2 = document.getElementById('filtro_tipo_tramo_seg');
+    const sel3 = document.getElementById('filtro_flete_estado_seg');
+    if (sel1) sel1.value = '';
+    if (sel2) sel2.value = '';
+    if (sel3) sel3.value = '';
+    aplicarFiltrosSeg();
 }
 
 function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo) {
@@ -1496,108 +1681,239 @@ function editToggleTc(moneda) {
 }
 
 function abrirModalFlete(ccUuid, label) {
-    document.getElementById('flete_label').textContent = label;
-    document.getElementById('formFlete').action = '{{ url("contrato-camion") }}/' + ccUuid + '/flete';
-    document.getElementById('flete_moneda').value = 'BOB';
-    document.querySelector('#formFlete input[name="monto_acordado"]').value = '';
+    document.getElementById('flete_label').textContent    = label;
+    document.getElementById('formFlete').action           = '{{ url("contrato-camion") }}/' + ccUuid + '/flete';
+    document.getElementById('flete_moneda').value         = 'BOB';
+    document.getElementById('flete_monto_display').value  = '';
+    document.getElementById('flete_monto_hidden').value   = '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalFlete')).show();
 }
+
+// Cajero para monto flete
+(function () {
+    var fmt = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function textoANum(txt) { return parseFloat((txt || '').replace(/\./g, '').replace(',', '.')) || 0; }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var disp = document.getElementById('flete_monto_display');
+        var hidd = document.getElementById('flete_monto_hidden');
+        if (!disp) return;
+
+        disp.addEventListener('input', function () {
+            var raw = this.value.replace(/[^0-9,]/g, '');
+            var p = raw.split(',');
+            if (p.length > 2) raw = p[0] + ',' + p.slice(1).join('');
+            if (p[1] !== undefined && p[1].length > 2) raw = p[0] + ',' + p[1].substring(0, 2);
+            var partes = raw.split(',');
+            var entF   = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo  = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            var diff   = nuevo.length - this.value.length;
+            var pos    = (this.selectionStart || 0) + diff;
+            this.value = nuevo;
+            try { this.setSelectionRange(pos, pos); } catch(_) {}
+            hidd.value = nuevo ? textoANum(nuevo) : '';
+        });
+
+        disp.addEventListener('blur', function () {
+            var n = textoANum(this.value);
+            this.value = n > 0 ? fmt.format(n) : '';
+            hidd.value = n > 0 ? n : '';
+        });
+    });
+})();
+
+// ── Modal llegada (seguimiento) — patrón cajero ──────────────────────────
+(function () {
+    var _fmt = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function textoANum(txt) { return parseFloat((txt || '').replace(/\./g, '').replace(',', '.')) || 0; }
+    function formatear(n)   { return _fmt.format(n); }
+
+    function initCajeroSeg(displayId, hiddenId, onChangeCallback) {
+        var disp = document.getElementById(displayId);
+        var hidd = document.getElementById(hiddenId);
+        if (!disp || !hidd) return;
+        disp.addEventListener('input', function () {
+            var raw = this.value.replace(/[^0-9,]/g, '');
+            var p = raw.split(',');
+            if (p.length > 2) raw = p[0] + ',' + p.slice(1).join('');
+            if (p[1] !== undefined && p[1].length > 2) raw = p[0] + ',' + p[1].substring(0, 2);
+            var partes = raw.split(',');
+            var entF   = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo  = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            var diff   = nuevo.length - this.value.length;
+            var pos    = (this.selectionStart || 0) + diff;
+            this.value = nuevo;
+            try { this.setSelectionRange(pos, pos); } catch(_) {}
+            hidd.value = nuevo ? textoANum(nuevo) : '';
+            if (onChangeCallback) onChangeCallback();
+        });
+        disp.addEventListener('blur', function () {
+            var n = textoANum(this.value);
+            this.value = n > 0 ? formatear(n) : '';
+            hidd.value = n > 0 ? n : '';
+            if (onChangeCallback) onChangeCallback();
+        });
+    }
+
+    function segActualizarRadios() {
+        var tiene = textoANum(document.getElementById('seg_inp_peso_llegada_display').value) > 0;
+        ['seg_accion_entregado', 'seg_accion_parcial', 'seg_accion_transbordo'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = !tiene;
+            if (!tiene && el.checked) {
+                el.checked = false;
+                segAccionLlegadaCambiada(null);
+            }
+        });
+        document.getElementById('seg_aviso_peso_requerido').style.display = tiene ? 'none' : '';
+    }
+
+    function segCalcTotalVenta() {
+        var accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
+        if (accion === 'entregado') {
+            var tn    = textoANum(document.getElementById('seg_inp_peso_llegada').value);
+            var precio = textoANum(document.getElementById('seg_inp_precio_ton').value);
+            var lbl    = document.getElementById('seg_lbl_total_venta');
+            if (lbl) lbl.textContent = (tn > 0 && precio > 0) ? formatear(tn * precio) : '—';
+        } else if (accion === 'div_carga') {
+            var tn2    = textoANum(document.getElementById('seg_inp_tn_parcial').value);
+            var precio2= textoANum(document.getElementById('seg_inp_precio_ton_div').value);
+            var lbl2   = document.getElementById('seg_lbl_total_venta_div');
+            var restLbl= document.getElementById('seg_lbl_tn_restante');
+            var total  = textoANum(document.getElementById('seg_inp_peso_llegada').value);
+            var rest   = Math.max(0, total - tn2);
+            if (lbl2)   lbl2.textContent  = (tn2 > 0 && precio2 > 0) ? formatear(tn2 * precio2) : '—';
+            if (restLbl) restLbl.textContent = rest > 0 ? formatear(rest) + ' t' : '—';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initCajeroSeg('seg_inp_peso_llegada_display', 'seg_inp_peso_llegada', function () {
+            segActualizarRadios();
+            segCalcTotalVenta();
+            validarFormLlegadaSeg();
+        });
+        initCajeroSeg('seg_inp_precio_ton_display',     'seg_inp_precio_ton',     segCalcTotalVenta);
+        initCajeroSeg('seg_inp_precio_ton_div_display', 'seg_inp_precio_ton_div', segCalcTotalVenta);
+        initCajeroSeg('seg_inp_tn_parcial_display',     'seg_inp_tn_parcial',     function () {
+            segCalcTotalVenta();
+            validarFormLlegadaSeg();
+        });
+
+        // Dirección al seleccionar cliente (entregado)
+        document.getElementById('seg_sel_cliente').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            document.getElementById('seg_inp_direccion_entrega').value = opt ? (opt.dataset.direccion ?? '') : '';
+            validarFormLlegadaSeg();
+        });
+        // Dirección al seleccionar cliente (div. carga)
+        document.getElementById('seg_sel_cliente_div').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            document.getElementById('seg_inp_direccion_entrega_div').value = opt ? (opt.dataset.direccion ?? '') : '';
+            validarFormLlegadaSeg();
+        });
+
+        var modal = document.getElementById('modalLlegada');
+        if (modal) {
+            modal.addEventListener('input',  validarFormLlegadaSeg);
+            modal.addEventListener('change', validarFormLlegadaSeg);
+        }
+    });
+
+    window.segAccionLlegadaCambiada = function (accion) {
+        var secCliente  = document.getElementById('seg_sec_cliente');
+        var secEmpresa  = document.getElementById('seg_sec_empresa_factura');
+        var secPrecio   = document.getElementById('seg_sec_precio_venta');
+        var secParcial  = document.getElementById('seg_sec_parcial');
+
+        secCliente.classList.add('d-none');
+        secEmpresa.classList.add('d-none');
+        secPrecio.classList.add('d-none');
+        secParcial.classList.add('d-none');
+        document.getElementById('seg_sel_cliente').value          = '';
+        document.getElementById('seg_sel_cliente_div').value      = '';
+        document.getElementById('seg_inp_direccion_entrega').value     = '';
+        document.getElementById('seg_inp_direccion_entrega_div').value = '';
+        document.getElementById('seg_sel_empresa_factura').value     = '';
+        document.getElementById('seg_sel_empresa_factura_div').value = '';
+        document.getElementById('seg_inp_precio_ton').value          = '';
+        document.getElementById('seg_inp_precio_ton_display').value  = '';
+        document.getElementById('seg_inp_precio_ton_div').value         = '';
+        document.getElementById('seg_inp_precio_ton_div_display').value = '';
+        document.getElementById('seg_lbl_total_venta').textContent     = '—';
+        document.getElementById('seg_lbl_total_venta_div').textContent = '—';
+
+        if (accion === 'entregado') {
+            secCliente.classList.remove('d-none');
+            secEmpresa.classList.remove('d-none');
+            secPrecio.classList.remove('d-none');
+        } else if (accion === 'div_carga') {
+            secParcial.classList.remove('d-none');
+        }
+        validarFormLlegadaSeg();
+    };
+})();
 
 function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo) {
     document.getElementById('llegada_tramo_info').textContent = info;
     document.getElementById('formLlegada').action            = '{{ url("tramo") }}/' + tramoUuid + '/llegada';
-    document.getElementById('llegada_peso_max').textContent  = pesoSalida;
-    document.querySelectorAll('input[name="accion"]').forEach(r => r.checked = false);
+    document.getElementById('llegada_peso_max').textContent  =
+        new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(pesoSalida);
 
-    const inp = document.getElementById('inp_peso_llegada');
-    inp.removeAttribute('max');
-    inp.value = '';
+    document.querySelectorAll('#formLlegada input[name="accion"]').forEach(r => { r.checked = false; r.disabled = true; });
+    document.getElementById('seg_aviso_peso_requerido').style.display = '';
+
+    document.getElementById('seg_inp_peso_llegada_display').value = '';
+    document.getElementById('seg_inp_peso_llegada').value         = '';
 
     document.getElementById('inp_fecha_llegada').min   = fechaSalida;
     document.getElementById('inp_fecha_llegada').value = fechaSalida;
 
-    document.getElementById('seg_sec_cliente').classList.add('d-none');
-    document.getElementById('seg_sel_cliente').value = '';
-    document.getElementById('seg_sec_precio_venta').classList.add('d-none');
-    document.getElementById('seg_inp_precio_ton').value = '';
-    document.getElementById('seg_sec_parcial').classList.add('d-none');
-    document.getElementById('seg_inp_tn_parcial').value    = '';
-    document.getElementById('seg_inp_destino_nuevo').value = '';
+    segAccionLlegadaCambiada(null);
+
+    document.getElementById('seg_inp_tn_parcial_display').value = '';
+    document.getElementById('seg_inp_tn_parcial').value         = '';
+    document.getElementById('seg_lbl_tn_restante').textContent  = '—';
+    document.getElementById('seg_inp_destino_nuevo').value      = '';
     document.getElementById('seg_hidden_camion_nuevo').value    = camionId || '';
     document.getElementById('seg_hidden_conductor_nuevo').value = conductorId || '';
     document.getElementById('seg_hidden_fecha_nuevo').value     = fechaSalida;
     document.getElementById('seg_hidden_tipo_tramo_nuevo').value = tipoTramo || '';
-    document.getElementById('lbl_tn_restante').textContent = '—';
-    _llegadaPesoSalida = pesoSalida;
-    const chk = document.getElementById('seg_chk_descuento');
+
+    var chk = document.getElementById('seg_chk_descuento');
     chk.checked = false;
     document.getElementById('seg_sec_descuento').classList.add('d-none');
     document.getElementById('seg_inp_descuento').value = '';
     document.querySelector('#formLlegada textarea[name="observaciones_llegada"]').value = '';
 
-    const btnConf = document.getElementById('btn_confirmar_llegada_seg');
+    var btnConf = document.getElementById('btn_confirmar_llegada_seg');
     btnConf.disabled  = true;
     btnConf.className = 'btn btn-secondary';
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalLlegada')).show();
 }
 
-let _llegadaPesoSalida = 0;
-
-document.addEventListener('DOMContentLoaded', function () {
-    const modal = document.getElementById('modalLlegada');
-    if (modal) {
-        modal.addEventListener('input',  validarFormLlegadaSeg);
-        modal.addEventListener('change', validarFormLlegadaSeg);
-    }
-});
-
 function validarFormLlegadaSeg() {
-    const peso   = document.getElementById('inp_peso_llegada')?.value;
-    const fecha  = document.getElementById('inp_fecha_llegada')?.value;
-    const accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
-    const cliente   = document.getElementById('seg_sel_cliente')?.value;
-    const tnParcial = document.getElementById('seg_inp_tn_parcial')?.value;
-    const destNuevo = document.getElementById('seg_inp_destino_nuevo')?.value.trim();
-    const btn = document.getElementById('btn_confirmar_llegada_seg');
+    var peso       = document.getElementById('seg_inp_peso_llegada')?.value;
+    var fecha      = document.getElementById('inp_fecha_llegada')?.value;
+    var accion     = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
+    var cliente    = document.getElementById('seg_sel_cliente')?.value;
+    var empresa    = document.getElementById('seg_sel_empresa_factura')?.value;
+    var clienteDiv = document.getElementById('seg_sel_cliente_div')?.value;
+    var empresaDiv = document.getElementById('seg_sel_empresa_factura_div')?.value;
+    var tnParcial  = document.getElementById('seg_inp_tn_parcial')?.value;
+    var destNuevo  = document.getElementById('seg_inp_destino_nuevo')?.value.trim();
+    var btn = document.getElementById('btn_confirmar_llegada_seg');
     if (!btn) return;
 
-    let ok = peso && fecha && accion;
-    if (accion === 'entregado')       ok = ok && cliente;
-    if (accion === 'div_carga') ok = ok && cliente && tnParcial && destNuevo;
+    var ok = peso && fecha && accion;
+    if (accion === 'entregado') ok = ok && cliente && empresa;
+    if (accion === 'div_carga') ok = ok && clienteDiv && empresaDiv && tnParcial && destNuevo;
 
     btn.disabled  = !ok;
     btn.className = ok ? 'btn btn-success' : 'btn btn-secondary';
-}
-
-function accionLlegadaCambiada(accion) {
-    const secCliente = document.getElementById('seg_sec_cliente');
-    const secPrecio  = document.getElementById('seg_sec_precio_venta');
-    const secParcial = document.getElementById('seg_sec_parcial');
-    const selCliente = document.getElementById('seg_sel_cliente');
-
-    secCliente.classList.add('d-none');
-    secPrecio.classList.add('d-none');
-    secParcial.classList.add('d-none');
-
-    if (accion === 'entregado') {
-        secCliente.classList.remove('d-none');
-        secPrecio.classList.remove('d-none');
-    } else if (accion === 'div_carga') {
-        secCliente.classList.remove('d-none');
-        secPrecio.classList.remove('d-none');
-        secParcial.classList.remove('d-none');
-    } else {
-        selCliente.value = '';
-    }
-    validarFormLlegadaSeg();
-}
-
-function calcularRestanteParcial() {
-    const tnEntregadas = parseFloat(document.getElementById('seg_inp_tn_parcial').value) || 0;
-    const pesoTotal    = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
-    const restante     = Math.max(0, pesoTotal - tnEntregadas);
-    document.getElementById('lbl_tn_restante').textContent = restante > 0 ? restante.toFixed(3) + ' t' : '—';
 }
 
 function ejecutarAccionSeg(sel) {
@@ -1764,9 +2080,9 @@ function abrirHistorialPagos(ccId, camionLabel) {
             <div class="px-3 pt-3 pb-2">
                 <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
                     <span class="small text-muted">Contrato: <strong>${d.contrato}</strong></span>
-                    <span class="small text-muted">Acordado: <strong>${moneda} ${parseFloat(d.monto_acordado||0).toFixed(2)}</strong></span>
-                    <span class="small text-success">Pagado: <strong>${moneda} ${parseFloat(d.total_pagado||0).toFixed(2)}</strong></span>
-                    <span class="small ${saldoClass}"><i class="bi ${saldoIcon} me-1"></i>Saldo: <strong>${moneda} ${parseFloat(d.saldo_pendiente||0).toFixed(2)}</strong></span>
+                    <span class="small text-muted">Acordado: <strong>${moneda} ${_fmtS(d.monto_acordado||0)}</strong></span>
+                    <span class="small text-success">Pagado: <strong>${moneda} ${_fmtS(d.total_pagado||0)}</strong></span>
+                    <span class="small ${saldoClass}"><i class="bi ${saldoIcon} me-1"></i>Saldo: <strong>${moneda} ${_fmtS(d.saldo_pendiente||0)}</strong></span>
                 </div>
                 <table class="table table-sm table-hover table-bordered mb-0">
                     <thead class="table-light">
@@ -1786,7 +2102,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                 html += `<tr>
                     <td class="small">${p.fecha}</td>
                     <td><span class="badge bg-secondary">${p.tipo}</span></td>
-                    <td class="text-end small fw-semibold">${p.moneda_pago} ${parseFloat(p.monto).toFixed(2)}</td>
+                    <td class="text-end small fw-semibold">${p.moneda_pago} ${_fmtS(p.monto)}</td>
                     <td class="small">${p.metodo}</td>
                     <td class="small">${p.receptor ?? '—'}</td>
                     <td class="small">${origen}</td>

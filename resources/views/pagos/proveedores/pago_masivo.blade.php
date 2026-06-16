@@ -59,7 +59,7 @@
           @foreach($empresas as $emp)
             @foreach($emp->cuentas as $cta)
             <option value="{{ $cta->id }}" data-moneda="{{ $cta->moneda }}" data-saldo="{{ $cta->saldo_actual }}">
-              {{ $emp->nombre }} — {{ $cta->alias ?? $cta->numero_cuenta }} [{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2) }}
+              {{ $emp->nombre }} — {{ $cta->alias ?? $cta->numero_cuenta }} [{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
             </option>
             @endforeach
           @endforeach
@@ -141,13 +141,13 @@
                 <small class="text-muted d-block">{{ $c->fecha_inicio?->format('d/m/Y') }} — {{ $c->fecha_fin?->format('d/m/Y') ?? 'sin fin' }}</small>
               </td>
               <td class="text-end">
-                <span class="small">{{ $moneda }} {{ number_format($c->monto_total, 2) }}</span>
+                <span class="small">{{ $moneda }} {{ number_format($c->monto_total, 2, ',', '.') }}</span>
               </td>
               <td class="text-end">
-                <span class="small text-danger">{{ $moneda }} {{ number_format($totalPag, 2) }}</span>
+                <span class="small text-danger">{{ $moneda }} {{ number_format($totalPag, 2, ',', '.') }}</span>
               </td>
               <td class="text-end">
-                <span class="fw-semibold text-success">{{ $moneda }} {{ number_format($saldo, 2) }}</span>
+                <span class="fw-semibold text-success">{{ $moneda }} {{ number_format($saldo, 2, ',', '.') }}</span>
               </td>
               <td>
                 <div class="input-group input-group-sm">
@@ -427,6 +427,10 @@ const _cuentasPorProveedor = {!! json_encode($cuentasJs) !!};
 const _camionesXContrato = {!! json_encode($camionesJs) !!};
 
 
+function _fmtM(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
+}
+
 function clampPct(input) {
     let v = parseFloat(input.value);
     if (isNaN(v)) return;
@@ -448,7 +452,7 @@ function onCuentaOrigenChange() {
     } else {
         _saldoCuenta  = parseFloat(opt.dataset.saldo) || 0;
         _monedaCuenta = opt.dataset.moneda || '';
-        document.getElementById('lbl_saldo_cuenta').textContent = `${_monedaCuenta} ${_saldoCuenta.toFixed(2)}`;
+        document.getElementById('lbl_saldo_cuenta').textContent = `${_monedaCuenta} ${_fmtM(_saldoCuenta)}`;
         document.getElementById('saldo_cuenta_info').style.display = '';
     }
     verificarSaldo();
@@ -471,7 +475,7 @@ function verificarSaldo() {
 
     if (insuf) {
         avisoEl.style.display = '';
-        document.getElementById('lbl_total_insuf').textContent = `${_monedaCuenta} ${total.toFixed(2)}`;
+        document.getElementById('lbl_total_insuf').textContent = `${_monedaCuenta} ${_fmtM(total)}`;
         lbl.className = 'text-danger';
     } else {
         avisoEl.style.display = 'none';
@@ -533,7 +537,7 @@ function calcularMonto(contratoId) {
     entry.monto   = monto;
 
     const lbl = document.getElementById(`monto_preview_${contratoId}`);
-    lbl.textContent = (pctReal > 0 && !invalido) ? `${entry.moneda} ${monto.toFixed(2)}` : '—';
+    lbl.textContent = (pctReal > 0 && !invalido) ? `${entry.moneda} ${_fmtM(monto)}` : '—';
     actualizarTotales();
     actualizarBtnPaso2();
 }
@@ -547,7 +551,7 @@ function actualizarTotales() {
         if (!totPorMoneda[e.moneda]) totPorMoneda[e.moneda] = 0;
         totPorMoneda[e.moneda] += e.monto;
     });
-    const txt = Object.entries(totPorMoneda).map(([m, v]) => `${m} ${v.toFixed(2)}`).join(' + ');
+    const txt = Object.entries(totPorMoneda).map(([m, v]) => `${m} ${_fmtM(v)}`).join(' + ');
     document.getElementById('lbl_total').textContent = txt || '—';
     verificarSaldo();
 }
@@ -602,7 +606,7 @@ function irAPaso2() {
               <div class="border-bottom p-2 ps-3" data-contrato-id="${ctr.id}">
                 <div class="d-flex align-items-center gap-2 mb-1">
                   <span class="fw-semibold small">${ctr.contratoNum}</span>
-                  <span class="badge bg-primary ms-1">${ctr.moneda} ${ctr.monto.toFixed(2)}</span>
+                  <span class="badge bg-primary ms-1">${ctr.moneda} ${_fmtM(ctr.monto)}</span>
                   <span class="text-muted small">(${ctr.pct}% de saldo)</span>
                   ${badgeOk}
                 </div>`;
@@ -773,7 +777,7 @@ function abrirConfirmacion() {
         tbody.appendChild(tr);
     });
 
-    document.getElementById('lbl_total_confirmacion').textContent = `${moneda} ${total.toFixed(2)}`;
+    document.getElementById('lbl_total_confirmacion').textContent = `${moneda} ${_fmtM(total)}`;
     new bootstrap.Modal(document.getElementById('modalConfirmacion')).show();
 }
 
@@ -1000,8 +1004,8 @@ function verCamiones(contratoId) {
 
                 var hijoHtml    = t.es_hijo ? '<span class="badge bg-secondary me-1" style="font-size:.6rem">Redistribución</span>' : '';
                 var clienteHtml = t.cliente_nombre ? '<span class="text-muted ms-1" style="font-size:.75rem"><i class="bi bi-person me-1"></i>' + t.cliente_nombre + '</span>' : '';
-                var salidaHtml  = t.peso_salida  > 0 ? '<span><i class="bi bi-box me-1"></i>P. salida: <strong>' + t.peso_salida.toFixed(3) + ' t</strong></span>' : '';
-                var llegadaHtml = t.peso_llegada > 0 ? '<span><i class="bi bi-box-seam me-1"></i>P. llegada: <strong>' + t.peso_llegada.toFixed(3) + ' t</strong></span>' : '';
+                var salidaHtml  = t.peso_salida  > 0 ? '<span><i class="bi bi-box me-1"></i>P. salida: <strong>' + _fmtM(t.peso_salida) + ' t</strong></span>' : '';
+                var llegadaHtml = t.peso_llegada > 0 ? '<span><i class="bi bi-box-seam me-1"></i>P. llegada: <strong>' + _fmtM(t.peso_llegada) + ' t</strong></span>' : '';
 
                 // Bloque flete del tramo
                 var fleteHtml = '';

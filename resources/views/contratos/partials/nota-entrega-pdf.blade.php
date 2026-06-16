@@ -136,17 +136,17 @@
     @if($esParcial)
     <div class="row">
         <div class="cell">
-            <div class="big">{{ number_format($totalLlego, 3, ',', '.') }} t</div>
+            <div class="big">{{ number_format($totalLlego, 2, ',', '.') }} t</div>
             <div class="lbl">Total que llegó</div>
         </div>
         <div class="cell" style="font-size:22px; color:#aaa; padding-top:8px;">&#8594;</div>
         <div class="cell">
-            <div class="big" style="color:#0c4a6e;">{{ number_format($tnCliente, 3, ',', '.') }} t</div>
+            <div class="big" style="color:#0c4a6e;">{{ number_format($tnCliente, 2, ',', '.') }} t</div>
             <div class="lbl">Entregado a este cliente</div>
         </div>
         @if($tnRestante > 0)
         <div class="cell">
-            <div class="big" style="color:#b45309;">{{ number_format($tnRestante, 3, ',', '.') }} t</div>
+            <div class="big" style="color:#b45309;">{{ number_format($tnRestante, 2, ',', '.') }} t</div>
             <div class="lbl">Continúa en nuevo tramo</div>
         </div>
         @endif
@@ -154,17 +154,17 @@
     @else
     <div class="row">
         <div class="cell">
-            <div class="big">{{ number_format($tramo->peso_salida, 3, ',', '.') }} t</div>
+            <div class="big">{{ number_format($tramo->peso_salida, 2, ',', '.') }} t</div>
             <div class="lbl">Peso de salida</div>
         </div>
         <div class="cell" style="font-size:22px; color:#aaa; padding-top:8px;">&#8594;</div>
         <div class="cell">
-            <div class="big">{{ number_format($tramo->peso_llegada, 3, ',', '.') }} t</div>
+            <div class="big">{{ number_format($tramo->peso_llegada, 2, ',', '.') }} t</div>
             <div class="lbl">Peso de llegada (neto)</div>
         </div>
         @if($merma > 0)
         <div class="cell">
-            <div class="big diff">− {{ number_format($merma, 3, ',', '.') }} t</div>
+            <div class="big diff">− {{ number_format($merma, 2, ',', '.') }} t</div>
             <div class="lbl">Merma</div>
         </div>
         @endif
@@ -261,7 +261,7 @@
         </div>
         <div style="display:table-cell; text-align:center; font-size:22px; color:#aaa; padding-top:6px;">×</div>
         <div style="display:table-cell; text-align:center;">
-            <div style="font-size:18px; font-weight:bold; color:#1a6e3c;">{{ number_format($tnCliente, 3, ',', '.') }} t</div>
+            <div style="font-size:18px; font-weight:bold; color:#1a6e3c;">{{ number_format($tnCliente, 2, ',', '.') }} t</div>
             <div style="font-size:10px; color:#555; text-transform:uppercase;">Toneladas entregadas</div>
         </div>
         <div style="display:table-cell; text-align:center; font-size:22px; color:#aaa; padding-top:6px;">=</div>

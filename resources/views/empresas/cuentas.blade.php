@@ -72,7 +72,7 @@
                     </div>
                     @endif
                     <div class="fs-5 fw-bold {{ $cuenta->saldo_actual >= 0 ? 'text-success' : 'text-danger' }} mt-2 mb-2">
-                        {{ $cuenta->moneda }} {{ number_format($cuenta->saldo_actual, 2) }}
+                        {{ $cuenta->moneda }} {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}
                     </div>
                     <a href="{{ route('tesoreria.cuenta', $cuenta->uuid) }}" class="btn btn-sm btn-outline-primary w-100">
                         <i class="bi bi-list-ul"></i> Ver movimientos
@@ -105,9 +105,9 @@
 <div class="modal fade" id="modalCuenta" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header position-relative">
                 <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Nueva Cuenta</h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 position-absolute top-0 end-0 mt-2 me-3">
                     <button type="button"
                             class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                             data-tour-modal="#modalCuenta"

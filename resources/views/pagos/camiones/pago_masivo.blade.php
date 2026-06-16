@@ -26,7 +26,7 @@
                         {"intro":"💸 El <b>Pago Masivo de Fletes</b> paga varios fletes de golpe. Se hace en <b>2 pasos</b>: primero eliges qué fletes pagar, luego a qué cuenta llega cada uno. Te guío por el Paso 1."},
                         {"element":"#pm_cuenta","intro":"🏦 <b>Cuenta de origen</b>: de qué cuenta de la empresa sale el dinero. Muestra el saldo y avisa si no alcanza.","position":"bottom"},
                         {"element":"#pm_fecha","intro":"📅 <b>Fecha de pago</b> de todo el lote.","position":"bottom"},
-                        {"element":"#pm_metodo","intro":"💳 <b>Método de pago</b> (transferencia o QR). Si es transferencia, podrás escribir un código.","position":"bottom"},
+                        {"element":"#pm_metodo","intro":"💳 <b>Método de pago</b> (transferencia o QR). El código de seguimiento se genera automáticamente.","position":"bottom"},
                         {"element":"#zona-fletes","intro":"🚚 Los fletes pendientes <b>agrupados por proveedor</b>. Marca la casilla del proveedor para seleccionar todos sus fletes, o márcalos uno por uno.","position":"top"},
                         {"element":"#zona-totales-flete","intro":"🧮 Abajo ves cuántos fletes seleccionaste y el <b>total a pagar</b>. Cuando esté listo, el botón <b>Siguiente</b> te lleva al Paso 2.","position":"top"}
                     ]'
@@ -109,7 +109,7 @@
                 @foreach($empresas as $empresa)
                     @foreach($empresa->cuentas as $cta)
                     <option value="{{ $cta->id }}" data-saldo="{{ $cta->saldo_actual }}" data-moneda="{{ $cta->moneda }}">
-                        {{ $empresa->nombre }} — {{ $cta->alias ?? $cta->numero_cuenta }} [{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2) }}
+                        {{ $empresa->nombre }} — {{ $cta->alias ?? $cta->numero_cuenta }} [{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
                     </option>
                     @endforeach
                 @endforeach
@@ -128,15 +128,11 @@
         </div>
         <div class="col-md-2">
             <label class="form-label fw-semibold"><i class="bi bi-credit-card"></i> Método de pago <span class="text-danger">*</span></label>
-            <select id="pm_metodo" class="form-select" required onchange="toggleCodigoPM(this.value)">
+            <select id="pm_metodo" class="form-select" required onchange="actualizarResumen()">
                 <option value="">— Seleccione —</option>
                 <option value="transferencia">Transferencia</option>
                 <option value="qr">QR</option>
             </select>
-        </div>
-        <div class="col-md-2" id="pm_sec_codigo" style="display:none;">
-            <label class="form-label fw-semibold"><i class="bi bi-hash"></i> Código de transferencia</label>
-            <input type="text" id="pm_codigo" class="form-control" maxlength="100" placeholder="Opcional" oninput="actualizarResumen()">
         </div>
         <div class="col-md-2">
             <label class="form-label fw-semibold"><i class="bi bi-chat-left-text"></i> Observaciones</label>
@@ -224,13 +220,13 @@
                         </td>
                         <td><small>{{ $clienteNombre }}</small></td>
                         <td class="text-end small">
-                            {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->monto_neto, 2) }}
+                            {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->monto_neto, 2, ',', '.') }}
                         </td>
                         <td class="text-end small text-warning fw-semibold">
-                            {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->total_pagado, 2) }}
+                            {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->total_pagado, 2, ',', '.') }}
                         </td>
                         <td class="text-end fw-bold text-danger small">
-                            {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->saldo_pendiente, 2) }}
+                            {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->saldo_pendiente, 2, ',', '.') }}
                         </td>
                     </tr>
                     @endforeach
@@ -244,7 +240,7 @@
     <div class="d-flex justify-content-between align-items-center mt-3" id="zona-totales-flete">
         <div class="text-muted small">
             Fletes seleccionados: <strong id="res_cant">0</strong>
-            &nbsp;|&nbsp; Total a pagar: <strong id="res_total" class="text-danger">BOB 0.00</strong>
+            &nbsp;|&nbsp; Total a pagar: <strong id="res_total" class="text-danger">BOB 0,00</strong>
         </div>
         <button type="button" id="btn_continuar" class="btn btn-primary" disabled onclick="irAPaso2()">
             Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
@@ -295,7 +291,6 @@
             <div class="col-auto"><small><i class="bi bi-building me-1"></i>Cuenta: <strong id="p2_res_cuenta">—</strong></small></div>
             <div class="col-auto"><small><i class="bi bi-calendar me-1"></i>Fecha: <strong id="p2_res_fecha">—</strong></small></div>
             <div class="col-auto"><small><i class="bi bi-credit-card me-1"></i>Método: <strong id="p2_res_metodo">—</strong></small></div>
-            <div class="col-auto" id="p2_res_codigo_wrap" style="display:none;"><small><i class="bi bi-hash me-1"></i>Código: <strong id="p2_res_codigo">—</strong></small></div>
             <div class="col-auto ms-auto"><small class="text-danger fw-semibold">Total: <strong id="p2_res_total">—</strong></small></div>
         </div>
 
@@ -430,6 +425,10 @@ foreach($porProveedor as $grupo) {
 const _cuentasPorOperador = @json($cuentasJs);
 const _contratosData      = @json($contratosJs);
 
+function _fmtMonto(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
 // ===== Paso 1 =====
 
 function seleccionarTodos(estado) {
@@ -455,7 +454,7 @@ function actualizarResumen() {
     checks.forEach(cb => { total += parseFloat(cb.dataset.saldo ?? 0); });
 
     document.getElementById('res_cant').textContent  = checks.length;
-    document.getElementById('res_total').textContent = moneda + ' ' + total.toFixed(2);
+    document.getElementById('res_total').textContent = moneda + ' ' + _fmtMonto(total);
 
     // Saldo info
     const infoEl = document.getElementById('saldo_cuenta_info');
@@ -465,12 +464,12 @@ function actualizarResumen() {
 
     if (optSel?.value) {
         infoEl.style.display = '';
-        lblSaldo.textContent = moneda + ' ' + (saldoCuenta ?? 0).toFixed(2);
+        lblSaldo.textContent = moneda + ' ' + _fmtMonto(saldoCuenta ?? 0);
         if (checks.length > 0 && saldoCuenta !== null && total > saldoCuenta) {
             saldoInsuf = true;
             document.getElementById('aviso_saldo_texto').textContent =
-                'Saldo insuficiente: disponible ' + moneda + ' ' + saldoCuenta.toFixed(2) +
-                ', requerido ' + moneda + ' ' + total.toFixed(2) + '.';
+                'Saldo insuficiente: disponible ' + moneda + ' ' + _fmtMonto(saldoCuenta) +
+                ', requerido ' + moneda + ' ' + _fmtMonto(total) + '.';
             avisoEl.classList.remove('d-none');
             lblSaldo.className = 'text-danger';
         } else {
@@ -487,18 +486,6 @@ function actualizarResumen() {
     document.getElementById('btn_continuar').disabled = !ok;
 }
 
-function toggleCodigoPM(metodo) {
-    const sec   = document.getElementById('pm_sec_codigo');
-    const input = document.getElementById('pm_codigo');
-    if (metodo === 'transferencia') {
-        sec.style.display = '';
-    } else {
-        sec.style.display = 'none';
-        input.value       = '';
-    }
-    actualizarResumen();
-}
-
 // ===== Paso 2 =====
 
 function irAPaso2() {
@@ -506,13 +493,12 @@ function irAPaso2() {
     const cuentaSel = document.getElementById('pm_cuenta');
     const metodo    = document.getElementById('pm_metodo').value;
     const fecha     = document.getElementById('pm_fecha').value;
-    const codigo    = document.getElementById('pm_codigo').value.trim();
     const obs       = document.getElementById('pm_obs').value.trim();
 
     document.getElementById('h_cuenta_origen').value = cuentaSel.value;
     document.getElementById('h_fecha_pago').value    = fecha;
     document.getElementById('h_metodo_pago').value   = metodo;
-    document.getElementById('h_codigo').value        = codigo;
+    document.getElementById('h_codigo').value        = '';
     document.getElementById('h_obs').value           = obs;
 
     const cont = document.getElementById('h_contrato_ids_container');
@@ -529,19 +515,13 @@ function irAPaso2() {
     const cuentaTexto = cuentaSel.options[cuentaSel.selectedIndex]?.text?.split('—')[0]?.trim() || '—';
     document.getElementById('p2_res_cuenta').textContent = cuentaTexto;
     document.getElementById('p2_res_fecha').textContent  = fecha;
-    document.getElementById('p2_res_metodo').textContent = metodo === 'qr' ? 'QR (auto)' : 'Transferencia';
-    if (codigo) {
-        document.getElementById('p2_res_codigo').textContent        = codigo;
-        document.getElementById('p2_res_codigo_wrap').style.display = '';
-    } else {
-        document.getElementById('p2_res_codigo_wrap').style.display = 'none';
-    }
+    document.getElementById('p2_res_metodo').textContent = metodo === 'qr' ? 'QR (auto)' : 'Transferencia (auto)';
     let totalGeneral = 0, monedaGeneral = 'BOB';
     checks.forEach(cb => {
         const info = _contratosData[cb.dataset.ccId];
         if (info) { totalGeneral += info.saldo; monedaGeneral = info.moneda; }
     });
-    document.getElementById('p2_res_total').textContent = monedaGeneral + ' ' + totalGeneral.toFixed(2);
+    document.getElementById('p2_res_total').textContent = monedaGeneral + ' ' + _fmtMonto(totalGeneral);
     document.getElementById('p2_resumen').style.display = '';
 
     // Construir cards por proveedor
@@ -594,7 +574,7 @@ function irAPaso2() {
                     ${info.conductor_nombre ? `<span class="text-muted small ms-2">Cond: ${info.conductor_nombre}</span>` : ''}
                     ${info.cliente_nombre   ? `<span class="text-muted small ms-2"><i class="bi bi-person me-1"></i>${info.cliente_nombre}</span>` : ''}
                 </div>
-                <span class="badge bg-danger">${info.moneda} ${info.saldo.toFixed(2)}</span>
+                <span class="badge bg-danger">${info.moneda} ${_fmtMonto(info.saldo)}</span>
                 <span id="badge_ok_${ccId}" class="badge bg-success ms-1" style="display:none;">
                     <i class="bi bi-check-circle me-1"></i>Asignada
                 </span>`;
@@ -764,7 +744,7 @@ function abrirConfirmacion() {
     const total  = _previewRows.reduce((s, r) => s + r._saldo, 0);
     const moneda = _previewRows[0]?._moneda || 'BOB';
     document.getElementById('conf_cant').textContent  = _previewRows.length;
-    document.getElementById('conf_total').textContent = moneda + ' ' + total.toFixed(2);
+    document.getElementById('conf_total').textContent = moneda + ' ' + _fmtMonto(total);
 
     const tbody = document.getElementById('conf_tbody');
     tbody.innerHTML = '';

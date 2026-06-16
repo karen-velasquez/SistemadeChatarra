@@ -47,7 +47,7 @@
                         <tr><th>Proveedor</th><td>{{ $contrato->proveedor->nombre }}</td></tr>
                         <tr><th>Fecha Inicio</th><td>{{ $contrato->fecha_inicio?->format('d/m/Y') ?? '-' }}</td></tr>
                         <tr><th>Fecha Fin</th><td>{{ $contrato->fecha_fin?->format('d/m/Y') ?? '-' }}</td></tr>
-                        <tr><th>Monto</th><td>{{ $contrato->moneda }} {{ number_format($contrato->monto_total, 2) }}</td></tr>
+                        <tr><th>Monto</th><td>{{ $contrato->moneda }} {{ number_format($contrato->monto_total, 2, ',', '.') }}</td></tr>
                         <tr>
                             <th>Estado</th>
                             <td>
@@ -69,7 +69,7 @@
                         @endphp
                         <hr>
                         <h6 class="fw-bold">Toneladas del Contrato</h6>
-                        <div class="progress mb-1" style="height:22px;" title="{{ $pctEnt }}% entregado al cliente · {{ $pctTra }}% en ruta · {{ number_format($pendiente,3) }} t pendiente">
+                        <div class="progress mb-1" style="height:22px;" title="{{ $pctEnt }}% entregado al cliente · {{ $pctTra }}% en ruta · {{ number_format($pendiente, 2, ',', '.') }} t pendiente">
                             @if($pctEnt > 0)
                             <div class="progress-bar bg-success progress-bar-striped" style="width:{{ $pctEnt }}%">
                                 @if($pctEnt >= 10){{ $pctEnt }}%@endif
@@ -84,16 +84,16 @@
                         <div class="d-flex justify-content-between flex-wrap gap-1">
                             <small>
                                 @if($entregadas > 0)
-                                    <span class="text-success fw-semibold"><i class="bi bi-check-circle"></i> {{ number_format($entregadas, 3) }} t cliente</span>
+                                    <span class="text-success fw-semibold"><i class="bi bi-check-circle"></i> {{ number_format($entregadas, 2, ',', '.') }} t cliente</span>
                                     &nbsp;·&nbsp;
                                 @endif
-                                <span style="color:#0ea5e9;"><i class="bi bi-truck"></i> {{ number_format($enTransito, 3) }} t en ruta</span>
+                                <span style="color:#0ea5e9;"><i class="bi bi-truck"></i> {{ number_format($enTransito, 2, ',', '.') }} t en ruta</span>
                                 @if($pendiente > 0)
                                     &nbsp;·&nbsp;
-                                    <span class="text-muted"><i class="bi bi-hourglass"></i> {{ number_format($pendiente, 3) }} t pend.</span>
+                                    <span class="text-muted"><i class="bi bi-hourglass"></i> {{ number_format($pendiente, 2, ',', '.') }} t pend.</span>
                                 @endif
                             </small>
-                            <small class="text-muted">Total: <strong>{{ number_format($total, 3) }} t</strong></small>
+                            <small class="text-muted">Total: <strong>{{ number_format($total, 2, ',', '.') }} t</strong></small>
                         </div>
                         @if($pctEnt >= 100)
                             <span class="badge bg-success w-100 text-center py-2 mt-2">✓ Contrato completado</span>
@@ -182,12 +182,12 @@
                                         <div class="mt-1 d-flex gap-3 flex-wrap">
                                             <small class="text-muted">
                                                 <i class="bi bi-tag"></i> Proveedor:
-                                                <strong>{{ number_format($cc->toneladas, 3) }} t</strong>
+                                                <strong>{{ number_format($cc->toneladas, 2, ',', '.') }} t</strong>
                                             </small>
                                             @if($estadoEntrega === 'Entregado')
                                                 <small class="text-success fw-semibold">
                                                     <i class="bi bi-check-circle"></i> Entregado al cliente:
-                                                    <strong>{{ number_format($cc->peso_entregado, 3) }} t</strong>
+                                                    <strong>{{ number_format($cc->peso_entregado, 2, ',', '.') }} t</strong>
                                                 </small>
                                             @endif
                                         </div>
@@ -250,7 +250,7 @@
                                             <option value="">-- Busque por placa o marca --</option>
                                             @foreach($camionesDisponibles as $cam)
                                                 <option value="{{ $cam->id }}" data-uuid="{{ $cam->uuid }}" data-capacidad="{{ $cam->capacidad_kg }}">
-                                                    {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }} ({{ number_format($cam->capacidad_kg / 1000, 3) }} t cap.)
+                                                    {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }} ({{ number_format($cam->capacidad_kg / 1000, 2, ',', '.') }} t cap.)
                                                 </option>
                                             @endforeach
                                         </select>
@@ -304,10 +304,11 @@
                                     {{-- Peso declarado y fecha --}}
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold">Peso declarado por el proveedor (t) <span class="text-danger">(*)</span></label>
-                                        <input type="number" step="0.001" min="0.001"
+                                        <input type="text" inputmode="numeric"
                                             class="form-control @error('peso_declarado') is-invalid @enderror"
-                                            name="peso_declarado" value="{{ old('peso_declarado') }}" required
-                                            placeholder="Ej: 25.000">
+                                            id="peso_declarado_display" placeholder="0,00" autocomplete="off" required>
+                                        <input type="hidden" name="peso_declarado" id="peso_declarado"
+                                            value="{{ old('peso_declarado') }}">
                                         <small class="text-muted">Lo que el proveedor dice que entrega.</small>
                                         @error('peso_declarado')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                     </div>
@@ -328,10 +329,11 @@
                                                     <option value="{{ $moneda->valor }}" {{ $moneda->valor === 'BOB' ? 'selected' : '' }}>{{ $moneda->valor }}</option>
                                                 @endforeach
                                             </select>
-                                            <input type="number" step="0.01" min="0"
+                                            <input type="text" inputmode="numeric"
                                                 class="form-control @error('monto_acordado') is-invalid @enderror"
-                                                name="monto_acordado" value="{{ old('monto_acordado') }}"
-                                                placeholder="Ej: 1500.00">
+                                                id="monto_acordado_display" placeholder="0,00" autocomplete="off">
+                                            <input type="hidden" name="monto_acordado" id="monto_acordado"
+                                                value="{{ old('monto_acordado') }}">
                                         </div>
                                         <small class="text-muted">Flete pactado con el transportista.</small>
                                         @error('monto_acordado')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
@@ -381,9 +383,9 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label" id="lbl_peso_llegada">Peso al llegar (t) <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.001" min="0.001" class="form-control"
-                                name="peso_llegada" id="inp_peso_llegada" required placeholder="Toneladas reales pesadas"
-                                oninput="calcTotalVenta(); calcRestanteCam();">
+                            <input type="text" inputmode="numeric" class="form-control"
+                                id="inp_peso_llegada_display" required placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="peso_llegada" id="inp_peso_llegada">
                             <small class="text-muted">Carga estipulada en el origen: <strong id="llegada_peso_max"></strong> t</small>
                         </div>
                         <div class="col-md-6">
@@ -392,113 +394,213 @@
                             <small class="text-muted">No puede ser anterior a la fecha de salida.</small>
                         </div>
 
-                        {{-- Cliente receptor --}}
-                        <div class="col-12 d-none" id="sec_cliente">
-                            <label class="form-label fw-semibold">Cliente que recibe la carga <span class="text-danger">(*)</span></label>
-                            <select class="form-select" name="cliente_id" id="sel_cliente">
-                                <option value="">-- Seleccione un cliente --</option>
-                                @foreach($clientes as $cli)
-                                    <option value="{{ $cli->id }}">{{ $cli->nombre }} @if($cli->nit) — NIT: {{ $cli->nit }} @endif</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Sección entrega parcial (división de carga) --}}
-                        <div class="col-12 d-none" id="sec_parcial_cam">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <h6 class="fw-semibold mb-3"><i class="bi bi-pie-chart text-info"></i> Datos de la entrega parcial</h6>
-                                <div class="alert alert-info py-2 mb-3">
-                                    <small><i class="bi bi-info-circle"></i> El campo <strong>"Peso al llegar"</strong> arriba indica el total que llegó. Ingresa abajo cuántas toneladas se entregan ahora a este cliente — el resto continuará en un nuevo tramo.</small>
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">TN entregadas a este cliente <span class="text-danger">*</span></label>
-                                        <input type="number" step="0.001" min="0.001" class="form-control"
-                                            name="tn_parcial" id="cam_inp_tn_parcial"
-                                            placeholder="0.000" oninput="calcRestanteCam(); calcTotalVenta()">
-                                        <small class="text-muted">TN para el nuevo tramo: <strong id="cam_lbl_tn_restante">—</strong></small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="destino_nuevo_tramo"
-                                            maxlength="150" placeholder="Ciudad / punto de entrega">
-                                    </div>
-                                </div>
-                                <input type="hidden" name="camion_nuevo_id" id="cam_hidden_camion">
-                                <input type="hidden" name="conductor_nuevo_id" id="cam_hidden_conductor">
-                                <input type="hidden" name="fecha_salida_nuevo_tramo" id="cam_hidden_fecha">
-                                <input type="hidden" name="tipo_tramo_nuevo" id="cam_hidden_tipo_tramo">
-                            </div>
-                        </div>
-
-                        {{-- Precio de venta al cliente --}}
-                        <div class="col-12 d-none" id="sec_precio_venta">
-                            <div class="border rounded-3 p-3 bg-light">
-                                <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente</div>
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Moneda</label>
-                                        <select class="form-select form-select-sm" name="moneda_venta" id="sel_moneda_venta">
-                                            <option value="BOB">BOB</option>
-                                            <option value="USD">USD</option>
-                                            <option value="BRL">BRL</option>
-                                            <option value="ARS">ARS</option>
-                                            <option value="EUR">EUR</option>
-                                            <option value="PEN">PEN</option>
-                                            <option value="CLP">CLP</option>
-                                            <option value="PYG">PYG</option>
-                                            <option value="COP">COP</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Precio por tonelada</label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" step="0.0001" min="0" class="form-control"
-                                                name="precio_por_tonelada" id="inp_precio_ton"
-                                                placeholder="0.00" oninput="calcTotalVenta()">
-                                            <span class="input-group-text">/t</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label mb-1">Total estimado</label>
-                                        <div id="lbl_total_venta" class="form-control form-control-sm bg-white text-success fw-semibold">—</div>
-                                    </div>
-                                </div>
-                                <small class="text-muted mt-1 d-block" id="precio_venta_base_msg">Basado en el peso de llegada ingresado arriba.</small>
-                            </div>
-                        </div>
-
                         {{-- ¿Qué ocurrió al llegar? --}}
                         <div class="col-12">
                             <label class="form-label fw-semibold">¿Qué ocurrió al llegar? <span class="text-danger">(*)</span></label>
+                            <div id="aviso_peso_requerido" class="text-muted small mb-2">
+                                <i class="bi bi-lock text-warning"></i> Ingresa primero el peso al llegar para habilitar estas opciones.
+                            </div>
                             <div class="d-flex flex-column gap-2 mt-1">
-                                <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="entregado" id="accion_entregado" required
-                                        onchange="accionCamionCambiada('entregado')">
-                                    <label class="form-check-label" for="accion_entregado">
-                                        <i class="bi bi-check-circle text-success"></i>
-                                        <strong>Entregado al cliente</strong>
-                                        <small class="d-block text-muted">La carga llegó a su destino final.</small>
-                                    </label>
+
+                                {{-- Opción: Entregado al cliente --}}
+                                <div class="border rounded p-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="accion" value="entregado" id="accion_entregado" required disabled
+                                            onchange="accionCamionCambiada('entregado')">
+                                        <label class="form-check-label" for="accion_entregado">
+                                            <i class="bi bi-check-circle text-success"></i>
+                                            <strong>Entregado al cliente</strong>
+                                            <small class="d-block text-muted">La carga llegó a su destino final.</small>
+                                        </label>
+                                    </div>
+                                    {{-- Cliente receptor --}}
+                                    <div class="d-none mt-3" id="sec_cliente">
+                                        <label class="form-label fw-semibold">Cliente que recibe la carga <span class="text-danger">(*)</span></label>
+                                        <select class="form-select" name="cliente_id" id="sel_cliente">
+                                            <option value="">-- Seleccione cliente y dirección --</option>
+                                            @foreach($clientes as $cli)
+                                                @if($cli->contacts->isEmpty())
+                                                    <option value="{{ $cli->id }}" data-direccion="">
+                                                        {{ $cli->nombre }} — Sin dirección registrada
+                                                    </option>
+                                                @else
+                                                    @foreach($cli->contacts as $dir)
+                                                        <option value="{{ $cli->id }}" data-direccion="{{ $dir->valor }}">
+                                                            {{ $cli->nombre }} — {{ $dir->valor }}
+                                                        </option>
+                                                    @endforeach
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        <input type="hidden" name="direccion_entrega" id="inp_direccion_entrega">
+                                    </div>
+                                    {{-- Empresa que facturará --}}
+                                    <div class="d-none mt-3" id="sec_empresa_factura">
+                                        <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">(*)</span></label>
+                                        <select class="form-select" name="empresa_facturadora_id" id="sel_empresa_factura">
+                                            <option value="">-- Seleccione empresa --</option>
+                                            @foreach($empresas as $emp)
+                                                <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    {{-- Precio de venta al cliente --}}
+                                    <div class="d-none mt-3" id="sec_precio_venta">
+                                        <div class="border rounded-3 p-3 bg-light">
+                                            <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente</div>
+                                            <div class="row g-2 align-items-end">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-1">Moneda</label>
+                                                    <select class="form-select form-select-sm" name="moneda_venta" id="sel_moneda_venta">
+                                                        <option value="BOB">BOB</option>
+                                                        <option value="USD">USD</option>
+                                                        <option value="BRL">BRL</option>
+                                                        <option value="ARS">ARS</option>
+                                                        <option value="EUR">EUR</option>
+                                                        <option value="PEN">PEN</option>
+                                                        <option value="CLP">CLP</option>
+                                                        <option value="PYG">PYG</option>
+                                                        <option value="COP">COP</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-1">Precio por tonelada</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="text" inputmode="numeric" class="form-control"
+                                                            id="inp_precio_ton_display"
+                                                            placeholder="0,00" autocomplete="off">
+                                                        <input type="hidden" name="precio_por_tonelada" id="inp_precio_ton">
+                                                        <span class="input-group-text">/t</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-1">Total estimado</label>
+                                                    <div id="lbl_total_venta" class="form-control form-control-sm bg-white text-success fw-semibold">—</div>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted mt-1 d-block" id="precio_venta_base_msg">Basado en el peso de llegada ingresado arriba.</small>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="div_carga" id="accion_div_carga" required
-                                        onchange="accionCamionCambiada('div_carga')">
-                                    <label class="form-check-label" for="accion_div_carga">
-                                        <i class="bi bi-pie-chart text-info"></i>
-                                        <strong>Div. Carga</strong>
-                                        <small class="d-block text-muted">Entrega parte al cliente 1 y el restante continúa en otro camión al cliente 2. Se generan 2 tramos automáticamente.</small>
-                                    </label>
+
+                                {{-- Opción: Div. Carga --}}
+                                <div class="border rounded p-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="accion" value="div_carga" id="accion_div_carga" required disabled
+                                            onchange="accionCamionCambiada('div_carga')">
+                                        <label class="form-check-label" for="accion_div_carga">
+                                            <i class="bi bi-pie-chart text-info"></i>
+                                            <strong>Div. Carga</strong>
+                                            <small class="d-block text-muted">Entrega parte al cliente 1 y el restante continúa en otro camión al cliente 2. Se generan 2 tramos automáticamente.</small>
+                                        </label>
+                                    </div>
+                                    {{-- Sección entrega parcial --}}
+                                    <div class="d-none mt-3" id="sec_parcial_cam">
+                                        <div class="border rounded-3 p-3 bg-light">
+                                            <div class="alert alert-info py-2 mb-3">
+                                                <small><i class="bi bi-info-circle"></i> El campo <strong>"Peso al llegar"</strong> arriba indica el total que llegó. Ingresa abajo cuántas toneladas se entregan ahora a este cliente — el resto continuará en un nuevo tramo.</small>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Cliente que recibe esta parte <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="cliente_id" id="sel_cliente_div">
+                                                        <option value="">-- Seleccione cliente y dirección --</option>
+                                                        @foreach($clientes as $cli)
+                                                            @if($cli->contacts->isEmpty())
+                                                                <option value="{{ $cli->id }}" data-direccion="">
+                                                                    {{ $cli->nombre }} — Sin dirección registrada
+                                                                </option>
+                                                            @else
+                                                                @foreach($cli->contacts as $dir)
+                                                                    <option value="{{ $cli->id }}" data-direccion="{{ $dir->valor }}">
+                                                                        {{ $cli->nombre }} — {{ $dir->valor }}
+                                                                    </option>
+                                                                @endforeach
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+                                                    <input type="hidden" name="direccion_entrega" id="inp_direccion_entrega_div">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="empresa_facturadora_id" id="sel_empresa_factura_div">
+                                                        <option value="">-- Seleccione empresa --</option>
+                                                        @foreach($empresas as $emp)
+                                                            <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">TN entregadas a este cliente <span class="text-danger">*</span></label>
+                                                    <input type="text" inputmode="numeric" class="form-control"
+                                                        id="cam_inp_tn_parcial_display"
+                                                        placeholder="0,00" autocomplete="off">
+                                                    <input type="hidden" name="tn_parcial" id="cam_inp_tn_parcial">
+                                                    <small class="text-muted">TN para el nuevo tramo: <strong id="cam_lbl_tn_restante">—</strong></small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" name="destino_nuevo_tramo"
+                                                        maxlength="150" placeholder="Ciudad / punto de entrega">
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="border rounded-3 p-3 bg-white">
+                                                        <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente (esta entrega)</div>
+                                                        <div class="row g-2 align-items-end">
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1">Moneda</label>
+                                                                <select class="form-select form-select-sm" name="moneda_venta" id="sel_moneda_venta_div">
+                                                                    <option value="BOB">BOB</option>
+                                                                    <option value="USD">USD</option>
+                                                                    <option value="BRL">BRL</option>
+                                                                    <option value="ARS">ARS</option>
+                                                                    <option value="EUR">EUR</option>
+                                                                    <option value="PEN">PEN</option>
+                                                                    <option value="CLP">CLP</option>
+                                                                    <option value="PYG">PYG</option>
+                                                                    <option value="COP">COP</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1">Precio por tonelada</label>
+                                                                <div class="input-group input-group-sm">
+                                                                    <input type="text" inputmode="numeric" class="form-control"
+                                                                        id="inp_precio_ton_div_display"
+                                                                        placeholder="0,00" autocomplete="off">
+                                                                    <input type="hidden" name="precio_por_tonelada" id="inp_precio_ton_div">
+                                                                    <span class="input-group-text">/t</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="form-label mb-1">Total estimado</label>
+                                                                <div id="lbl_total_venta_div" class="form-control form-control-sm bg-white text-success fw-semibold">—</div>
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted mt-1 d-block">Basado en las TN entregadas a este cliente.</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <input type="hidden" name="camion_nuevo_id" id="cam_hidden_camion">
+                                            <input type="hidden" name="conductor_nuevo_id" id="cam_hidden_conductor">
+                                            <input type="hidden" name="fecha_salida_nuevo_tramo" id="cam_hidden_fecha">
+                                            <input type="hidden" name="tipo_tramo_nuevo" id="cam_hidden_tipo_tramo">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-check border rounded p-3">
-                                    <input class="form-check-input" type="radio" name="accion" value="transbordo" id="accion_transbordo" required
-                                        onchange="accionCamionCambiada('transbordo')">
-                                    <label class="form-check-label" for="accion_transbordo">
-                                        <i class="bi bi-arrow-left-right text-warning"></i>
-                                        <strong>Transbordando a otro(s) camión(es)</strong>
-                                        <small class="d-block text-muted">La carga continúa en otros camiones (frontera o cambio de unidad).</small>
-                                    </label>
+
+                                {{-- Opción: Transbordando --}}
+                                <div class="border rounded p-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="accion" value="transbordo" id="accion_transbordo" required disabled
+                                            onchange="accionCamionCambiada('transbordo')">
+                                        <label class="form-check-label" for="accion_transbordo">
+                                            <i class="bi bi-arrow-left-right text-warning"></i>
+                                            <strong>Transbordando a otro(s) camión(es)</strong>
+                                            <small class="d-block text-muted">La carga continúa en otros camiones (frontera o cambio de unidad).</small>
+                                        </label>
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
 
@@ -689,8 +791,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     $('#cc_camion_id').on('change', function () {
         const opt  = $('#cc_camion_id option:selected');
-        const uuid = opt.data('uuid');
-        cargarConductores(uuid, 'cc_conductor_id', 'cc_sin_conductores');
+        const uuid = opt.data('uuid') || '';
+        // Si se limpia el camión, destruir Select2 del conductor y resetear
+        if (!uuid) {
+            const condSel = document.getElementById('cc_conductor_id');
+            if ($.fn.select2 && $(condSel).data('select2')) $(condSel).select2('destroy');
+            condSel.innerHTML = '<option value="">— Primero seleccione un camión —</option>';
+            condSel.disabled  = true;
+            document.getElementById('cc_sin_conductores').classList.add('d-none');
+            return;
+        }
+        cargarConductores(uuid, 'cc_conductor_id', 'cc_sin_conductores', null);
     });
 
     // Select2 camión transbordo
@@ -703,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#tsb_camion_id').on('change', function () {
         const opt  = $('#tsb_camion_id option:selected');
         const uuid = opt.data('uuid');
-        cargarConductores(uuid, 'tsb_conductor_id', null);
+        cargarConductores(uuid, 'tsb_conductor_id', null, '#modalTransbordo');
         validarFormTransbordo();
     });
 
@@ -724,9 +835,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-function cargarConductores(uuid, selectId, sinConductoresId) {
+function cargarConductores(uuid, selectId, sinConductoresId, dropdownParent) {
     const sel = document.getElementById(selectId);
     const sin = sinConductoresId ? document.getElementById(sinConductoresId) : null;
+
+    // Destruir instancia Select2 previa si existe
+    if ($.fn.select2 && $(sel).data('select2')) {
+        $(sel).select2('destroy');
+    }
 
     sel.innerHTML = '<option value="">— Cargando... —</option>';
     sel.disabled  = true;
@@ -761,7 +877,25 @@ function cargarConductores(uuid, selectId, sinConductoresId) {
             sel.appendChild(op);
         });
         sel.disabled = false;
-        validarFormTransbordo();
+
+        // Inicializar Select2 con buscador
+        const s2opts = {
+            placeholder: 'Busque por nombre...',
+            allowClear: true,
+            width: '100%',
+            language: { noResults: () => 'No se encontró ningún conductor.', searching: () => 'Buscando...' }
+        };
+        if (dropdownParent) s2opts.dropdownParent = $(dropdownParent);
+        $(sel).select2(s2opts);
+
+        // Propagar cambio a validaciones
+        $(sel).on('change', function () {
+            if (selectId === 'cc_conductor_id') {
+                validarFormAsignar();
+            } else {
+                validarFormTransbordo();
+            }
+        });
     })
     .catch(() => { sel.innerHTML = '<option value="">— Error al cargar —</option>'; });
 }
@@ -769,27 +903,39 @@ function cargarConductores(uuid, selectId, sinConductoresId) {
 function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo) {
     document.getElementById('llegada_tramo_info').textContent = info;
     document.getElementById('formLlegada').action            = '{{ url("tramo") }}/' + tramoUuid + '/llegada';
-    document.getElementById('llegada_peso_max').textContent  = pesoSalida;
+    document.getElementById('llegada_peso_max').textContent  = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(pesoSalida);
     document.querySelectorAll('input[name="accion"]').forEach(r => r.checked = false);
 
-    const inp = document.getElementById('inp_peso_llegada');
-    inp.removeAttribute('max');
-    inp.value = '';
-    inp.oninput = function () {
-        calcTotalVenta();
-    };
+    document.getElementById('inp_peso_llegada').value         = '';
+    document.getElementById('inp_peso_llegada_display').value = '';
+    ['accion_entregado', 'accion_div_carga', 'accion_transbordo'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) { el.disabled = true; el.checked = false; }
+    });
+    document.getElementById('aviso_peso_requerido').style.display = '';
 
     document.getElementById('inp_fecha_llegada').min   = fechaSalida;
     document.getElementById('inp_fecha_llegada').value = fechaSalida;
 
     // Resetear todos los campos
     document.getElementById('sec_cliente').classList.add('d-none');
-    document.getElementById('sel_cliente').value = '';
+    document.getElementById('sel_cliente').value         = '';
+    document.getElementById('sel_cliente_div').value     = '';
+    document.getElementById('inp_direccion_entrega').value     = '';
+    document.getElementById('inp_direccion_entrega_div').value = '';
+    document.getElementById('sec_empresa_factura').classList.add('d-none');
+    document.getElementById('sel_empresa_factura').value     = '';
+    document.getElementById('sel_empresa_factura_div').value = '';
     document.getElementById('sec_precio_venta').classList.add('d-none');
-    document.getElementById('inp_precio_ton').value = '';
-    document.getElementById('lbl_total_venta').textContent = '—';
+    document.getElementById('inp_precio_ton').value             = '';
+    document.getElementById('inp_precio_ton_display').value     = '';
+    document.getElementById('lbl_total_venta').textContent      = '—';
+    document.getElementById('inp_precio_ton_div').value         = '';
+    document.getElementById('inp_precio_ton_div_display').value = '';
+    document.getElementById('lbl_total_venta_div').textContent  = '—';
     document.getElementById('sec_parcial_cam').classList.add('d-none');
-    document.getElementById('cam_inp_tn_parcial').value = '';
+    document.getElementById('cam_inp_tn_parcial').value         = '';
+    document.getElementById('cam_inp_tn_parcial_display').value = '';
     document.getElementById('cam_lbl_tn_restante').textContent = '—';
     document.getElementById('cam_hidden_camion').value     = camionId || '';
     document.getElementById('cam_hidden_conductor').value  = conductorId || '';
@@ -811,47 +957,71 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
 
 let _camPesoSalida = 0;
 
+function validarFormAsignar() {
+    const conductor   = document.getElementById('cc_conductor_id')?.value;
+    const peso        = document.getElementById('peso_declarado')?.value;
+    const origen      = document.getElementById('formContratoCamion')?.querySelector('[name="origen"]')?.value?.trim();
+    const destino     = document.getElementById('formContratoCamion')?.querySelector('[name="destino"]')?.value?.trim();
+    const fecha       = document.getElementById('formContratoCamion')?.querySelector('[name="fecha_asignacion"]')?.value;
+    const btn         = document.getElementById('btn_asignar_camion');
+    if (!btn) return;
+    const ok = !!conductor && parseFloat(peso) > 0 && !!origen && !!destino && !!fecha;
+    btn.disabled = !ok;
+}
+
 function validarFormLlegada() {
     const peso    = document.getElementById('inp_peso_llegada')?.value;
     const fecha   = document.getElementById('inp_fecha_llegada')?.value;
     const accion  = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
-    const cliente = document.getElementById('sel_cliente')?.value;
-    const tnParcial  = document.getElementById('cam_inp_tn_parcial')?.value;
-    const destNuevo  = document.querySelector('#sec_parcial_cam [name="destino_nuevo_tramo"]')?.value.trim();
+    const cliente        = document.getElementById('sel_cliente')?.value;
+    const empresa        = document.getElementById('sel_empresa_factura')?.value;
+    const clienteDiv     = document.getElementById('sel_cliente_div')?.value;
+    const empresaDiv     = document.getElementById('sel_empresa_factura_div')?.value;
+    const tnParcial      = document.getElementById('cam_inp_tn_parcial')?.value;
+    const destNuevo      = document.querySelector('#sec_parcial_cam [name="destino_nuevo_tramo"]')?.value.trim();
     const btn = document.getElementById('btn_confirmar_llegada');
     if (!btn) return;
 
     let ok = peso && fecha && accion;
-    if (accion === 'entregado')  ok = ok && cliente;
-    if (accion === 'div_carga') ok = ok && cliente && tnParcial && destNuevo;
+    if (accion === 'entregado') ok = ok && cliente && empresa;
+    if (accion === 'div_carga') ok = ok && clienteDiv && empresaDiv && tnParcial && destNuevo;
 
     btn.disabled  = !ok;
     btn.className = ok ? 'btn btn-success' : 'btn btn-secondary';
 }
 
 function accionCamionCambiada(accion) {
-    const secCliente  = document.getElementById('sec_cliente');
-    const secPrecio   = document.getElementById('sec_precio_venta');
-    const secParcial  = document.getElementById('sec_parcial_cam');
-    const selCliente  = document.getElementById('sel_cliente');
+    const secCliente        = document.getElementById('sec_cliente');
+    const secEmpresa        = document.getElementById('sec_empresa_factura');
+    const secPrecio         = document.getElementById('sec_precio_venta');
+    const secParcial        = document.getElementById('sec_parcial_cam');
 
+    // Ocultar todo primero
     secCliente.classList.add('d-none');
+    secEmpresa.classList.add('d-none');
     secPrecio.classList.add('d-none');
     secParcial.classList.add('d-none');
-    document.getElementById('inp_precio_ton').value = '';
-    document.getElementById('lbl_total_venta').textContent = '—';
+    document.getElementById('inp_precio_ton').value             = '';
+    document.getElementById('inp_precio_ton_display').value     = '';
+    document.getElementById('lbl_total_venta').textContent      = '—';
+    document.getElementById('inp_precio_ton_div').value         = '';
+    document.getElementById('inp_precio_ton_div_display').value = '';
+    document.getElementById('lbl_total_venta_div').textContent  = '—';
+    document.getElementById('sel_cliente').value             = '';
+    document.getElementById('sel_cliente_div').value         = '';
+    document.getElementById('inp_direccion_entrega').value     = '';
+    document.getElementById('inp_direccion_entrega_div').value = '';
+    document.getElementById('sel_empresa_factura').value     = '';
+    document.getElementById('sel_empresa_factura_div').value = '';
 
     if (accion === 'entregado') {
         secCliente.classList.remove('d-none');
+        secEmpresa.classList.remove('d-none');
         secPrecio.classList.remove('d-none');
         calcTotalVenta();
     } else if (accion === 'div_carga') {
-        secCliente.classList.remove('d-none');
-        secPrecio.classList.remove('d-none');
         secParcial.classList.remove('d-none');
         calcTotalVenta();
-    } else {
-        selCliente.value = '';
     }
     validarFormLlegada();
 }
@@ -860,7 +1030,9 @@ function calcRestanteCam() {
     const tnEntregadas = parseFloat(document.getElementById('cam_inp_tn_parcial').value) || 0;
     const pesoTotal    = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
     const restante     = Math.max(0, pesoTotal - tnEntregadas);
-    document.getElementById('cam_lbl_tn_restante').textContent = restante > 0 ? restante.toFixed(3) + ' t' : '—';
+    document.getElementById('cam_lbl_tn_restante').textContent = restante > 0
+        ? new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(restante) + ' t'
+        : '—';
 }
 
 function validarFormTransbordo() {
@@ -958,23 +1130,162 @@ function confirmarToggleTramo(url, placa, ruta, activo) {
 
 function calcTotalVenta() {
     const accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
-    const precio = parseFloat(document.getElementById('inp_precio_ton').value) || 0;
-    const lbl    = document.getElementById('lbl_total_venta');
-    const msg    = document.getElementById('precio_venta_base_msg');
+    const fmt    = v => new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
-    // En división de carga, el precio se aplica solo a las TN entregadas a este cliente.
-    // En entrega normal, se aplica al peso total de llegada.
-    let toneladas;
     if (accion === 'div_carga') {
-        toneladas = parseFloat(document.getElementById('cam_inp_tn_parcial').value) || 0;
-        if (msg) msg.textContent = 'Basado en las TN entregadas a este cliente.';
+        const precio    = parseFloat(document.getElementById('inp_precio_ton_div').value) || 0;
+        const toneladas = parseFloat(document.getElementById('cam_inp_tn_parcial').value) || 0;
+        const lbl       = document.getElementById('lbl_total_venta_div');
+        if (lbl) lbl.textContent = (toneladas > 0 && precio > 0) ? fmt(toneladas * precio) : '—';
     } else {
-        toneladas = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
+        const precio    = parseFloat(document.getElementById('inp_precio_ton').value) || 0;
+        const toneladas = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
+        const lbl       = document.getElementById('lbl_total_venta');
+        const msg       = document.getElementById('precio_venta_base_msg');
         if (msg) msg.textContent = 'Basado en el peso de llegada ingresado arriba.';
+        if (lbl) lbl.textContent = (toneladas > 0 && precio > 0) ? fmt(toneladas * precio) : '—';
+    }
+}
+
+// ===== Input estilo cajero (formato boliviano) =====
+(function () {
+    function textoANumero(txt) {
+        return parseFloat(txt.replace(/\./g, '').replace(',', '.')) || 0;
     }
 
-    lbl.textContent = (toneladas > 0 && precio > 0) ? (toneladas * precio).toFixed(2) : '—';
-}
+    function formatear(num) {
+        return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    }
+
+    function onInput(displayId, hiddenId) {
+        return function (e) {
+            const input = e.target;
+            let raw = input.value.replace(/[^0-9,]/g, '');
+
+            const partes = raw.split(',');
+            if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+
+            const [ent, dec] = raw.split(',');
+            if (dec !== undefined && dec.length > 2) raw = ent + ',' + dec.substring(0, 2);
+
+            const [e2, d2] = raw.split(',');
+            const entF  = e2.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const nuevo = d2 !== undefined ? entF + ',' + d2 : entF;
+
+            const diff = nuevo.length - input.value.length;
+            const pos  = input.selectionStart + diff;
+            input.value = nuevo;
+            try { input.setSelectionRange(pos, pos); } catch (_) {}
+
+            document.getElementById(hiddenId).value = textoANumero(nuevo) || '';
+        };
+    }
+
+    function onBlur(displayId, hiddenId) {
+        return function () {
+            const num = parseFloat(document.getElementById(hiddenId).value);
+            if (!num) return;
+            document.getElementById(displayId).value = formatear(num);
+        };
+    }
+
+    function initCajero(displayId, hiddenId, onChange) {
+        const display = document.getElementById(displayId);
+        const hidden  = document.getElementById(hiddenId);
+        if (!display || !hidden) return;
+
+        // Si hay valor previo (old() tras error de validación), mostrarlo formateado
+        if (hidden.value) display.value = formatear(parseFloat(hidden.value));
+
+        display.addEventListener('input', function (e) {
+            onInput(displayId, hiddenId)(e);
+            if (typeof onChange === 'function') onChange();
+        });
+        display.addEventListener('blur',  onBlur(displayId, hiddenId));
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initCajero('peso_declarado_display', 'peso_declarado', validarFormAsignar);
+        initCajero('monto_acordado_display', 'monto_acordado');
+
+        // Validar form asignar al cambiar origen, destino o fecha
+        document.getElementById('formContratoCamion')?.querySelectorAll('[name="origen"],[name="destino"],[name="fecha_asignacion"]').forEach(function (el) {
+            el.addEventListener('input', validarFormAsignar);
+            el.addEventListener('change', validarFormAsignar);
+        });
+
+        // Sincronizar dirección de entrega al elegir cliente+dirección (Entregado)
+        document.getElementById('sel_cliente')?.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            document.getElementById('inp_direccion_entrega').value = opt ? (opt.dataset.direccion ?? '') : '';
+            validarFormLlegada();
+        });
+
+        // Sincronizar dirección de entrega al elegir cliente+dirección (Div. Carga)
+        document.getElementById('sel_cliente_div')?.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            document.getElementById('inp_direccion_entrega_div').value = opt ? (opt.dataset.direccion ?? '') : '';
+            validarFormLlegada();
+        });
+
+        // Precio por tonelada (Entregado)
+        const dispPrecio = document.getElementById('inp_precio_ton_display');
+        if (dispPrecio) {
+            dispPrecio.addEventListener('input', function (e) {
+                onInput('inp_precio_ton_display', 'inp_precio_ton')(e);
+                calcTotalVenta();
+            });
+            dispPrecio.addEventListener('blur', onBlur('inp_precio_ton_display', 'inp_precio_ton'));
+        }
+
+        // Precio por tonelada (Div. Carga)
+        const dispPrecioDiv = document.getElementById('inp_precio_ton_div_display');
+        if (dispPrecioDiv) {
+            dispPrecioDiv.addEventListener('input', function (e) {
+                onInput('inp_precio_ton_div_display', 'inp_precio_ton_div')(e);
+                calcTotalVenta();
+            });
+            dispPrecioDiv.addEventListener('blur', onBlur('inp_precio_ton_div_display', 'inp_precio_ton_div'));
+        }
+
+        // Peso llegada — habilita/deshabilita opciones de acción según si hay valor
+        function _actualizarRadiosAccion() {
+            const tiene = parseFloat(document.getElementById('inp_peso_llegada').value) > 0;
+            document.getElementById('aviso_peso_requerido').style.display = tiene ? 'none' : '';
+            ['accion_entregado', 'accion_div_carga', 'accion_transbordo'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.disabled = !tiene;
+                if (!tiene && el.checked) {
+                    el.checked = false;
+                    accionCamionCambiada(null);
+                }
+            });
+        }
+
+        const dispLlegada = document.getElementById('inp_peso_llegada_display');
+        if (dispLlegada) {
+            dispLlegada.addEventListener('input', function (e) {
+                onInput('inp_peso_llegada_display', 'inp_peso_llegada')(e);
+                _actualizarRadiosAccion();
+                calcTotalVenta();
+                calcRestanteCam();
+            });
+            dispLlegada.addEventListener('blur', onBlur('inp_peso_llegada_display', 'inp_peso_llegada'));
+        }
+
+        // TN parcial entrega
+        const dispParcial = document.getElementById('cam_inp_tn_parcial_display');
+        if (dispParcial) {
+            dispParcial.addEventListener('input', function (e) {
+                onInput('cam_inp_tn_parcial_display', 'cam_inp_tn_parcial')(e);
+                calcRestanteCam();
+                calcTotalVenta();
+            });
+            dispParcial.addEventListener('blur', onBlur('cam_inp_tn_parcial_display', 'cam_inp_tn_parcial'));
+        }
+    });
+})();
 
 // Validación del botón Asignar Camión
 (function () {
@@ -996,8 +1307,10 @@ function calcTotalVenta() {
             if (el) el.addEventListener('change', verificarFormCC);
             if (el) el.addEventListener('input', verificarFormCC);
         });
-        // También escuchar cambios en Select2 del camión
+        // Escuchar cambios de Select2 en camión y conductor (se re-une en cada carga dinámica)
         $('#cc_camion_id').on('change', verificarFormCC);
+        // El conductor Select2 se inicializa dinámicamente; usamos delegación a nivel documento
+        $(document).on('change', '#cc_conductor_id', verificarFormCC);
         verificarFormCC();
     });
 })();

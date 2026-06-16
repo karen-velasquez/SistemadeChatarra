@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Banco;
 use App\Models\Cliente;
 use App\Models\CuentaBancaria;
+use App\Models\GastoExtra;
+use App\Models\PagoCamion;
+use App\Models\PagoCliente;
+use App\Models\PagoProveedor;
 use App\Models\Empleado;
 use App\Models\Parametro;
 use App\Models\Proveedor;
@@ -368,6 +372,17 @@ class BancoController extends Controller
     public function destroyCuenta($uuid)
     {
         $cuenta = CuentaBancaria::where('uuid', $uuid)->firstOrFail();
+
+        $enUso = PagoProveedor::where('cuenta_destino_id', $cuenta->id)->exists()
+              || PagoCamion::where('cuenta_destino_id', $cuenta->id)->exists()
+              || PagoCliente::where('cuenta_origen_id', $cuenta->id)->exists()
+              || GastoExtra::where('cuenta_bancaria_id', $cuenta->id)->exists();
+
+        if ($enUso) {
+            Alert::error('No permitido', 'Esta cuenta bancaria no puede eliminarse porque está siendo usada en pagos o gastos registrados.');
+            return redirect()->route('bancos.index');
+        }
+
         $cuenta->delete();
         Alert::success('Éxito', 'Cuenta bancaria eliminada.');
         return redirect()->route('bancos.index');

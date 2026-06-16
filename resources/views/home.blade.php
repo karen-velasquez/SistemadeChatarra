@@ -43,7 +43,7 @@
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
                     <div class="metric-label" id="tituloGastoExtra">Gastos Extras Pagados</div>
-                    <div class="metric-number mt-2" id="montoGastoExtra">Bs. {{ number_format($gastosExtrasPagadosMes, 2) }}</div>
+                    <div class="metric-number mt-2" id="montoGastoExtra">Bs. {{ number_format($gastosExtrasPagadosMes, 2, ',', '.') }}</div>
                     <div class="metric-help" id="ayudaGastoExtra">Movimiento operativo mensual</div>
                 </div>
                 <div class="dash-icon icon-green"><i class="bi bi-cash-coin"></i></div>
@@ -60,7 +60,7 @@
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
                     <div class="metric-label" id="tituloProveedor">Pagos a Proveedores</div>
-                    <div class="metric-number mt-2" id="montoProveedor">Bs. {{ number_format($pagosProveedorPagadosMes, 2) }}</div>
+                    <div class="metric-number mt-2" id="montoProveedor">Bs. {{ number_format($pagosProveedorPagadosMes, 2, ',', '.') }}</div>
                     <div class="metric-help" id="ayudaProveedor">Pagos realizados este mes</div>
                 </div>
                 <div class="dash-icon icon-purple"><i class="bi bi-cash-stack"></i></div>
@@ -97,7 +97,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="metric-label">Saldo Tesorería</div>
-                    <div class="metric-number mt-2">Bs. {{ number_format($saldoTesoreria, 2) }}</div>
+                    <div class="metric-number mt-2">Bs. {{ number_format($saldoTesoreria, 2, ',', '.') }}</div>
                     <div class="metric-help">Dinero disponible</div>
                 </div>
                 <div class="dash-icon icon-blue"><i class="bi bi-wallet2"></i></div>
@@ -110,7 +110,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="metric-label">Cobros Clientes Mes</div>
-                    <div class="metric-number mt-2">Bs. {{ number_format($cobrosClientesMes, 2) }}</div>
+                    <div class="metric-number mt-2">Bs. {{ number_format($cobrosClientesMes, 2, ',', '.') }}</div>
                     <div class="metric-help">Ingresos por ventas</div>
                 </div>
                 <div class="dash-icon icon-green"><i class="bi bi-arrow-down-circle"></i></div>
@@ -123,7 +123,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="metric-label">Pagos Camiones Mes</div>
-                    <div class="metric-number mt-2">Bs. {{ number_format($pagosCamionMes, 2) }}</div>
+                    <div class="metric-number mt-2">Bs. {{ number_format($pagosCamionMes, 2, ',', '.') }}</div>
                     <div class="metric-help">Fletes y adelantos</div>
                 </div>
                 <div class="dash-icon icon-orange"><i class="bi bi-truck-front"></i></div>
@@ -136,7 +136,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="metric-label">Utilidad del Mes</div>
-                    <div class="metric-number mt-2 {{ $utilidadMes >= 0 ? 'text-success' : 'text-danger' }}">Bs. {{ number_format($utilidadMes, 2) }}</div>
+                    <div class="metric-number mt-2 {{ $utilidadMes >= 0 ? 'text-success' : 'text-danger' }}">Bs. {{ number_format($utilidadMes, 2, ',', '.') }}</div>
                     <div class="metric-help">Cobros - costos</div>
                 </div>
                 <div class="dash-icon icon-purple"><i class="bi bi-graph-up-arrow"></i></div>
@@ -227,7 +227,7 @@
                         <span class="text-muted">{{ $gasto->contrato->numero_contrato ?? 'Sin contrato' }} - {{ $gasto->contrato->proveedor->nombre ?? 'Sin proveedor' }}</span>
                     </div>
                     <div class="text-end">
-                        <h6 class="fw-bold mb-2">Bs. {{ number_format($gasto->monto_bolivianos, 2) }}</h6>
+                        <h6 class="fw-bold mb-2">Bs. {{ number_format($gasto->monto_bolivianos, 2, ',', '.') }}</h6>
                         <span class="badge badge-soft-warning px-3 py-2">Pendiente</span>
                     </div>
                 </div>
@@ -246,7 +246,7 @@
                         <h6 class="fw-bold mb-1">{{ $categoria->categoria }}</h6>
                         <span class="text-muted">Total pagado acumulado</span>
                     </div>
-                    <h6 class="fw-bold mb-0">Bs. {{ number_format($categoria->total, 2) }}</h6>
+                    <h6 class="fw-bold mb-0">Bs. {{ number_format($categoria->total, 2, ',', '.') }}</h6>
                 </div>
             @empty
                 <div class="text-center text-muted py-3"><i class="bi bi-bar-chart"></i> No hay gastos pagados por categoría.</div>
@@ -264,7 +264,7 @@
                         <span class="text-muted">{{ $cuenta->banco->nombre ?? 'Sin banco' }} - {{ $cuenta->moneda }}</span>
                     </div>
                     <div class="text-end">
-                        <h6 class="fw-bold mb-1">Bs. {{ number_format($cuenta->saldo_actual, 2) }}</h6>
+                        <h6 class="fw-bold mb-1">Bs. {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}</h6>
                         <span class="badge badge-soft-primary">Disponible</span>
                     </div>
                 </div>
@@ -283,17 +283,17 @@
                 <div class="alert alert-success border-0"><i class="bi bi-check-circle me-1"></i>No tienes gastos extras pendientes.</div>
             @endif
             @if($gastosPendientesTotal > 0)
-                <div class="alert alert-danger border-0"><i class="bi bi-cash-stack me-1"></i>Total pendiente: Bs. {{ number_format($gastosPendientesTotal, 2) }}</div>
+                <div class="alert alert-danger border-0"><i class="bi bi-cash-stack me-1"></i>Total pendiente: Bs. {{ number_format($gastosPendientesTotal, 2, ',', '.') }}</div>
             @endif
             @if($pagosProveedorPendientesMes > 0)
-                <div class="alert alert-primary border-0"><i class="bi bi-box-seam me-1"></i>Proveedor pendiente: Bs. {{ number_format($pagosProveedorPendientesMes, 2) }}</div>
+                <div class="alert alert-primary border-0"><i class="bi bi-box-seam me-1"></i>Proveedor pendiente: Bs. {{ number_format($pagosProveedorPendientesMes, 2, ',', '.') }}</div>
             @endif
             <div class="alert {{ $utilidadMes < 0 ? 'alert-danger' : 'alert-success' }} border-0">
                 <i class="bi {{ $utilidadMes < 0 ? 'bi-graph-down-arrow' : 'bi-graph-up-arrow' }} me-1"></i>
-                Utilidad del mes: Bs. {{ number_format($utilidadMes, 2) }}
+                Utilidad del mes: Bs. {{ number_format($utilidadMes, 2, ',', '.') }}
             </div>
             <div class="alert {{ $saldoTesoreria <= 0 ? 'alert-danger' : 'alert-info' }} border-0">
-                <i class="bi bi-wallet2 me-1"></i>Saldo tesorería: Bs. {{ number_format($saldoTesoreria, 2) }}
+                <i class="bi bi-wallet2 me-1"></i>Saldo tesorería: Bs. {{ number_format($saldoTesoreria, 2, ',', '.') }}
             </div>
             <div class="alert alert-secondary border-0"><i class="bi bi-box-seam me-1"></i>Declaradas: {{ number_format($toneladasDeclaradasMes, 3) }} TN</div>
             <div class="alert alert-secondary border-0 mb-0"><i class="bi bi-check2-circle me-1"></i>Entregadas: {{ number_format($toneladasEntregadasMes, 3) }} TN</div>
@@ -304,9 +304,9 @@
         <div class="section-card p-3 h-100">
             <h5 class="panel-title mb-3">Resumen Operativo del Mes</h5>
             <div class="row g-3">
-                <div class="col-md-6"><div class="item-box"><small class="text-muted">Ingresos del mes</small><h5 class="fw-bold text-success mb-0">Bs. {{ number_format($ingresosMes, 2) }}</h5></div></div>
-                <div class="col-md-6"><div class="item-box"><small class="text-muted">Egresos del mes</small><h5 class="fw-bold text-danger mb-0">Bs. {{ number_format($egresosMes, 2) }}</h5></div></div>
-                <div class="col-md-6"><div class="item-box"><small class="text-muted">Capital inicial</small><h5 class="fw-bold mb-0">Bs. {{ number_format($capitalInicial, 2) }}</h5></div></div>
+                <div class="col-md-6"><div class="item-box"><small class="text-muted">Ingresos del mes</small><h5 class="fw-bold text-success mb-0">Bs. {{ number_format($ingresosMes, 2, ',', '.') }}</h5></div></div>
+                <div class="col-md-6"><div class="item-box"><small class="text-muted">Egresos del mes</small><h5 class="fw-bold text-danger mb-0">Bs. {{ number_format($egresosMes, 2, ',', '.') }}</h5></div></div>
+                <div class="col-md-6"><div class="item-box"><small class="text-muted">Capital inicial</small><h5 class="fw-bold mb-0">Bs. {{ number_format($capitalInicial, 2, ',', '.') }}</h5></div></div>
                 <div class="col-md-6"><div class="item-box"><small class="text-muted">Proveedores registrados</small><h5 class="fw-bold mb-0">{{ $proveedoresActivos }}</h5></div></div>
                 <div class="col-md-6"><div class="item-box"><small class="text-muted">Clientes registrados</small><h5 class="fw-bold mb-0">{{ $clientesActivos }}</h5></div></div>
                 <div class="col-md-6"><div class="item-box"><small class="text-muted">Cuentas empresa activas</small><h5 class="fw-bold mb-0">{{ $cuentasActivas }}</h5></div></div>
@@ -338,7 +338,7 @@
                                 <td><span class="badge {{ $mov->tipo == 'ingreso' ? 'bg-success' : 'bg-danger' }}">{{ strtoupper($mov->tipo) }}</span></td>
                                 <td>{{ \App\Models\Movimiento::categoriaLabel($mov->categoria) }}</td>
                                 <td>{{ $mov->concepto }}</td>
-                                <td class="text-end"><strong>Bs. {{ number_format($mov->monto_bolivianos, 2) }}</strong></td>
+                                <td class="text-end"><strong>Bs. {{ number_format($mov->monto_bolivianos, 2, ',', '.') }}</strong></td>
                                 <td>{{ $mov->codigo_seguimiento ?? '-' }}</td>
                             </tr>
                         @empty
@@ -355,8 +355,8 @@
 @section('scripts')
 <script>
 const gastosExtrasMes={
-    pagado:{titulo:'Gastos Extras Pagados',monto:'Bs. {{ number_format($gastosExtrasPagadosMes, 2) }}',ayuda:'Movimiento operativo mensual'},
-    pendiente:{titulo:'Gastos Extras Pendientes',monto:'Bs. {{ number_format($gastosExtrasPendientesMes, 2) }}',ayuda:'Pendientes operativos del mes'}
+    pagado:{titulo:'Gastos Extras Pagados',monto:'Bs. {{ number_format($gastosExtrasPagadosMes, 2, ',', '.') }}',ayuda:'Movimiento operativo mensual'},
+    pendiente:{titulo:'Gastos Extras Pendientes',monto:'Bs. {{ number_format($gastosExtrasPendientesMes, 2, ',', '.') }}',ayuda:'Pendientes operativos del mes'}
 };
 function cambiarGastosExtras(tipo,boton){
     document.getElementById('tituloGastoExtra').innerText=gastosExtrasMes[tipo].titulo;
@@ -366,8 +366,8 @@ function cambiarGastosExtras(tipo,boton){
     boton.classList.add('active');
 }
 const pagosProveedorMes={
-    pagado:{titulo:'Pagos a Proveedores',monto:'Bs. {{ number_format($pagosProveedorPagadosMes, 2) }}',ayuda:'Pagos realizados este mes'},
-    pendiente:{titulo:'Pagos Pendientes',monto:'Bs. {{ number_format($pagosProveedorPendientesMes, 2) }}',ayuda:'Pendientes financieros con proveedores'}
+    pagado:{titulo:'Pagos a Proveedores',monto:'Bs. {{ number_format($pagosProveedorPagadosMes, 2, ',', '.') }}',ayuda:'Pagos realizados este mes'},
+    pendiente:{titulo:'Pagos Pendientes',monto:'Bs. {{ number_format($pagosProveedorPendientesMes, 2, ',', '.') }}',ayuda:'Pendientes financieros con proveedores'}
 };
 function cambiarProveedor(tipo,boton){
     document.getElementById('tituloProveedor').innerText=pagosProveedorMes[tipo].titulo;
