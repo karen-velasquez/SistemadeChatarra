@@ -20,6 +20,7 @@ class ContratoRequest extends FormRequest
             'fecha_inicio'      => 'required|date',
             'fecha_fin'         => 'nullable|date|after_or_equal:fecha_inicio',
             'toneladas_contrato' => 'required|numeric|min:0.001',
+            'costo_unitario'    => 'required|numeric|min:0.01',
             'monto_total'       => 'required|numeric|min:0',
             'moneda'            => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
             'documento_pdf'     => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:30720',

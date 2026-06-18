@@ -43,6 +43,7 @@ class TramoController extends Controller
             'conductor_nuevo_id'      => 'nullable|exists:operadores_transporte,id',
             'fecha_salida_nuevo_tramo'=> 'nullable|date',
             'tipo_tramo_nuevo'        => 'nullable|in:Internacional,Nacional',
+            'documento_entrega'       => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:20480',
         ], [
             'peso_llegada.required'               => 'Debe ingresar el peso que llegó al destino.',
             'peso_llegada.min'                    => 'El peso debe ser mayor a 0.',
@@ -77,6 +78,11 @@ class TramoController extends Controller
         $contratoUuidLlegada = $tramo->contratoCamion->contrato->uuid;
         $desdeSegimiento = $request->input('origen') === 'seguimiento';
 
+        $rutaDocumento = null;
+        if ($request->hasFile('documento_entrega')) {
+            $rutaDocumento = $request->file('documento_entrega')->store('documentos-entrega', 'public');
+        }
+
         // Validar división de carga
         if ($esDivision) {
             $tnParcial   = (float) $request->tn_parcial;
@@ -102,6 +108,7 @@ class TramoController extends Controller
             'moneda_venta'           => $nuevoEstado === 'Entregado' ? ($request->moneda_venta ?: 'BOB') : null,
             'descuento_porcentaje'   => $request->descuento_porcentaje ?: null,
             'observaciones_llegada'  => $request->observaciones_llegada,
+            'documento_entrega'      => $rutaDocumento ?? $tramo->documento_entrega,
         ]);
 
         // División de carga: generar dos hijos automáticamente
@@ -136,6 +143,7 @@ class TramoController extends Controller
                 'moneda_venta'           => $request->moneda_venta ?: 'BOB',
                 'descuento_porcentaje'   => $request->descuento_porcentaje ?: null,
                 'observaciones_llegada'  => 'División de carga — Entrega cliente 1',
+                'documento_entrega'      => $rutaDocumento,
                 'created_by'             => auth()->id(),
                 'updated_by'             => auth()->id(),
             ]);
@@ -321,12 +329,14 @@ class TramoController extends Controller
             ->where('uuid', $uuid)
             ->firstOrFail();
 
-        abort_if(!in_array($tramo->estado, ['Entregado', 'Transbordado', 'Div. Carga']), 403, 'El tramo aún no ha sido completado.');
+        abort_if($tramo->estado === 'Div. Carga', 403, 'Este tramo tiene carga dividida entre dos clientes. Use las notas de entrega de cada tramo hijo.');
 
         $pdf = Pdf::loadView('contratos.partials.nota-entrega-pdf', compact('tramo'))
             ->setPaper('letter', 'portrait');
 
-        return $pdf->stream('nota-entrega-' . $tramo->camion->placa . '-' . $tramo->fecha_llegada->format('Y-m-d') . '.pdf');
+        $fecha = $tramo->fecha_llegada?->format('Y-m-d') ?? $tramo->fecha_salida?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        return $pdf->stream('nota-entrega-' . $tramo->camion->placa . '-' . $fecha . '.pdf');
     }
 
     public function toggleActivo($uuid)

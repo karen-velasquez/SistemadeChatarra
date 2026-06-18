@@ -127,16 +127,6 @@
                         </button>
                     @endif
 
-                    {{-- Nota de entrega PDF: si está entregado o transbordado --}}
-                    @can('contratos.index')
-                    @if(in_array($tramo->estado, ['Entregado', 'Transbordado']))
-                        <a href="{{ route('tramo.nota-entrega', $tramo->uuid) }}"
-                            class="btn btn-sm btn-outline-success" target="_blank">
-                            <i class="bi bi-file-earmark-pdf"></i> Nota de entrega
-                        </a>
-                    @endif
-                    @endcan
-
                     {{-- Desactivar: solo en tramos hijos, sin hijos activos propios, y solo en ruta --}}
                     @php $tieneHijosActivos = $tramo->tramosHijos()->where('activo', true)->exists(); @endphp
                     @if($nivel > 0 && !$tieneHijosActivos && $tramo->estado === 'En ruta')
@@ -165,6 +155,23 @@
                             <i class="bi bi-arrow-counterclockwise"></i>
                         </button>
                     @endif
+                @endif
+            @endcan
+
+            {{-- Nota de entrega y doc. adjunto: siempre visibles, con o sin envíos cerrados --}}
+            @can('contratos.index')
+                @if(!in_array($tramo->estado, ['Div. Carga', 'Desactivado']))
+                    <a href="{{ route('tramo.nota-entrega', $tramo->uuid) }}"
+                        class="btn btn-sm {{ in_array($tramo->estado, ['Entregado', 'Transbordado']) ? 'btn-outline-success' : 'btn-outline-secondary' }}" target="_blank">
+                        <i class="bi bi-file-earmark-pdf"></i> Nota de entrega
+                    </a>
+                @endif
+                @if($tramo->documento_entrega)
+                    <a href="{{ asset('storage/' . $tramo->documento_entrega) }}"
+                        class="btn btn-sm btn-outline-primary" target="_blank"
+                        title="Ver documento de entrega adjunto">
+                        <i class="bi bi-paperclip"></i> Doc. entrega
+                    </a>
                 @endif
             @endcan
         </div>

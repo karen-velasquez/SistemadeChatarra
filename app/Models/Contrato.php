@@ -25,6 +25,7 @@ class Contrato extends Model implements Auditable
         'fecha_fin',
         'cantidad_camiones',
         'toneladas_contrato',
+        'costo_unitario',
         'monto_total',
         'moneda',
         'estado',
@@ -41,6 +42,7 @@ class Contrato extends Model implements Auditable
         'fecha_fin'           => 'date',
         'monto_total'         => 'decimal:2',
         'toneladas_contrato'  => 'decimal:3',
+        'costo_unitario'      => 'decimal:2',
         'envios_cerrados'     => 'boolean',
         'envios_cerrados_at'  => 'datetime',
     ];

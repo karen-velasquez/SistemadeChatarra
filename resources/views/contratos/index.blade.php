@@ -222,6 +222,7 @@
                                 {"element":"#fecha_fin","intro":"📅 <b>Fecha de Fin</b> (opcional): hasta cuándo rige el contrato.","position":"bottom"},
                                 {"element":"#toneladas_contrato","intro":"⚖️ <b>Total de Toneladas</b> pactadas en el contrato. Acepta decimales (ej: 500.000).","position":"top"},
                                 {"element":"#monto_total","intro":"💲 <b>Monto total a pagar</b> al proveedor. A la izquierda eliges la <b>moneda</b> (BOB, USD, etc.).","position":"top"},
+                                {"element":"#costo_unitario_display","intro":"🧮 <b>Costo Unitario</b>: se calcula automáticamente al ingresar toneladas y monto. También puedes ingresarlo directamente — si tienes toneladas, el monto se calculará solo.","position":"top"},
                                 {"element":"#documento_pdf","intro":"📎 Adjunta el <b>documento del contrato</b> firmado (PDF o imagen) como respaldo (opcional, máx. 30 MB).","position":"top"},
                                 {"element":"#btnContrato","intro":"💾 Cuando todo esté listo, pulsa <b>Registrar</b> para guardar el contrato.","position":"top"}
                             ]'>
@@ -287,18 +288,31 @@
                             @error('fecha_fin')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
-                        {{-- Fila 3: Total Toneladas | Moneda+Monto --}}
+                        {{-- Fila 3: Toneladas | Costo Unitario | Moneda+Monto Total --}}
                         <div class="col-md-4">
                             <label class="form-label">Total Toneladas <span class="text-danger">(*)</span></label>
                             <input type="text" inputmode="numeric"
                                 class="form-control @error('toneladas_contrato') is-invalid @enderror"
                                 id="toneladas_contrato_display" placeholder="0,00" autocomplete="off" required>
                             <input type="hidden" name="toneladas_contrato" id="toneladas_contrato">
-                            <small class="text-muted">Toneladas pactadas.</small>
+                            <small class="text-muted">Toneladas pactadas en el contrato.</small>
                             @error('toneladas_contrato')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
-                        <div class="col-md-8">
+                        <div class="col-md-4">
+                            <label class="form-label">Costo Unitario por Tonelada <span class="text-danger">(*)</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="costoUnitarioMonedaLabel">BOB</span>
+                                <input type="text" inputmode="numeric" class="form-control @error('costo_unitario') is-invalid @enderror"
+                                    id="costo_unitario_display" placeholder="0,00" autocomplete="off" required>
+                                <input type="hidden" name="costo_unitario" id="costo_unitario">
+                                <span class="input-group-text">/t</span>
+                            </div>
+                            <small class="text-muted">Se calcula solo o ingréselo para calcular el monto.</small>
+                            @error('costo_unitario')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="col-md-4">
                             <label class="form-label">Monto Total a Pagar al Proveedor <span class="text-danger">(*)</span></label>
                             <div class="input-group">
                                 <select class="form-select flex-grow-0" style="width:90px;"
@@ -319,17 +333,6 @@
                             </div>
                             @error('moneda')<div class="text-danger small">{{ $message }}</div>@enderror
                             @error('monto_total')<div class="text-danger small">{{ $message }}</div>@enderror
-                        </div>
-
-                        {{-- Costo unitario informativo --}}
-                        <div class="col-md-12">
-                            <div class="alert alert-info py-2 mb-0 d-flex align-items-center gap-2" id="costoUnitarioBox" style="display:none!important;">
-                                <i class="bi bi-calculator"></i>
-                                <span>Costo unitario por tonelada:
-                                    <strong id="costoUnitarioValor" class="ms-1">—</strong>
-                                    <span id="costoUnitarioMoneda" class="ms-1 text-muted"></span>
-                                </span>
-                            </div>
                         </div>
 
                         {{-- Documento del contrato (PDF o imagen) --}}
@@ -400,9 +403,12 @@
         document.getElementById('toneladas_contrato_display').value = '';
         document.getElementById('toneladas_contrato').value = '';
         document.getElementById('pdfActualInfo').classList.add('d-none');
-        document.getElementById('costoUnitarioBox').style.setProperty('display', 'none', 'important');
+        document.getElementById('costo_unitario_display').value = '';
+        document.getElementById('costo_unitario').value = '';
+        const lbl = document.getElementById('costoUnitarioMonedaLabel');
+        if (lbl) lbl.textContent = 'BOB';
         // Quitar disabled de todos los campos por si venían de modo solo-ver
-        ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato_display','moneda','monto_total_display','documento_pdf'].forEach(id => {
+        ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato_display','moneda','monto_total_display','costo_unitario_display','documento_pdf'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.removeAttribute('disabled');
         });
@@ -453,7 +459,13 @@
                 const pdfInfo = document.getElementById('pdfActualInfo');
                 c.documento_pdf ? pdfInfo.classList.remove('d-none') : pdfInfo.classList.add('d-none');
 
-                actualizarCostoUnitario();
+                // Cargar costo unitario guardado en BD
+                const monedaLbl = document.getElementById('costoUnitarioMonedaLabel');
+                if (monedaLbl) monedaLbl.textContent = c.moneda ?? 'BOB';
+                costoUnitarioCargar(c.costo_unitario ?? 0);
+                const costoDisp = document.getElementById('costo_unitario_display');
+                if (costoDisp) readonly ? costoDisp.setAttribute('disabled', true) : costoDisp.removeAttribute('disabled');
+                document.getElementById('costo_unitario').disabled = readonly;
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContrato')).show();
             });
     }
@@ -466,129 +478,146 @@
         _cargarContrato(uuid, true);
     }
 
-    // ===== Input estilo cajero para monto_total =====
-    // Muestra formato boliviano (1.234,56) mientras escribe.
-    // El hidden #monto_total siempre tiene el valor numérico real (1234.56).
-    function _montoTextoANumero(txt) {
-        // Quitar puntos de miles, reemplazar coma decimal por punto
-        return parseFloat(txt.replace(/\./g, '').replace(',', '.')) || 0;
+    // ===== Utilidades formato cajero (boliviano: 1.234,56) =====
+    function _parse(txt) {
+        return parseFloat((txt || '').replace(/\./g, '').replace(',', '.')) || 0;
     }
 
-    function _montoFormatear(valor) {
+    function _fmt(valor, decimales) {
         if (!valor && valor !== 0) return '';
         return new Intl.NumberFormat('es-BO', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: decimales ?? 2,
+            maximumFractionDigits: decimales ?? 2
         }).format(valor);
     }
 
-    function _montoOnInput(e) {
-        const input = e.target;
-        let raw = input.value;
-
-        // Permitir solo dígitos y una coma
-        raw = raw.replace(/[^0-9,]/g, '');
-
-        // Solo una coma permitida
-        const partes = raw.split(',');
-        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
-
-        // Limitar centavos a 2 dígitos
-        if (partes[1] !== undefined && partes[1].length > 2) {
-            raw = partes[0] + ',' + partes[1].substring(0, 2);
-        }
-
-        // Formatear parte entera con puntos de miles
-        const [entero, centavos] = raw.split(',');
-        const enteroFormateado = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-        // Reconstruir valor visual
-        const nuevo = centavos !== undefined ? enteroFormateado + ',' + centavos : enteroFormateado;
-
-        // Preservar posición del cursor
-        const diff = nuevo.length - input.value.length;
-        const pos  = input.selectionStart + diff;
-        input.value = nuevo;
-        try { input.setSelectionRange(pos, pos); } catch(_) {}
-
-        // Actualizar hidden con valor numérico real
-        document.getElementById('monto_total').value = _montoTextoANumero(nuevo) || '';
-        actualizarCostoUnitario();
-    }
-
-    function montoCargar(valor) {
-        const num = parseFloat(valor) || 0;
-        document.getElementById('monto_total_display').value = num ? _montoFormatear(num) : '';
-        document.getElementById('monto_total').value = num || '';
-    }
-
-    // ===== Input estilo cajero para toneladas_contrato =====
-    function _toneladasOnInput(e) {
+    // Aplica formato cajero a un input display y escribe el valor numérico en el hidden.
+    // maxDec: máximo de decimales permitidos (2 para monto/costo, 3 para toneladas)
+    function _cajeroOnInput(e, hiddenId, maxDec, onChangeCb) {
         const input = e.target;
         let raw = input.value.replace(/[^0-9,]/g, '');
-
         const partes = raw.split(',');
         if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
-
-        const [entero, centavos] = raw.split(',');
-        if (centavos !== undefined && centavos.length > 2) {
-            raw = entero + ',' + centavos.substring(0, 2);
-        }
-
         const [ent, dec] = raw.split(',');
-        const entFormateado = ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        const nuevo = dec !== undefined ? entFormateado + ',' + dec : entFormateado;
-
-        const diff = nuevo.length - input.value.length;
-        const pos  = input.selectionStart + diff;
+        if (dec !== undefined && dec.length > maxDec) raw = ent + ',' + dec.substring(0, maxDec);
+        const [e2, d2] = raw.split(',');
+        const entF  = (e2 || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const nuevo = d2 !== undefined ? entF + ',' + d2 : entF;
+        const diff  = nuevo.length - input.value.length;
+        const pos   = input.selectionStart + diff;
         input.value = nuevo;
-        try { input.setSelectionRange(pos, pos); } catch(_) {}
+        try { input.setSelectionRange(pos, pos); } catch (_) {}
+        const hidden = document.getElementById(hiddenId);
+        if (hidden) hidden.value = _parse(nuevo) || '';
+        if (typeof onChangeCb === 'function') onChangeCb();
+    }
 
-        document.getElementById('toneladas_contrato').value = _montoTextoANumero(nuevo) || '';
-        actualizarCostoUnitario();
+    function _cajeroBlur(displayId, hiddenId, decimales) {
+        const num = parseFloat(document.getElementById(hiddenId)?.value) || 0;
+        if (num) document.getElementById(displayId).value = _fmt(num, decimales);
+    }
+
+    // Carga un valor numérico en el par display/hidden con formato correcto
+    function _cargarCampo(displayId, hiddenId, valor, decimales) {
+        const num = parseFloat(valor) || 0;
+        document.getElementById(displayId).value = num ? _fmt(num, decimales) : '';
+        document.getElementById(hiddenId).value  = num || '';
+    }
+
+    // ===== Lógica bidireccional =====
+    // Flag para evitar bucles: cuando uno recalcula a los otros no vuelven a disparar
+    let _recalculating = false;
+
+    function _sincronizarMoneda() {
+        const moneda = document.getElementById('moneda').value;
+        const label  = document.getElementById('costoUnitarioMonedaLabel');
+        if (label) label.textContent = moneda;
+    }
+
+    // Recalcula costo_unitario = monto / toneladas (se llama cuando cambia monto o toneladas)
+    function _recalcCostoDesdeMontoyTon() {
+        if (_recalculating) return;
+        const monto = _parse(document.getElementById('monto_total_display').value);
+        const ton   = _parse(document.getElementById('toneladas_contrato_display').value);
+        if (monto > 0 && ton > 0) {
+            _recalculating = true;
+            const costo = monto / ton;
+            document.getElementById('costo_unitario_display').value = _fmt(costo, 2);
+            document.getElementById('costo_unitario').value         = costo;
+            _recalculating = false;
+        }
+    }
+
+    // Recalcula monto_total = costo * toneladas (se llama cuando cambia costo o toneladas con costo ya ingresado)
+    function _recalcMontoDesdeCostoyTon() {
+        if (_recalculating) return;
+        const costo = _parse(document.getElementById('costo_unitario_display').value);
+        const ton   = _parse(document.getElementById('toneladas_contrato_display').value);
+        if (costo > 0 && ton > 0) {
+            _recalculating = true;
+            const monto = costo * ton;
+            document.getElementById('monto_total_display').value = _fmt(monto, 2);
+            document.getElementById('monto_total').value         = monto;
+            _recalculating = false;
+        }
+    }
+
+    // Al cambiar toneladas: si hay costo → recalcula monto; si hay monto → recalcula costo
+    function _onToneladasChange() {
+        const costo = _parse(document.getElementById('costo_unitario_display').value);
+        if (costo > 0) {
+            _recalcMontoDesdeCostoyTon();
+        } else {
+            _recalcCostoDesdeMontoyTon();
+        }
+    }
+
+    // Compatibilidad con llamadas legacy que existan en el código
+    function actualizarCostoUnitario() { _recalcCostoDesdeMontoyTon(); }
+
+    function montoCargar(valor) {
+        _cargarCampo('monto_total_display', 'monto_total', valor, 2);
     }
 
     function toneladasCargar(valor) {
-        const num = parseFloat(valor) || 0;
-        document.getElementById('toneladas_contrato_display').value = num ? _montoFormatear(num) : '';
-        document.getElementById('toneladas_contrato').value = num || '';
+        _cargarCampo('toneladas_contrato_display', 'toneladas_contrato', valor, 3);
     }
 
-    // Costo unitario informativo (monto / toneladas)
-    function actualizarCostoUnitario() {
-        const monto = parseFloat(document.getElementById('monto_total').value);
-        const ton   = parseFloat(document.getElementById('toneladas_contrato').value);
-        const box   = document.getElementById('costoUnitarioBox');
-        const val   = document.getElementById('costoUnitarioValor');
-        const mon   = document.getElementById('costoUnitarioMoneda');
-
-        if (monto > 0 && ton > 0) {
-            const costo = monto / ton;
-            val.textContent = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(costo);
-            mon.textContent = document.getElementById('moneda').value + '/t';
-            box.style.removeProperty('display');
-        } else {
-            box.style.setProperty('display', 'none', 'important');
-        }
+    function costoUnitarioCargar(valor) {
+        _cargarCampo('costo_unitario_display', 'costo_unitario', valor, 2);
     }
 
-    function _completarDecimales(displayId, hiddenId) {
-        const input = document.getElementById(displayId);
-        const num = parseFloat(document.getElementById(hiddenId).value);
-        if (!num) return;
-        input.value = _montoFormatear(num);
-    }
+    document.addEventListener('DOMContentLoaded', function () {
 
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('monto_total_display').addEventListener('input', _montoOnInput);
-        document.getElementById('monto_total_display').addEventListener('blur', function() {
-            _completarDecimales('monto_total_display', 'monto_total');
+        // Monto total
+        document.getElementById('monto_total_display').addEventListener('input', function (e) {
+            _cajeroOnInput(e, 'monto_total', 2, _recalcCostoDesdeMontoyTon);
         });
-        document.getElementById('toneladas_contrato_display').addEventListener('input', _toneladasOnInput);
-        document.getElementById('toneladas_contrato_display').addEventListener('blur', function() {
-            _completarDecimales('toneladas_contrato_display', 'toneladas_contrato');
+        document.getElementById('monto_total_display').addEventListener('blur', function () {
+            _cajeroBlur('monto_total_display', 'monto_total', 2);
+            _recalcCostoDesdeMontoyTon();
         });
-        document.getElementById('moneda').addEventListener('change', actualizarCostoUnitario);
+
+        // Toneladas
+        document.getElementById('toneladas_contrato_display').addEventListener('input', function (e) {
+            _cajeroOnInput(e, 'toneladas_contrato', 3, _onToneladasChange);
+        });
+        document.getElementById('toneladas_contrato_display').addEventListener('blur', function () {
+            _cajeroBlur('toneladas_contrato_display', 'toneladas_contrato', 3);
+            _onToneladasChange();
+        });
+
+        // Costo unitario
+        document.getElementById('costo_unitario_display').addEventListener('input', function (e) {
+            _cajeroOnInput(e, 'costo_unitario', 2, _recalcMontoDesdeCostoyTon);
+        });
+        document.getElementById('costo_unitario_display').addEventListener('blur', function () {
+            _cajeroBlur('costo_unitario_display', 'costo_unitario', 2);
+            _recalcMontoDesdeCostoyTon();
+        });
+
+        // Moneda
+        document.getElementById('moneda').addEventListener('change', _sincronizarMoneda);
 
         // Inicializar tooltips de Bootstrap
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

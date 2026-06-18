@@ -372,7 +372,7 @@
                 <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Registrar Llegada</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="formLlegada" action="">
+            <form method="POST" id="formLlegada" action="" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="origen" value="camiones">
                 <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
@@ -629,6 +629,19 @@
                                     oninput="if(parseFloat(this.value)>60) this.value=60;">
                                 <small class="text-muted">Máximo 60%. Por chatarra en mal estado, faltante u otro motivo.</small>
                             </div>
+                        </div>
+
+                        {{-- Documento de entrega --}}
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="bi bi-file-earmark-arrow-up text-success"></i>
+                                Documento de entrega
+                                <span class="text-muted small">(recomendado)</span>
+                            </label>
+                            <input type="file" class="form-control" name="documento_entrega"
+                                id="inp_documento_entrega"
+                                accept=".pdf,.png,.jpg,.jpeg">
+                            <small class="text-muted">PDF, PNG o JPG. Máx. 20 MB. No obligatorio pero recomendable.</small>
                         </div>
 
                         {{-- Observaciones de llegada --}}
@@ -957,6 +970,8 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     document.getElementById('sec_descuento').classList.add('d-none');
     document.getElementById('inp_descuento').value = '';
     document.querySelector('#formLlegada textarea[name="observaciones_llegada"]').value = '';
+    const inpDoc = document.getElementById('inp_documento_entrega');
+    if (inpDoc) inpDoc.value = '';
 
     const btnConf = document.getElementById('btn_confirmar_llegada');
     btnConf.disabled  = true;

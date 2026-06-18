@@ -124,13 +124,16 @@
 {{-- PESOS --}}
 @php
     $esParcial    = $tramo->estado === 'Div. Carga';
+    $enTransito   = in_array($tramo->estado, ['En ruta', 'Transbordando']);
     $tramoHijo    = $esParcial ? $tramo->tramosHijos()->orderBy('id')->first() : null;
     $totalLlego   = $esParcial
         ? round((float)$tramo->peso_llegada + (float)optional($tramoHijo)->peso_salida, 3)
         : (float)$tramo->peso_salida;
     $tnCliente    = (float)$tramo->peso_llegada;
     $tnRestante   = $tramoHijo ? (float)$tramoHijo->peso_salida : 0;
-    $merma        = !$esParcial ? round((float)$tramo->peso_salida - (float)$tramo->peso_llegada, 3) : 0;
+    $merma        = (!$esParcial && $tramo->peso_llegada !== null)
+        ? round((float)$tramo->peso_salida - (float)$tramo->peso_llegada, 3)
+        : 0;
 @endphp
 <div class="pesos-box">
     @if($esParcial)
@@ -154,13 +157,18 @@
     @else
     <div class="row">
         <div class="cell">
-            <div class="big">{{ number_format($tramo->peso_salida, 2, ',', '.') }} t</div>
+            <div class="big">{{ $tramo->peso_salida !== null ? number_format($tramo->peso_salida, 2, ',', '.') . ' t' : '—' }}</div>
             <div class="lbl">Peso de salida</div>
         </div>
         <div class="cell" style="font-size:22px; color:#aaa; padding-top:8px;">&#8594;</div>
         <div class="cell">
-            <div class="big">{{ number_format($tramo->peso_llegada, 2, ',', '.') }} t</div>
-            <div class="lbl">Peso de llegada (neto)</div>
+            @if($tramo->peso_llegada !== null)
+                <div class="big">{{ number_format($tramo->peso_llegada, 2, ',', '.') }} t</div>
+                <div class="lbl">Peso de llegada (neto)</div>
+            @else
+                <div class="big" style="color:#b45309;">En tránsito</div>
+                <div class="lbl">Peso de llegada pendiente</div>
+            @endif
         </div>
         @if($merma > 0)
         <div class="cell">
@@ -222,9 +230,9 @@
     <table class="info">
         <tr>
             <td class="label">Fecha de salida:</td>
-            <td>{{ $tramo->fecha_salida->format('d/m/Y') }}</td>
+            <td>{{ $tramo->fecha_salida?->format('d/m/Y') ?? '—' }}</td>
             <td class="label">Fecha de llegada:</td>
-            <td>{{ $tramo->fecha_llegada->format('d/m/Y') }}</td>
+            <td>{{ $tramo->fecha_llegada?->format('d/m/Y') ?? 'En tránsito' }}</td>
         </tr>
         <tr>
             <td class="label">Proveedor:</td>
@@ -235,10 +243,16 @@
         <tr>
             <td class="label">Estado:</td>
             <td colspan="3">
-                @if($esParcial)
-                    <span class="badge badge-info">Div. Carga</span>
-                @else
-                    <span class="badge badge-success">Entregado</span>
+                @php
+                    $badgeClase = match($tramo->estado) {
+                        'Entregado'    => 'badge-success',
+                        'Transbordado' => 'badge-info',
+                        default        => 'badge-info',
+                    };
+                @endphp
+                <span class="badge {{ $badgeClase }}">{{ $tramo->estado }}</span>
+                @if(in_array($tramo->estado, ['En ruta', 'Transbordando']))
+                    <span style="font-size:10px; color:#b45309; margin-left:6px;">* Documento provisional — carga aún en tránsito</span>
                 @endif
             </td>
         </tr>

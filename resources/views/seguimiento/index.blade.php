@@ -996,7 +996,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form method="POST" id="formLlegada" action="">
+            <form method="POST" id="formLlegada" action="" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="origen" value="seguimiento">
                 <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
@@ -1227,6 +1227,19 @@
                                 <small class="text-muted">Máximo 60%.</small>
                             </div>
                         </div>
+                        {{-- Documento de entrega --}}
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="bi bi-file-earmark-arrow-up text-success"></i>
+                                Documento de entrega
+                                <span class="text-muted small">(recomendado)</span>
+                            </label>
+                            <input type="file" class="form-control" name="documento_entrega"
+                                id="seg_inp_documento_entrega"
+                                accept=".pdf,.png,.jpg,.jpeg">
+                            <small class="text-muted">PDF, PNG o JPG. Máx. 20 MB. No obligatorio pero recomendable.</small>
+                        </div>
+
                         <div class="col-12">
                             <label class="form-label">Observaciones de llegada</label>
                             <textarea class="form-control" name="observaciones_llegada" rows="2" maxlength="500"
@@ -1887,6 +1900,8 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     document.getElementById('seg_sec_descuento').classList.add('d-none');
     document.getElementById('seg_inp_descuento').value = '';
     document.querySelector('#formLlegada textarea[name="observaciones_llegada"]').value = '';
+    const segInpDoc = document.getElementById('seg_inp_documento_entrega');
+    if (segInpDoc) segInpDoc.value = '';
 
     var btnConf = document.getElementById('btn_confirmar_llegada_seg');
     btnConf.disabled  = true;

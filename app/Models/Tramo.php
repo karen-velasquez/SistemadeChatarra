@@ -32,6 +32,7 @@ class Tramo extends Model
         'moneda_venta',
         'descuento_porcentaje',
         'observaciones_llegada',
+        'documento_entrega',
         'fecha_salida',
         'fecha_llegada',
         'estado',
