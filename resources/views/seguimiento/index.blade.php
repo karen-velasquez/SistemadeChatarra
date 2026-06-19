@@ -242,7 +242,7 @@
                                             <ul class="dropdown-menu dropdown-menu-end">
                                                 @can('contratos.edit')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalLlegada('{{ $t->uuid }}','{{ $t->origen }} → {{ $t->destino }} ({{ $t->camion->placa }})','{{ $t->peso_salida }}','{{ $t->fecha_salida->format('Y-m-d') }}',{{ $t->camion_id }},{{ $t->conductor_id ?? 'null' }},'{{ $t->tipo_tramo }}')">
+                                                    <button class="dropdown-item" onclick="abrirModalLlegada('{{ $t->uuid }}','{{ $t->origen }} → {{ $t->destino }} ({{ $t->camion->placa }})','{{ $t->peso_salida }}','{{ $t->fecha_salida->format('Y-m-d') }}',{{ $t->camion_id }},{{ $t->conductor_id ?? 'null' }},'{{ $t->tipo_tramo }}',{{ $t->contratoCamion->contrato->proveedor_id }})">
                                                         <i class="bi bi-geo-alt text-success me-2"></i> Registrar llegada
                                                     </button>
                                                 </li>
@@ -1227,6 +1227,19 @@
                                 <small class="text-muted">Máximo 60%.</small>
                             </div>
                         </div>
+                        {{-- Lote de entrega semanal --}}
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-collection text-primary"></i>
+                                Lote de entrega semanal
+                                <span class="text-danger">(*)</span>
+                            </label>
+                            <select class="form-select" name="lote_entrega_id" id="seg_sel_lote_entrega" required>
+                                <option value="">Cargando lotes...</option>
+                            </select>
+                            <small class="text-muted">Se asigna automáticamente al lote de esta semana. Puedes cambiar a una semana anterior si el lote aún está abierto.</small>
+                        </div>
+
                         {{-- Documento de entrega --}}
                         <div class="col-12">
                             <label class="form-label">
@@ -1869,7 +1882,7 @@ function abrirModalFlete(ccUuid, label) {
     };
 })();
 
-function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo) {
+function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo, proveedorId) {
     document.getElementById('llegada_tramo_info').textContent = info;
     document.getElementById('formLlegada').action            = '{{ url("tramo") }}/' + tramoUuid + '/llegada';
     document.getElementById('llegada_peso_max').textContent  =
@@ -1906,6 +1919,29 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     var btnConf = document.getElementById('btn_confirmar_llegada_seg');
     btnConf.disabled  = true;
     btnConf.className = 'btn btn-secondary';
+
+    // Cargar lotes de entrega del proveedor
+    const selLote = document.getElementById('seg_sel_lote_entrega');
+    if (selLote && proveedorId) {
+        selLote.innerHTML = '<option value="">Cargando lotes...</option>';
+        fetch('{{ url("lotes-entrega/proveedor") }}/' + proveedorId)
+            .then(r => r.json())
+            .then(lotes => {
+                selLote.innerHTML = '';
+                if (lotes.length === 0) {
+                    selLote.innerHTML = '<option value="">— Sin lotes disponibles —</option>';
+                    return;
+                }
+                lotes.forEach((l, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = l.id;
+                    opt.textContent = l.nombre;
+                    if (i === 0) opt.selected = true;
+                    selLote.appendChild(opt);
+                });
+            })
+            .catch(() => { selLote.innerHTML = '<option value="">— Error al cargar —</option>'; });
+    }
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalLlegada')).show();
 }
@@ -1945,7 +1981,7 @@ function ejecutarAccionSeg(sel) {
         window.open(d.notaUrl, '_blank');
 
     } else if (accion === 'llegada') {
-        abrirModalLlegada(d.uuid, d.label, d.peso, d.fecha, d.camionId || null, d.conductorId || null, d.tipoTramo || '');
+        abrirModalLlegada(d.uuid, d.label, d.peso, d.fecha, d.camionId || null, d.conductorId || null, d.tipoTramo || '', d.proveedorId || null);
 
     } else if (accion === 'pago') {
         abrirModalPagoSeg(

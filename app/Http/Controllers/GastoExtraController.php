@@ -76,7 +76,10 @@ class GastoExtraController extends Controller
     $categoria = $categoriaParametro->descripcion;
         $nombreComprobante = '';
         if ($request->hasFile('comprobante_pago')) {
-            $path = public_path('comprobantes_pago');
+            $path = public_path('storage/comprobantes_pago');
+            if (!file_exists($path)) {
+                mkdir($path, 0755, true);
+            }
             $doc = $request->file('comprobante_pago');
             $name = 'comprobante_' .$categoria . '_' .strtoupper($request->concepto) . '_' .Carbon::now()->format('YmdHis');
             $nombreComprobante =$name . '.' . $doc->extension();
@@ -133,12 +136,14 @@ class GastoExtraController extends Controller
         $categoria = $categoriaParametro->descripcion;
         $nombreComprobante = $gasto->comprobante_pago;
         if ($request->hasFile('comprobante_pago')) {
-            if (!empty($gasto->comprobante_pago) && file_exists(public_path('comprobantes_pago/' .$gasto->comprobante_pago))) {
-                unlink(
-                    public_path('comprobantes_pago/' .$gasto->comprobante_pago));
+            if (!empty($gasto->comprobante_pago) && file_exists(public_path('storage/comprobantes_pago/' .$gasto->comprobante_pago))) {
+                unlink(public_path('storage/comprobantes_pago/' .$gasto->comprobante_pago));
             }
 
-            $path = public_path('comprobantes_pago');
+            $path = public_path('storage/comprobantes_pago');
+            if (!file_exists($path)) {
+                mkdir($path, 0755, true);
+            }
             $doc = $request->file('comprobante_pago');
             $name = 'comprobante_' .$categoria . '_' .strtoupper($request->concepto) . '_' .Carbon::now()->format('YmdHis');
             $nombreComprobante =$name . '.' . $doc->extension();
@@ -170,8 +175,14 @@ class GastoExtraController extends Controller
              Alert::error('Error', 'No puedes eliminar un gasto pagado.');
             return redirect()->route('gastos_extras.index');
         }
+        if (!empty($gasto->comprobante_pago)) {
+            $fullPath = public_path('storage/comprobantes_pago/' . $gasto->comprobante_pago);
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+        }
         $gasto->delete();
         Alert::success('Eliminacion ', 'Gasto Extra Eliminado con exito!!!');
-        return redirect()->route('gastos_extras.index');       
+        return redirect()->route('gastos_extras.index');
     }
 }

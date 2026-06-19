@@ -38,6 +38,7 @@ class Tramo extends Model
         'estado',
         'activo',
         'observaciones',
+        'lote_entrega_id',
         'created_by',
         'updated_by',
     ];
@@ -94,6 +95,11 @@ class Tramo extends Model
     public function pagosCliente()
     {
         return $this->hasMany(PagoCliente::class, 'tramo_id');
+    }
+
+    public function loteEntrega()
+    {
+        return $this->belongsTo(LoteEntrega::class, 'lote_entrega_id');
     }
 
     // Monto total que debe el cliente por esta entrega

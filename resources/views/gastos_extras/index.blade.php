@@ -223,7 +223,7 @@ function verDetalles(gastos, contrato) {
                 if (g.comprobante_pago) {
                     comprobante = `
                         <li>
-                            <a class="dropdown-item" href="#" onclick="window.open('{{ asset('comprobantes_pago') }}/${escapeHtml(g.comprobante_pago)}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>
+                            <a class="dropdown-item" href="#" onclick="window.open('{{ asset('storage/comprobantes_pago') }}/${escapeHtml(g.comprobante_pago)}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>
                     `;
                 } else {
                     comprobante = `

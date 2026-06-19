@@ -3,7 +3,7 @@
 @section('content')
                        
 @php
-      $avatarActual = auth()->user()->avatar && file_exists(public_path('assets/avatar/' . auth()->user()->avatar)) ? asset('assets/avatar/' . auth()->user()->avatar) : asset('assets/avatar/defaultAvatar.svg');
+      $avatarActual = auth()->user()->avatar && file_exists(public_path('storage/avatares/' . auth()->user()->avatar)) ? asset('storage/avatares/' . auth()->user()->avatar) : asset('assets/avatar/defaultAvatar.svg');
       $passwordErrors = session('active_tab') === 'change_password' || $errors->hasAny(['current_password', 'new_password', 'new_password_confirmation']);
 @endphp
 

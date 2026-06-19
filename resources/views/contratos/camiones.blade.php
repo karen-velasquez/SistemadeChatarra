@@ -631,6 +631,19 @@
                             </div>
                         </div>
 
+                        {{-- Lote de entrega semanal --}}
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-collection text-primary"></i>
+                                Lote de entrega semanal
+                                <span class="text-danger">(*)</span>
+                            </label>
+                            <select class="form-select" name="lote_entrega_id" id="sel_lote_entrega" required>
+                                <option value="">Cargando lotes...</option>
+                            </select>
+                            <small class="text-muted">Se asigna automáticamente al lote de esta semana. Puedes cambiar a una semana anterior si el lote aún está abierto.</small>
+                        </div>
+
                         {{-- Documento de entrega --}}
                         <div class="col-12">
                             <label class="form-label">
@@ -972,6 +985,27 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     document.querySelector('#formLlegada textarea[name="observaciones_llegada"]').value = '';
     const inpDoc = document.getElementById('inp_documento_entrega');
     if (inpDoc) inpDoc.value = '';
+
+    // Cargar lotes de entrega del proveedor de este contrato
+    const selLote = document.getElementById('sel_lote_entrega');
+    selLote.innerHTML = '<option value="">Cargando lotes...</option>';
+    fetch('{{ route("lotes_entrega.proveedor", ["proveedorId" => "__PID__"]) }}'.replace('__PID__', {{ $contrato->proveedor_id }}))
+        .then(r => r.json())
+        .then(lotes => {
+            selLote.innerHTML = '';
+            if (lotes.length === 0) {
+                selLote.innerHTML = '<option value="">— Sin lotes disponibles —</option>';
+                return;
+            }
+            lotes.forEach((l, i) => {
+                const opt = document.createElement('option');
+                opt.value = l.id;
+                opt.textContent = l.nombre;
+                if (i === 0) opt.selected = true; // semana más reciente primero
+                selLote.appendChild(opt);
+            });
+        })
+        .catch(() => { selLote.innerHTML = '<option value="">— Error al cargar —</option>'; });
 
     const btnConf = document.getElementById('btn_confirmar_llegada');
     btnConf.disabled  = true;

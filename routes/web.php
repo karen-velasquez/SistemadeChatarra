@@ -152,6 +152,14 @@ use Illuminate\Support\Facades\Route;
     Route::get('lotes-pago', [App\Http\Controllers\LotePagoController::class, 'index'])->name('lotes_pago.index')->middleware('permission:pagos_camiones.index');
     Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:pagos_camiones.create');
 
+    // Lotes de entrega semanal por proveedor
+    Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:contratos.index');
+    Route::get('lotes-entrega/proveedor/{proveedorId}', [App\Http\Controllers\LoteEntregaController::class, 'lotesProveedor'])->name('lotes_entrega.proveedor');
+    Route::post('lotes-entrega/{uuid}/cerrar', [App\Http\Controllers\LoteEntregaController::class, 'cerrar'])->name('lotes_entrega.cerrar')->middleware('permission:contratos.edit');
+    // Pagos extras por lote
+    Route::post('lotes-entrega/{uuid}/pago-extra', [App\Http\Controllers\PagoExtraLoteController::class, 'store'])->name('lotes_entrega.pago_extra.store')->middleware('permission:contratos.edit');
+    Route::delete('lotes-entrega/pago-extra/{uuid}', [App\Http\Controllers\PagoExtraLoteController::class, 'destroy'])->name('lotes_entrega.pago_extra.destroy')->middleware('permission:contratos.edit');
+
     // Pagos a camiones
     Route::get('pagos/camiones',[App\Http\Controllers\PagoCamionController::class,'index'])->name('pagos.camiones.index')->middleware('permission:pagos_camiones.index');
     Route::post('pagos/camiones',[App\Http\Controllers\PagoCamionController::class,'store'])->name('pagos.camiones.store')->middleware('permission:pagos_camiones.create');

@@ -183,7 +183,13 @@ class CamionController extends Controller
 
     public function destroy($uuid)
     {
-        $camion = Camion::where('uuid', $uuid)->firstOrFail();
+        $camion = Camion::with('fotos')->where('uuid', $uuid)->firstOrFail();
+        if ($camion->documento_ruat) {
+            Storage::disk('public')->delete($camion->documento_ruat);
+        }
+        foreach ($camion->fotos as $foto) {
+            Storage::disk('public')->delete($foto->ruta);
+        }
         $camion->delete();
         Alert::success('Eliminación', 'Camión eliminado con éxito.');
         return redirect()->route('camiones.index');

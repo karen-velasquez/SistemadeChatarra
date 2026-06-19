@@ -123,6 +123,12 @@ class OperadorTransporteController extends Controller
     public function destroy($uuid)
     {
         $operador = OperadorTransporte::where('uuid', $uuid)->firstOrFail();
+        if ($operador->doc_carnet) {
+            Storage::disk('public')->delete($operador->doc_carnet);
+        }
+        if ($operador->doc_licencia) {
+            Storage::disk('public')->delete($operador->doc_licencia);
+        }
         $operador->delete();
         Alert::success('Eliminación', 'Operador eliminado con éxito.');
         return redirect()->route('camiones.index', ['tab' => 'operadores']);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tramo;
 use App\Models\ContratoCamion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -44,6 +45,7 @@ class TramoController extends Controller
             'fecha_salida_nuevo_tramo'=> 'nullable|date',
             'tipo_tramo_nuevo'        => 'nullable|in:Internacional,Nacional',
             'documento_entrega'       => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:20480',
+            'lote_entrega_id'         => 'required|exists:lotes_entrega,id',
         ], [
             'peso_llegada.required'               => 'Debe ingresar el peso que llegó al destino.',
             'peso_llegada.min'                    => 'El peso debe ser mayor a 0.',
@@ -57,6 +59,8 @@ class TramoController extends Controller
             'destino_nuevo_tramo.required_if'     => 'Debe indicar el destino del nuevo tramo.',
             'descuento_porcentaje.min'            => 'El descuento no puede ser negativo.',
             'descuento_porcentaje.max'            => 'El descuento no puede superar el 60%.',
+            'lote_entrega_id.required'            => 'Debe seleccionar el lote de entrega semanal.',
+            'lote_entrega_id.exists'              => 'El lote de entrega seleccionado no es válido.',
         ]);
 
         if ($validator->fails()) {
@@ -80,6 +84,9 @@ class TramoController extends Controller
 
         $rutaDocumento = null;
         if ($request->hasFile('documento_entrega')) {
+            if ($tramo->documento_entrega) {
+                Storage::disk('public')->delete($tramo->documento_entrega);
+            }
             $rutaDocumento = $request->file('documento_entrega')->store('documentos-entrega', 'public');
         }
 
@@ -109,6 +116,7 @@ class TramoController extends Controller
             'descuento_porcentaje'   => $request->descuento_porcentaje ?: null,
             'observaciones_llegada'  => $request->observaciones_llegada,
             'documento_entrega'      => $rutaDocumento ?? $tramo->documento_entrega,
+            'lote_entrega_id'        => $request->lote_entrega_id,
         ]);
 
         // División de carga: generar dos hijos automáticamente
@@ -144,6 +152,7 @@ class TramoController extends Controller
                 'descuento_porcentaje'   => $request->descuento_porcentaje ?: null,
                 'observaciones_llegada'  => 'División de carga — Entrega cliente 1',
                 'documento_entrega'      => $rutaDocumento,
+                'lote_entrega_id'        => $request->lote_entrega_id,
                 'created_by'             => auth()->id(),
                 'updated_by'             => auth()->id(),
             ]);

@@ -10,7 +10,7 @@
       </li>
 
       {{-- CONTRATOS --}}
-      @php $enContratos = request()->routeIs(['contratos.index','contratos.camiones','contratos.liquidacion']); @endphp
+      @php $enContratos = request()->routeIs(['contratos.index','contratos.camiones','contratos.liquidacion','lotes_entrega.index']); @endphp
       @if(auth()->user()->can('contratos.index') || auth()->user()->can('contratos.liquidacion'))
       <li class="nav-item">
         <a class="nav-link {{ $enContratos ? '' : 'collapsed' }}"
@@ -34,6 +34,14 @@
             <a href="{{ route('contratos.liquidacion') }}"
                class="{{ isActiveRoute(['contratos.liquidacion']) ? 'active' : '' }}">
               <i class="bi bi-calculator"></i><span>Liquidación de Envíos</span>
+            </a>
+          </li>
+          @endcan
+          @can('contratos.index')
+          <li>
+            <a href="{{ route('lotes_entrega.index') }}"
+               class="{{ isActiveRoute(['lotes_entrega.index']) ? 'active' : '' }}">
+              <i class="bi bi-collection"></i><span>Lotes de Entrega</span>
             </a>
           </li>
           @endcan

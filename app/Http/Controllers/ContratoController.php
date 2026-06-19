@@ -135,9 +135,17 @@ class ContratoController extends Controller
         // Se usa forceDelete() para quitar físicamente las filas; de lo contrario
         // el soft-delete deja los registros en la tabla y la FK sigue bloqueando al padre.
         foreach ($contrato->contratoCamiones as $contratoCamion) {
-            // Obtener todos los IDs de tramos (raíz e hijos) de este contrato camión,
-            // incluyendo los que ya estén soft-deleted
-            $tramoIds = $contratoCamion->tramos()->withTrashed()->pluck('id');
+            // Obtener todos los tramos (raíz e hijos) incluyendo soft-deleted
+            $tramos = $contratoCamion->tramos()->withTrashed()->get();
+
+            // Eliminar documentos de entrega de cada tramo
+            foreach ($tramos as $tramo) {
+                if ($tramo->documento_entrega) {
+                    Storage::disk('public')->delete($tramo->documento_entrega);
+                }
+            }
+
+            $tramoIds = $tramos->pluck('id');
 
             // 1. Eliminar pagos de cliente (dependen de tramos)
             PagoCliente::withTrashed()->whereIn('tramo_id', $tramoIds)->forceDelete();
@@ -154,6 +162,11 @@ class ContratoController extends Controller
 
         // 5. Eliminar pagos de proveedor (dependen de contratos)
         PagoProveedor::withTrashed()->where('contrato_id', $contrato->id)->forceDelete();
+
+        // 6. Eliminar PDF del contrato
+        if ($contrato->documento_pdf) {
+            Storage::disk('public')->delete($contrato->documento_pdf);
+        }
 
         $contrato->delete();
         Alert::success('Eliminación', 'Contrato y todos sus registros asociados eliminados con éxito.');

@@ -61,7 +61,11 @@ class UserController extends Controller
         $user->empleado_id = $request->empleado_id;
         $user->save();
         $avatar = new LetterAvatar($request->name,'circle', 64);
-        $path=public_path().'/assets/avatar/'.$user->id.'.jpg';
+        $avatarDir = public_path('storage/avatares');
+        if (!file_exists($avatarDir)) {
+            mkdir($avatarDir, 0755, true);
+        }
+        $path = $avatarDir . '/' . $user->id . '.jpg';
         $avatar->saveAs($path, LetterAvatar::MIME_TYPE_JPEG);
         $user->roles()->sync($request->role_id);
         Alert::success("Usuario registrado correctamente!");
@@ -137,7 +141,7 @@ class UserController extends Controller
 
     public function update_profile(Request $request, User $user)
     {
-        $direccion = public_path('/assets/avatar/');
+        $direccion = public_path('storage/avatares/');
         if (!file_exists($direccion)) {
             mkdir($direccion, 0755, true);
         }
@@ -176,6 +180,12 @@ class UserController extends Controller
     public function destroy($uuid)
     {
         $user=User::where('uuid',$uuid)->firstOrFail();
+        if ($user->avatar && $user->avatar !== 'default-avatar.svg') {
+            $fullPath = public_path('storage/avatares/' . $user->avatar);
+            if (file_exists($fullPath)) {
+                File::delete($fullPath);
+            }
+        }
         $user->delete();
         Alert::success('Usuario Eliminado correctamente!');
         return redirect()->route('users.index');
