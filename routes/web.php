@@ -5,6 +5,21 @@ use Illuminate\Support\Facades\Route;
     Route::get('/', function () {
         return view('auth.login');
     });
+
+    // RUTA TEMPORAL DE DIAGNÓSTICO — eliminar después
+    Route::get('debug-storage/{uuid}', function ($uuid) {
+        $tramo = \App\Models\Tramo::where('uuid', $uuid)->first();
+        if (!$tramo) return 'Tramo no encontrado';
+        $doc = $tramo->documento_entrega;
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        return response()->json([
+            'documento_entrega' => $doc,
+            'disk_root'         => $disk->path(''),
+            'exists'            => $doc ? $disk->exists($doc) : false,
+            'full_path'         => $doc ? $disk->path($doc) : null,
+            'file_exists'       => $doc ? file_exists($disk->path($doc)) : false,
+        ]);
+    });
     
     Auth::routes();
     //Route::middleware(['auth'])->group(function(){
@@ -105,6 +120,7 @@ use Illuminate\Support\Facades\Route;
     Route::post('tramo/{uuid}/llegada',[App\Http\Controllers\TramoController::class,'registrarLlegada'])->name('tramo.llegada')->middleware('permission:contratos.edit');
     Route::get('tramo/{uuid}/toggle-activo',[App\Http\Controllers\TramoController::class,'toggleActivo'])->name('tramo.toggle-activo')->middleware('permission:contratos.edit');
     Route::get('tramo/{uuid}/nota-entrega',[App\Http\Controllers\TramoController::class,'notaEntrega'])->name('tramo.nota-entrega')->middleware('permission:contratos.index');
+    Route::get('tramo/{uuid}/documento-entrega',[App\Http\Controllers\TramoController::class,'verDocumentoEntrega'])->name('tramo.documento-entrega')->middleware('permission:contratos.index');
 
     // Seguimiento de cargas
     Route::get('seguimiento-cargas',[App\Http\Controllers\SeguimientoCargasController::class,'index'])->name('seguimiento.index')->middleware('permission:seguimiento.index');
@@ -153,12 +169,12 @@ use Illuminate\Support\Facades\Route;
     Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:pagos_camiones.create');
 
     // Lotes de entrega semanal por proveedor
-    Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:contratos.index');
+    Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:lotes_entrega.index');
     Route::get('lotes-entrega/proveedor/{proveedorId}', [App\Http\Controllers\LoteEntregaController::class, 'lotesProveedor'])->name('lotes_entrega.proveedor');
-    Route::post('lotes-entrega/{uuid}/cerrar', [App\Http\Controllers\LoteEntregaController::class, 'cerrar'])->name('lotes_entrega.cerrar')->middleware('permission:contratos.edit');
+    Route::post('lotes-entrega/{uuid}/cerrar', [App\Http\Controllers\LoteEntregaController::class, 'cerrar'])->name('lotes_entrega.cerrar')->middleware('permission:lotes_entrega.cerrar');
     // Pagos extras por lote
-    Route::post('lotes-entrega/{uuid}/pago-extra', [App\Http\Controllers\PagoExtraLoteController::class, 'store'])->name('lotes_entrega.pago_extra.store')->middleware('permission:contratos.edit');
-    Route::delete('lotes-entrega/pago-extra/{uuid}', [App\Http\Controllers\PagoExtraLoteController::class, 'destroy'])->name('lotes_entrega.pago_extra.destroy')->middleware('permission:contratos.edit');
+    Route::post('lotes-entrega/{uuid}/pago-extra', [App\Http\Controllers\PagoExtraLoteController::class, 'store'])->name('lotes_entrega.pago_extra.store')->middleware('permission:lotes_entrega.pago');
+    Route::delete('lotes-entrega/pago-extra/{uuid}', [App\Http\Controllers\PagoExtraLoteController::class, 'destroy'])->name('lotes_entrega.pago_extra.destroy')->middleware('permission:lotes_entrega.pago');
 
     // Pagos a camiones
     Route::get('pagos/camiones',[App\Http\Controllers\PagoCamionController::class,'index'])->name('pagos.camiones.index')->middleware('permission:pagos_camiones.index');

@@ -48,6 +48,14 @@
                         <tr><th>Fecha Inicio</th><td>{{ $contrato->fecha_inicio?->format('d/m/Y') ?? '-' }}</td></tr>
                         <tr><th>Fecha Fin</th><td>{{ $contrato->fecha_fin?->format('d/m/Y') ?? '-' }}</td></tr>
                         <tr><th>Monto</th><td>{{ $contrato->moneda }} {{ number_format($contrato->monto_total, 2, ',', '.') }}</td></tr>
+                        @if($contrato->costo_unitario)
+                        <tr>
+                            <th>Costo unitario</th>
+                            <td>
+                                {{ $contrato->moneda }} {{ number_format($contrato->costo_unitario, 2, ',', '.') }}<small class="text-muted">/t</small>
+                            </td>
+                        </tr>
+                        @endif
                         <tr>
                             <th>Estado</th>
                             <td>

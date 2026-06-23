@@ -348,6 +348,19 @@ class TramoController extends Controller
         return $pdf->stream('nota-entrega-' . $tramo->camion->placa . '-' . $fecha . '.pdf');
     }
 
+    public function verDocumentoEntrega($uuid)
+    {
+        $tramo = Tramo::where('uuid', $uuid)->firstOrFail();
+
+        abort_if(!$tramo->documento_entrega, 404, 'Este tramo no tiene documento de entrega adjunto.');
+
+        $path = Storage::disk('public')->path($tramo->documento_entrega);
+
+        abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+
+        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+    }
+
     public function toggleActivo($uuid)
     {
         $tramo        = Tramo::where('uuid', $uuid)->firstOrFail();

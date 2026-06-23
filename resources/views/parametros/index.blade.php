@@ -109,18 +109,8 @@
                     </thead>
                     <tbody>
                         @foreach($items as $p)
-                        @php
-                            $verificacion = $p->verificarUso();
-                        @endphp
                         <tr>
-                            <td>
-                                {{ $p->valor }}
-                                @if($verificacion['enUso'])
-                                    <span class="badge bg-info text-dark ms-2" title="{{ $verificacion['mensaje'] }}">
-                                        <i class="bi bi-link-45deg"></i> En uso
-                                    </span>
-                                @endif
-                            </td>
+                            <td>{{ $p->valor }}</td>
                             <td>{{ $p->descripcion ?? '—' }}</td>
                             @can('parametros.edit')
                             <td class="text-center">

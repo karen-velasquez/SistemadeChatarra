@@ -167,7 +167,7 @@
                     </a>
                 @endif
                 @if($tramo->documento_entrega)
-                    <a href="{{ asset('storage/' . $tramo->documento_entrega) }}"
+                    <a href="{{ route('tramo.documento-entrega', $tramo->uuid) }}"
                         class="btn btn-sm btn-outline-primary" target="_blank"
                         title="Ver documento de entrega adjunto">
                         <i class="bi bi-paperclip"></i> Doc. entrega

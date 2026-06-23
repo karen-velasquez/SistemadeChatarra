@@ -1967,6 +1967,77 @@ function validarFormLlegadaSeg() {
     btn.className = ok ? 'btn btn-success' : 'btn btn-secondary';
 }
 
+function submitLlegadaSeg(e) {
+    e.preventDefault();
+
+    document.querySelectorAll('#formLlegada .error-llegada-seg').forEach(el => el.remove());
+    document.querySelectorAll('#formLlegada .is-invalid-llegada-seg').forEach(el => el.classList.remove('is-invalid-llegada-seg', 'border-danger'));
+
+    const accion  = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
+    const errores = [];
+
+    function marcarError(elId, msg) {
+        errores.push(msg);
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.classList.add('is-invalid-llegada-seg', 'border-danger');
+        const div = document.createElement('div');
+        div.className = 'text-danger small mt-1 error-llegada-seg';
+        div.textContent = msg;
+        el.parentNode.appendChild(div);
+    }
+
+    if (accion === 'entregado') {
+        const cliente = document.getElementById('seg_sel_cliente')?.value;
+        const empresa = document.getElementById('seg_sel_empresa_factura')?.value;
+        if (!cliente) marcarError('seg_sel_cliente', 'Debe seleccionar el cliente que recibe la carga.');
+        if (!empresa) marcarError('seg_sel_empresa_factura', 'Debe seleccionar la empresa que facturará.');
+    }
+
+    if (accion === 'div_carga') {
+        const clienteDiv = document.getElementById('seg_sel_cliente_div')?.value;
+        const empresaDiv = document.getElementById('seg_sel_empresa_factura_div')?.value;
+        const tnParcial  = document.getElementById('seg_inp_tn_parcial')?.value;
+        const destNuevo  = document.getElementById('seg_inp_destino_nuevo')?.value.trim();
+        if (!clienteDiv) marcarError('seg_sel_cliente_div', 'Debe seleccionar el cliente que recibe la carga.');
+        if (!empresaDiv) marcarError('seg_sel_empresa_factura_div', 'Debe seleccionar la empresa que facturará.');
+        if (!tnParcial || parseFloat(tnParcial) <= 0) marcarError('seg_inp_tn_parcial_display', 'Debe ingresar las toneladas entregadas.');
+        if (!destNuevo) marcarError('seg_inp_destino_nuevo', 'Debe ingresar el destino del nuevo tramo.');
+    }
+
+    if (errores.length > 0) {
+        const primero = document.querySelector('#formLlegada .error-llegada-seg');
+        if (primero) primero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+
+    // Deshabilitar campos de la sección oculta para que no se envíen duplicados
+    if (accion === 'entregado') {
+        ['seg_sel_cliente_div', 'seg_sel_empresa_factura_div', 'seg_inp_direccion_entrega_div'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.disabled = true;
+        });
+        document.querySelectorAll('#seg_sec_parcial [name="tn_parcial"], #seg_sec_parcial [name="destino_nuevo_tramo"]').forEach(function(el) {
+            el.disabled = true;
+        });
+    } else if (accion === 'div_carga') {
+        ['seg_sel_cliente', 'seg_sel_empresa_factura', 'seg_inp_direccion_entrega'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.disabled = true;
+        });
+    }
+
+    document.getElementById('formLlegada').removeEventListener('submit', submitLlegadaSeg);
+    document.getElementById('formLlegada').submit();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const formLlegadaSeg = document.getElementById('formLlegada');
+    if (formLlegadaSeg) {
+        formLlegadaSeg.addEventListener('submit', submitLlegadaSeg);
+    }
+});
+
 function ejecutarAccionSeg(sel) {
     const accion = sel.value;
     if (!accion) return;
