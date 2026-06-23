@@ -55,7 +55,7 @@
         </div>
     </div>
 
-    @if($lotes->isEmpty())
+    @if($proveedoresPaginados->isEmpty())
         <div class="card">
             <div class="card-body text-center py-5 text-muted">
                 <i class="bi bi-collection fs-1 d-block mb-2"></i>
@@ -64,13 +64,14 @@
         </div>
     @else
         @php
-            $lotesPorProveedor = $lotes->getCollection()->groupBy(fn($l) => $l->proveedor_id);
+            $lotesPorProveedor = $lotes->groupBy(function($l) { return $l->proveedor_id; });
         @endphp
 
         <div class="accordion" id="accordionProveedores">
-        @foreach($lotesPorProveedor as $proveedorId => $lotesProveedor)
+        @foreach($proveedoresPaginados as $proveedor)
         @php
-            $proveedor      = $lotesProveedor->first()->proveedor;
+            $proveedorId    = $proveedor->id;
+            $lotesProveedor = $lotesPorProveedor->get($proveedorId, collect());
             $nombreProv     = $proveedor->nombre ?? 'Sin proveedor';
             $accId          = 'prov-' . $proveedorId;
             $abierto        = $loop->first; // primer proveedor expandido por defecto
@@ -501,7 +502,7 @@
         </div>{{-- fin accordion proveedores --}}
 
         <div class="d-flex justify-content-center mt-3">
-            {{ $lotes->links() }}
+            {{ $proveedoresPaginados->links() }}
         </div>
     @endif
 

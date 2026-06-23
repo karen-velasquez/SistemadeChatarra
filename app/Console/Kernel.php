@@ -14,7 +14,7 @@ class Kernel extends ConsoleKernel
     {
         // Crear lotes de entrega semanal para todos los proveedores cada viernes a medianoche
         $schedule->command('lotes:crear-semana --forzar')
-            ->weeklyOn(6, '00:00') // sábado 00:00 = fin del viernes
+            ->weeklyOn(5, '23:00') // viernes 23:00
             ->withoutOverlapping()
             ->runInBackground();
     }

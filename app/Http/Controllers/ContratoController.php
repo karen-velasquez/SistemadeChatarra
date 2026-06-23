@@ -12,6 +12,7 @@ use App\Models\PagoProveedor;
 use App\Models\Proveedor;
 use App\Models\OperadorTransporte;
 use App\Models\Empresa;
+use App\Models\LoteEntrega;
 use App\Models\Parametro;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -78,7 +79,11 @@ class ContratoController extends Controller
                 ->store('contratos', 'public');
         }
 
-        Contrato::create($data);
+        $contrato = Contrato::create($data);
+
+        // Garantizar que el proveedor tenga su lote de la semana actual
+        LoteEntrega::obtenerOCrearSemanaActual($contrato->proveedor_id);
+
         Alert::success('Registro', 'Contrato registrado con éxito.');
         return redirect()->route('contratos.index');
     }
