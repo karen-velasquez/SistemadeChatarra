@@ -63,67 +63,82 @@ class ReporteController extends Controller
         return view('reportes.index', compact('fechaInicio','fechaFin','proveedores','clientes','contratos','pagosProveedor','cobrosCliente','gastosExtras','pagosCamiones','totalCompras','totalVentas','totalGastosExtras','totalPagosCamiones','gastosTotales','margenBruto','rentabilidad','gastosPorCategoria'));
     }
     public function capitalUtilidad(Request $request)
-{
-    $fechaInicio = $request->fecha_inicio ?? now()->startOfMonth()->format('Y-m-d');
-    $fechaFin = $request->fecha_fin ?? now()->format('Y-m-d');
-    $cuentaId = $request->cuenta_empresa_id ?? 'todas';
-    $cuentas = CuentaEmpresa::with('banco')->whereNull('deleted_at')->orderBy('nombre_cuenta')->get();
-    $cuentasFiltradas = CuentaEmpresa::query();
-    if ($cuentaId !== 'todas') {
-        $cuentasFiltradas->where('id', $cuentaId);
+    {
+        $fechaInicio = $request->fecha_inicio ?? now()->startOfMonth()->format('Y-m-d');
+        $fechaFin = $request->fecha_fin ?? now()->format('Y-m-d');
+        $cuentaId = $request->cuenta_empresa_id ?? 'todas';
+        $cuentas = CuentaEmpresa::with('banco')->whereNull('deleted_at')->orderBy('nombre_cuenta')->get();
+        $cuentasFiltradas = CuentaEmpresa::query();
+        if ($cuentaId !== 'todas') {
+            $cuentasFiltradas->where('id', $cuentaId);
+        }
+        $cuentasFiltradas = $cuentasFiltradas->get();
+        $capitalInicial = $cuentasFiltradas->sum('saldo_inicial');
+        $capitalActual = $cuentasFiltradas->sum('saldo_actual');
+        $movimientos = Movimiento::with('cuentaEmpresa.banco')->whereNull('deleted_at')->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+
+        if ($cuentaId !== 'todas') {
+            $movimientos->where('cuenta_empresa_id', $cuentaId);
+        }
+
+        $movimientos = $movimientos->get();
+        $ventasClientes = $movimientos->where('tipo', 'ingreso')->whereIn('categoria', ['pago_cliente', 'anticipo_cliente'])->sum('monto_bolivianos');
+        $pagosProveedores = $movimientos->where('tipo', 'egreso')->where('categoria', 'pago_proveedor')->sum('monto_bolivianos');
+        $pagosCamiones = $movimientos->where('tipo', 'egreso')->where('categoria', 'pago_camion')->sum('monto_bolivianos');
+        $gastosExtras = $movimientos->where('tipo', 'egreso')->where('categoria', 'gasto_extra')->sum('monto_bolivianos');
+        $otrosIngresos = $movimientos->where('tipo', 'ingreso')->whereNotIn('categoria', ['pago_cliente', 'anticipo_cliente'])->sum('monto_bolivianos');
+        $otrosEgresos = $movimientos->where('tipo', 'egreso')->whereNotIn('categoria', ['pago_proveedor', 'pago_camion', 'gasto_extra'])->sum('monto_bolivianos');
+        $capitalDespuesProveedores = $capitalInicial - $pagosProveedores;
+        $capitalFinalCalculado = $capitalInicial + $ventasClientes + $otrosIngresos - $pagosProveedores - $pagosCamiones - $gastosExtras - $otrosEgresos;
+        $utilidadOperativa = $ventasClientes - $pagosProveedores - $pagosCamiones - $gastosExtras;
+        $utilidadNeta = $ventasClientes + $otrosIngresos - $pagosProveedores - $pagosCamiones - $gastosExtras - $otrosEgresos;
+        $resumenPorCuenta = [];
+
+        foreach ($cuentas as $cuenta) {
+            $movs = Movimiento::where('cuenta_empresa_id', $cuenta->id)->whereNull('deleted_at')->whereBetween('fecha', [$fechaInicio, $fechaFin])->get();
+            $ingresos = $movs->where('tipo', 'ingreso')->sum('monto_bolivianos');
+            $egresos = $movs->where('tipo', 'egreso')->sum('monto_bolivianos');
+            $resumenPorCuenta[] = [
+                'cuenta' => $cuenta->nombre_cuenta,
+                'banco' => $cuenta->banco->nombre ?? '',
+                'moneda' => $cuenta->moneda,
+                'saldo_inicial' => $cuenta->saldo_inicial,
+                'saldo_actual' => $cuenta->saldo_actual,
+                'ingresos' => $ingresos,
+                'egresos' => $egresos,
+                'utilidad' => $ingresos - $egresos,
+            ];
+        }
+
+        $gastosDetalle = GastoExtra::with(['contrato.proveedor','contrato.cliente'])->whereBetween('fecha', [$fechaInicio, $fechaFin])->get();
+        return view('reportes.capital_utilidad',compact('fechaInicio','fechaFin','cuentaId','cuentas','capitalInicial','capitalActual','ventasClientes','pagosProveedores','pagosCamiones', 'gastosExtras','otrosIngresos','otrosEgresos','capitalDespuesProveedores','capitalFinalCalculado','utilidadOperativa','utilidadNeta','resumenPorCuenta','gastosDetalle'));
     }
-    $cuentasFiltradas = $cuentasFiltradas->get();
-    $capitalInicial = $cuentasFiltradas->sum('saldo_inicial');
-    $capitalActual = $cuentasFiltradas->sum('saldo_actual');
-    $movimientos = Movimiento::with('cuentaEmpresa.banco')->whereNull('deleted_at')->whereBetween('fecha', [$fechaInicio, $fechaFin]);
 
-    if ($cuentaId !== 'todas') {
-        $movimientos->where('cuenta_empresa_id', $cuentaId);
+    public function capitalUtilidadExcel(Request $request)
+    {
+        $fechaInicio = $request->fecha_inicio ?? now()->startOfMonth()->format('Y-m-d');
+        $fechaFin = $request->fecha_fin ?? now()->format('Y-m-d');
+        $cuentaId = $request->cuenta_empresa_id ?? 'todas';
+        return Excel::download(new CapitalUtilidadExport($fechaInicio, $fechaFin, $cuentaId),'reporte_capital_utilidad_' . now()->format('Ymd_His') . '.xlsx');
     }
-
-    $movimientos = $movimientos->get();
-    $ventasClientes = $movimientos->where('tipo', 'ingreso')->whereIn('categoria', ['pago_cliente', 'anticipo_cliente'])->sum('monto_bolivianos');
-    $pagosProveedores = $movimientos->where('tipo', 'egreso')->where('categoria', 'pago_proveedor')->sum('monto_bolivianos');
-    $pagosCamiones = $movimientos->where('tipo', 'egreso')->where('categoria', 'pago_camion')->sum('monto_bolivianos');
-    $gastosExtras = $movimientos->where('tipo', 'egreso')->where('categoria', 'gasto_extra')->sum('monto_bolivianos');
-    $otrosIngresos = $movimientos->where('tipo', 'ingreso')->whereNotIn('categoria', ['pago_cliente', 'anticipo_cliente'])->sum('monto_bolivianos');
-    $otrosEgresos = $movimientos->where('tipo', 'egreso')->whereNotIn('categoria', ['pago_proveedor', 'pago_camion', 'gasto_extra'])->sum('monto_bolivianos');
-    $capitalDespuesProveedores = $capitalInicial - $pagosProveedores;
-    $capitalFinalCalculado = $capitalInicial + $ventasClientes + $otrosIngresos - $pagosProveedores - $pagosCamiones - $gastosExtras - $otrosEgresos;
-    $utilidadOperativa = $ventasClientes - $pagosProveedores - $pagosCamiones - $gastosExtras;
-    $utilidadNeta = $ventasClientes + $otrosIngresos - $pagosProveedores - $pagosCamiones - $gastosExtras - $otrosEgresos;
-    $resumenPorCuenta = [];
-
-    foreach ($cuentas as $cuenta) {
-        $movs = Movimiento::where('cuenta_empresa_id', $cuenta->id)->whereNull('deleted_at')->whereBetween('fecha', [$fechaInicio, $fechaFin])->get();
-        $ingresos = $movs->where('tipo', 'ingreso')->sum('monto_bolivianos');
-        $egresos = $movs->where('tipo', 'egreso')->sum('monto_bolivianos');
-        $resumenPorCuenta[] = [
-            'cuenta' => $cuenta->nombre_cuenta,
-            'banco' => $cuenta->banco->nombre ?? '',
-            'moneda' => $cuenta->moneda,
-            'saldo_inicial' => $cuenta->saldo_inicial,
-            'saldo_actual' => $cuenta->saldo_actual,
-            'ingresos' => $ingresos,
-            'egresos' => $egresos,
-            'utilidad' => $ingresos - $egresos,
-        ];
-    }
-
-    $gastosDetalle = GastoExtra::with(['contrato.proveedor','contrato.cliente'])->whereBetween('fecha', [$fechaInicio, $fechaFin])->get();
-    return view('reportes.capital_utilidad',compact('fechaInicio','fechaFin','cuentaId','cuentas','capitalInicial','capitalActual','ventasClientes','pagosProveedores','pagosCamiones', 'gastosExtras','otrosIngresos','otrosEgresos','capitalDespuesProveedores','capitalFinalCalculado','utilidadOperativa','utilidadNeta','resumenPorCuenta','gastosDetalle'));
-}
-
-public function capitalUtilidadExcel(Request $request)
-{
-    $fechaInicio = $request->fecha_inicio ?? now()->startOfMonth()->format('Y-m-d');
-    $fechaFin = $request->fecha_fin ?? now()->format('Y-m-d');
-    $cuentaId = $request->cuenta_empresa_id ?? 'todas';
-    return Excel::download(new CapitalUtilidadExport($fechaInicio, $fechaFin, $cuentaId),'reporte_capital_utilidad_' . now()->format('Ymd_His') . '.xlsx');
-}
     public function exportarExcel(Request $request)
     {
-        return Excel::download(new ReporteGeneralExport($request),'reporte_general_' . now()->format('YmdHis') . '.xlsx');
+        $fechaInicio = $request->fecha_inicio ?? now()->startOfMonth()->format('Y-m-d');
+        $fechaFin = $request->fecha_fin ?? now()->format('Y-m-d');
+        $proveedorId = $request->proveedor_id ?? null;
+        $clienteId = $request->cliente_id ?? null;
+        $tipoContrato = $request->tipo_contrato ?? null;
+
+        return Excel::download(
+            new ReporteGeneralExport(
+                $fechaInicio,
+                $fechaFin,
+                $proveedorId,
+                $clienteId,
+                $tipoContrato
+            ),
+            'reporte_general_' . now()->format('Ymd_His') . '.xlsx'
+        );
     }
 
     private function convertirABob($monto, $moneda, $tipoCambio)
