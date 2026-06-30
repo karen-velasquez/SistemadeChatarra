@@ -13,6 +13,15 @@
                 </ol>
             </nav>
         </div>
+        @can('lotes_entrega.index')
+        @if($proveedores->where('tipo_proveedor', 'INTERNACIONAL')->isNotEmpty())
+        <div>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoLote">
+                <i class="bi bi-plus-lg"></i> Nuevo Lote Internacional
+            </button>
+        </div>
+        @endif
+        @endcan
     </div>
 </div>
 
@@ -93,6 +102,9 @@
                         <span class="badge bg-secondary ms-1">{{ $totalLotes }} {{ Str::plural('lote', $totalLotes) }}</span>
                         @if($lotesAbiertos > 0)
                             <span class="badge bg-success">{{ $lotesAbiertos }} abierto{{ $lotesAbiertos > 1 ? 's' : '' }}</span>
+                        @endif
+                        @if($proveedor->tipo_proveedor === 'INTERNACIONAL')
+                            <span class="badge bg-info text-dark"><i class="bi bi-globe me-1"></i>Internacional</span>
                         @endif
                     </div>
                 </button>
@@ -506,6 +518,56 @@
     @endif
 
 </section>
+
+{{-- Modal: crear lote manual para proveedor INTERNACIONAL --}}
+@can('lotes_entrega.index')
+<div class="modal fade" id="modalNuevoLote" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-globe me-1"></i> Nuevo Lote Internacional</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ route('lotes_entrega.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Proveedor <span class="text-danger">(*)</span></label>
+                            <select name="proveedor_id" id="selectProveedorInternacional" class="form-select" required style="width:100%">
+                                <option value="">— Buscar proveedor —</option>
+                                @foreach($proveedores->where('tipo_proveedor', 'INTERNACIONAL') as $prov)
+                                    <option value="{{ $prov->id }}" {{ request('proveedor_id') == $prov->id ? 'selected' : '' }}>
+                                        {{ $prov->nombre }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Fecha inicio <span class="text-danger">(*)</span></label>
+                            <input type="date" name="fecha_inicio" id="lote_fecha_inicio" class="form-control" required value="{{ now()->toDateString() }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Fecha fin <span class="text-danger">(*)</span></label>
+                            <input type="date" name="fecha_fin" id="lote_fecha_fin" class="form-control" required value="{{ now()->toDateString() }}" min="{{ now()->toDateString() }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="2" maxlength="500" placeholder="Notas opcionales sobre este lote..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btnCrearLote" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Lote</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endcan
+
 @endsection
 
 @push('scripts')
@@ -654,6 +716,55 @@ function peActualizarSaldoRestante(loteId, monto) {
 
     if (warnEl) warnEl.style.display = (montoVal > 0 && restante < 0) ? '' : 'none';
 }
+
+// Select2 en el modal de lote internacional
+document.addEventListener('DOMContentLoaded', () => {
+    const modalNuevoLote = document.getElementById('modalNuevoLote');
+    if (modalNuevoLote) {
+        modalNuevoLote.addEventListener('shown.bs.modal', function () {
+            $('#selectProveedorInternacional').select2({
+                dropdownParent: $('#modalNuevoLote'),
+                placeholder: '— Buscar proveedor —',
+                allowClear: true,
+                language: { noResults: () => 'No se encontraron proveedores' },
+            });
+        });
+        modalNuevoLote.addEventListener('hidden.bs.modal', function () {
+            if ($('#selectProveedorInternacional').hasClass('select2-hidden-accessible')) {
+                $('#selectProveedorInternacional').val('').trigger('change');
+            }
+            // Restaurar botón al cerrar el modal
+            var btn = document.getElementById('btnCrearLote');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+            }
+        });
+
+        // Un solo clic: deshabilitar botón al enviar el formulario
+        // Fecha fin no puede ser menor a fecha inicio
+        var inputInicio = document.getElementById('lote_fecha_inicio');
+        var inputFin    = document.getElementById('lote_fecha_fin');
+        if (inputInicio && inputFin) {
+            inputInicio.addEventListener('change', function() {
+                inputFin.min = this.value;
+                if (inputFin.value && inputFin.value < this.value) {
+                    inputFin.value = this.value;
+                }
+            });
+        }
+
+        var formNuevoLote = modalNuevoLote.querySelector('form');
+        if (formNuevoLote) {
+            formNuevoLote.addEventListener('submit', function(e) {
+                var btn = document.getElementById('btnCrearLote');
+                if (btn.disabled) { e.preventDefault(); return; }
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+            });
+        }
+    }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     // Sincronizar tipo_cambio display → hidden

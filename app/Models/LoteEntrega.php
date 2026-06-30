@@ -130,8 +130,12 @@ class LoteEntrega extends Model
      */
     public static function lotesAbiertosParaProveedor(int $proveedorId): \Illuminate\Database\Eloquent\Collection
     {
-        // Asegurar que existe el lote de esta semana
-        self::obtenerOCrearSemanaActual($proveedorId);
+        $proveedor = Proveedor::find($proveedorId);
+
+        // Solo para proveedores NACIONALES se auto-crea el lote semanal
+        if ($proveedor?->tipo_proveedor === 'NACIONAL') {
+            self::obtenerOCrearSemanaActual($proveedorId);
+        }
 
         return self::where('proveedor_id', $proveedorId)
             ->where('estado', 'Abierto')

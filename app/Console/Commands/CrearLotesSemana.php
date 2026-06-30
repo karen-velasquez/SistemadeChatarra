@@ -21,7 +21,7 @@ class CrearLotesSemana extends Command
             return Command::SUCCESS;
         }
 
-        $proveedores = Proveedor::whereNull('deleted_at')->get();
+        $proveedores = Proveedor::whereNull('deleted_at')->where('tipo_proveedor', 'NACIONAL')->get();
 
         if ($proveedores->isEmpty()) {
             $this->warn('No hay proveedores activos.');

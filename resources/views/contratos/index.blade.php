@@ -54,7 +54,7 @@
                                     <th>N° Contrato</th>
                                     <th>Tipo</th>
                                     <th>Proveedor</th>
-                                    <th>Clientes</th>
+                                    <th style="max-width:180px;">Clientes</th>
                                     <th>Fecha Inicio</th>
                                     <th>Fecha Fin</th>
                                     <th>Toneladas</th>
@@ -74,9 +74,12 @@
                                         @endif
                                     </td>
                                     <td>{{ $c->proveedor->nombre }} <small class="text-muted">({{ $c->proveedor->pais->valor ?? '-' }})</small></td>
-                                    <td>
+                                    <td style="max-width:180px;">
                                         @forelse($c->clientes_entregados as $cli)
-                                            <span class="badge bg-light text-dark border">{{ $cli->nombre }}</span>
+                                            <span class="badge bg-light text-dark border d-inline-block text-truncate"
+                                                  style="max-width:160px; vertical-align:middle;"
+                                                  title="{{ $cli->nombre }}"
+                                                  data-bs-toggle="tooltip">{{ $cli->nombre }}</span>
                                         @empty
                                             <small class="text-muted">—</small>
                                         @endforelse

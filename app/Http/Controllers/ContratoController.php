@@ -81,8 +81,11 @@ class ContratoController extends Controller
 
         $contrato = Contrato::create($data);
 
-        // Garantizar que el proveedor tenga su lote de la semana actual
-        LoteEntrega::obtenerOCrearSemanaActual($contrato->proveedor_id);
+        // Solo para proveedores NACIONALES se crea el lote semanal automáticamente
+        $proveedor = Proveedor::find($contrato->proveedor_id);
+        if ($proveedor?->tipo_proveedor === 'NACIONAL') {
+            LoteEntrega::obtenerOCrearSemanaActual($contrato->proveedor_id);
+        }
 
         Alert::success('Registro', 'Contrato registrado con éxito.');
         return redirect()->route('contratos.index');

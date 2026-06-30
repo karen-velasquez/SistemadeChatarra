@@ -643,13 +643,25 @@
                         <div class="col-12">
                             <label class="form-label fw-semibold">
                                 <i class="bi bi-collection text-primary"></i>
-                                Lote de entrega semanal
+                                Lote de entrega
                                 <span class="text-danger">(*)</span>
                             </label>
-                            <select class="form-select" name="lote_entrega_id" id="sel_lote_entrega" required>
-                                <option value="">Cargando lotes...</option>
-                            </select>
-                            <small class="text-muted">Se asigna automáticamente al lote de esta semana. Puedes cambiar a una semana anterior si el lote aún está abierto.</small>
+                            <div class="input-group">
+                                <select class="form-select" name="lote_entrega_id" id="sel_lote_entrega" required>
+                                    <option value="">Cargando lotes...</option>
+                                </select>
+                                @if($contrato->proveedor->tipo_proveedor === 'INTERNACIONAL')
+                                <button type="button" class="btn btn-outline-primary" id="btn_nuevo_lote_llegada"
+                                        title="Crear nuevo lote para este proveedor">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                @endif
+                            </div>
+                            @if($contrato->proveedor->tipo_proveedor === 'NACIONAL')
+                                <small class="text-muted">Se asigna automáticamente al lote de esta semana. Puedes cambiar a una semana anterior si el lote aún está abierto.</small>
+                            @else
+                                <small class="text-muted">Selecciona un lote existente o crea uno nuevo con <i class="bi bi-plus-lg"></i>.</small>
+                            @endif
                         </div>
 
                         {{-- Documento de entrega --}}
@@ -817,6 +829,44 @@
         </div>
     </div>
 </div>
+
+@if($contrato->proveedor->tipo_proveedor === 'INTERNACIONAL')
+{{-- Mini-modal: crear lote internacional desde el modal de llegada --}}
+<div class="modal fade" id="modalNuevoLoteLlegada" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-globe me-1"></i> Nuevo Lote — {{ $contrato->proveedor->nombre }}</h5>
+                <button type="button" class="btn-close" id="btn_cerrar_modal_lote_llegada"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Fecha inicio <span class="text-danger">(*)</span></label>
+                        <input type="date" id="nl_fecha_inicio" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Fecha fin <span class="text-danger">(*)</span></label>
+                        <input type="date" id="nl_fecha_fin" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observaciones</label>
+                        <textarea id="nl_observaciones" class="form-control" rows="2" maxlength="500" placeholder="Notas opcionales..."></textarea>
+                    </div>
+                </div>
+                <div id="nl_error" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn_cancelar_modal_lote_llegada">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn_guardar_lote_llegada">
+                    <i class="bi bi-check-lg"></i> Crear Lote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection
 
@@ -1450,6 +1500,132 @@ function calcTotalVenta() {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
     });
 });
+
+@if($contrato->proveedor->tipo_proveedor === 'INTERNACIONAL')
+document.addEventListener('DOMContentLoaded', function () {
+    const today = new Date().toISOString().split('T')[0];
+    const btnNuevoLote     = document.getElementById('btn_nuevo_lote_llegada');
+    const modalLlegada     = document.getElementById('modalLlegada');
+    const modalNuevoLote   = document.getElementById('modalNuevoLoteLlegada');
+    const bsModalNuevoLote = new bootstrap.Modal(modalNuevoLote);
+    const bsModalLlegada   = bootstrap.Modal.getOrCreateInstance(modalLlegada);
+
+    const nlInicio  = document.getElementById('nl_fecha_inicio');
+    const nlFin     = document.getElementById('nl_fecha_fin');
+    const nlError   = document.getElementById('nl_error');
+    const btnGuardar = document.getElementById('btn_guardar_lote_llegada');
+
+    // Inicializar fechas con hoy
+    nlInicio.value = today;
+    nlFin.value    = today;
+    nlInicio.max   = '';
+    nlFin.min      = today;
+
+    // Fecha fin sigue a fecha inicio
+    nlInicio.addEventListener('change', function () {
+        nlFin.min = this.value;
+        if (nlFin.value < this.value) nlFin.value = this.value;
+    });
+
+    // Abrir mini-modal ocultando el de llegada momentáneamente
+    if (btnNuevoLote) {
+        btnNuevoLote.addEventListener('click', function () {
+            bsModalLlegada.hide();
+            modalLlegada.addEventListener('hidden.bs.modal', function abrirNuevo() {
+                modalLlegada.removeEventListener('hidden.bs.modal', abrirNuevo);
+                nlInicio.value = today;
+                nlFin.value    = today;
+                nlFin.min      = today;
+                nlError.classList.add('d-none');
+                nlError.textContent = '';
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+                bsModalNuevoLote.show();
+            }, { once: true });
+        });
+    }
+
+    // Al cancelar/cerrar mini-modal, volver al modal de llegada
+    ['btn_cerrar_modal_lote_llegada', 'btn_cancelar_modal_lote_llegada'].forEach(function(id) {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', function () {
+            bsModalNuevoLote.hide();
+            modalNuevoLote.addEventListener('hidden.bs.modal', function volver() {
+                modalNuevoLote.removeEventListener('hidden.bs.modal', volver);
+                bsModalLlegada.show();
+            }, { once: true });
+        });
+    });
+
+    // Guardar lote vía AJAX
+    btnGuardar.addEventListener('click', function () {
+        const inicio = nlInicio.value;
+        const fin    = nlFin.value;
+
+        if (!inicio || !fin) {
+            nlError.textContent = 'Las fechas de inicio y fin son obligatorias.';
+            nlError.classList.remove('d-none');
+            return;
+        }
+        if (fin < inicio) {
+            nlError.textContent = 'La fecha fin no puede ser menor a la fecha inicio.';
+            nlError.classList.remove('d-none');
+            return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        nlError.classList.add('d-none');
+
+        fetch('{{ route("lotes_entrega.store.ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                proveedor_id:  {{ $contrato->proveedor_id }},
+                fecha_inicio:  inicio,
+                fecha_fin:     fin,
+                observaciones: document.getElementById('nl_observaciones').value,
+            }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                nlError.textContent = data.error;
+                nlError.classList.remove('d-none');
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+                return;
+            }
+            // Lote creado: cerrar mini-modal, volver al de llegada y agregar la opción al select
+            bsModalNuevoLote.hide();
+            modalNuevoLote.addEventListener('hidden.bs.modal', function volverConLote() {
+                modalNuevoLote.removeEventListener('hidden.bs.modal', volverConLote);
+                const selLote = document.getElementById('sel_lote_entrega');
+                // Limpiar placeholder si no había lotes
+                if (selLote.options.length === 1 && !selLote.options[0].value) {
+                    selLote.innerHTML = '';
+                }
+                const opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.nombre;
+                opt.selected = true;
+                selLote.insertBefore(opt, selLote.firstChild);
+                bsModalLlegada.show();
+            }, { once: true });
+        })
+        .catch(() => {
+            nlError.textContent = 'Error de conexión. Intenta de nuevo.';
+            nlError.classList.remove('d-none');
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+        });
+    });
+});
+@endif
 
 @if(isset($tramoErrorLlegada) && $tramoErrorLlegada && $errors->llegada->any())
 // Reabrir modal de llegada con los datos del tramo que falló

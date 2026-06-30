@@ -170,6 +170,8 @@ use Illuminate\Support\Facades\Route;
 
     // Lotes de entrega semanal por proveedor
     Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:lotes_entrega.index');
+    Route::post('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'store'])->name('lotes_entrega.store')->middleware('permission:lotes_entrega.index');
+    Route::post('lotes-entrega/ajax', [App\Http\Controllers\LoteEntregaController::class, 'storeAjax'])->name('lotes_entrega.store.ajax');
     Route::get('lotes-entrega/proveedor/{proveedorId}', [App\Http\Controllers\LoteEntregaController::class, 'lotesProveedor'])->name('lotes_entrega.proveedor');
     Route::post('lotes-entrega/{uuid}/cerrar', [App\Http\Controllers\LoteEntregaController::class, 'cerrar'])->name('lotes_entrega.cerrar')->middleware('permission:lotes_entrega.cerrar');
     // Pagos extras por lote
