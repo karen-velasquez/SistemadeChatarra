@@ -54,6 +54,7 @@
                                             <th class="text-left">Direcciones</th>
                                             <th class="text-left">Email</th>
                                             <th class="text-left">Tipo de Producto</th>
+                                            <th class="text-left">Tipo</th>
                                             <th class="text-left">Acciones</th>
                                         </tr>
                                     </thead>
@@ -82,6 +83,15 @@
                                                     <td class="text-left">{{$e->email}}</td>
                                                   
                                                     <td class="text-left">{{$e->tipo_producto}}</td>
+                                                    <td class="text-center">
+                                                        @if($e->tipo_proveedor === 'NACIONAL')
+                                                            <span class="badge bg-success">NACIONAL</span>
+                                                        @elseif($e->tipo_proveedor === 'INTERNACIONAL')
+                                                            <span class="badge bg-info text-dark">INTERNACIONAL</span>
+                                                        @else
+                                                            <span class="text-muted">-</span>
+                                                        @endif
+                                                    </td>
                                                        <td class="text-center">
                                                         <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
                                                             <div class="btn-group" role="group">
@@ -163,6 +173,7 @@ function editarProveedor(proveedor) {
     document.getElementById('prov_pais').value = proveedor.pais_id ?? '';
     document.getElementById('prov_email').value = proveedor.email ?? '';
     document.getElementById('prov_tipo_producto').value = proveedor.tipo_producto ?? '';
+    document.getElementById('prov_tipo_proveedor').value = proveedor.tipo_proveedor ?? '';
 
     const telContainer = document.getElementById('telefonos-container');
     const dirContainer = document.getElementById('direcciones-container');

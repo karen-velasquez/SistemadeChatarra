@@ -94,7 +94,7 @@ class ProveedorController extends Controller
 
     public function update(ProveedorRequest $request, Proveedor $proveedor)
         {
-        $proveedor->update($request->only(['nombre','nit','pais_id','email','tipo_producto']));
+        $proveedor->update($request->only(['nombre','nit','pais_id','email','tipo_producto','tipo_proveedor']));
         $ids = [];
         foreach ($request->telefonos ?? [] as $tel) {
             if (!$tel) continue;

@@ -37,7 +37,8 @@ class ProveedorRequest extends FormRequest
                 'required',
                 'numeric',
                 Rule::unique('proveedors','nit')->ignore(optional($this->route('proveedor'))->id)->whereNull('deleted_at')
-            ]
+            ],
+            'tipo_proveedor' => 'required|in:NACIONAL,INTERNACIONAL',
         ];
     }
     

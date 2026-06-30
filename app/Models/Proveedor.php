@@ -17,10 +17,10 @@ class Proveedor extends Model implements Auditable
         'pais_id',
         'email',
         'tipo_producto',
+        'tipo_proveedor',
         'created_by',
         'updated_by',
         'deleted_by',
-
     ];
 
     public function pais()

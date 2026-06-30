@@ -57,7 +57,16 @@
                                 @endforeach
                             </select>
                         </div>
-                        
+
+                        <div class="col-md-4">
+                            <label class="form-label">TIPO DE PROVEEDOR <strong class="text-danger">(*)</strong></label>
+                            <select class="form-select" name="tipo_proveedor" id="prov_tipo_proveedor" required>
+                                <option value="">-- SELECCIONE --</option>
+                                <option value="NACIONAL">NACIONAL</option>
+                                <option value="INTERNACIONAL">INTERNACIONAL</option>
+                            </select>
+                        </div>
+
                         <div class="col-md-6">
                             <label class="form-label">EMAIL</label>
                             <input type="email" class="form-control validar-email" name="email" id="prov_email" placeholder="Ej. ejemplo@dominio.com">
