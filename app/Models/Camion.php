@@ -68,10 +68,13 @@ class Camion extends Model implements Auditable
         return $this->hasMany(CamionConductor::class, 'camion_id');
     }
 
-    // Conductor activo actual (fecha_fin NULL)
+    // Conductor activo actual (fecha_fin NULL y conductor no eliminado)
     public function conductorActual()
     {
-        return $this->hasOne(CamionConductor::class, 'camion_id')->whereNull('fecha_fin')->latest('fecha_inicio');
+        return $this->hasOne(CamionConductor::class, 'camion_id')
+            ->whereNull('fecha_fin')
+            ->whereHas('conductor', fn($q) => $q->whereNull('deleted_at'))
+            ->latest('fecha_inicio');
     }
 
     public function fotos()

@@ -342,8 +342,8 @@
                                         @foreach($asignaciones as $a)
                                         <tr>
                                             <td>{{ $a->camion->placa }} - {{ $a->camion->marca->valor ?? '-' }}</td>
-                                            <td>{{ $a->conductor->nombre_completo }}</td>
-                                            <td>{{ $a->conductor->licencia_numero }}</td>
+                                            <td>{{ $a->conductor?->nombre_completo ?? '—' }}</td>
+                                            <td>{{ $a->conductor?->licencia_numero ?? '—' }}</td>
                                             <td>{{ $a->fecha_inicio->format('d/m/Y') }}</td>
                                             <td>{{ $a->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
                                             <td>

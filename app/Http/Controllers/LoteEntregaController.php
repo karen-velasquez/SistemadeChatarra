@@ -21,30 +21,23 @@ class LoteEntregaController extends Controller
         $proveedorFiltro = $request->get('proveedor_id');
         $estadoFiltro    = $request->get('estado', 'Abierto');
 
-        // Paginar por proveedores (10 por página), luego cargar todos sus lotes
-        $queryProveedores = Proveedor::orderBy('nombre');
-        if ($proveedorFiltro) {
-            $queryProveedores->where('id', $proveedorFiltro);
-        }
-        $proveedoresPaginados = $queryProveedores->paginate(10)->withQueryString();
-
-        $proveedorIds = $proveedoresPaginados->pluck('id');
-
-        $queryLotes = LoteEntrega::with(['proveedor', 'tramos.contratoCamion.contrato', 'pagosExtras.cuentaOrigen.empresa', 'pagosExtras.cuentaOrigen.banco'])
-            ->whereIn('proveedor_id', $proveedorIds)
+        $query = LoteEntrega::with(['proveedor', 'tramos.contratoCamion.contrato', 'pagosExtras.cuentaOrigen.empresa', 'pagosExtras.cuentaOrigen.banco'])
             ->orderByDesc('anio')
             ->orderByDesc('numero_semana')
             ->orderBy('proveedor_id');
 
+        if ($proveedorFiltro) {
+            $query->where('proveedor_id', $proveedorFiltro);
+        }
         if ($estadoFiltro !== 'Todos') {
-            $queryLotes->where('estado', $estadoFiltro);
+            $query->where('estado', $estadoFiltro);
         }
 
-        $lotes       = $queryLotes->get();
+        $lotes       = $query->paginate(100)->withQueryString();
         $proveedores = Proveedor::orderBy('nombre')->get();
-        $empresas    = Empresa::with(['cuentas' => function($q) { $q->where('activo', true); }])->get();
+        $empresas    = Empresa::with(['cuentas' => fn($q) => $q->where('activo', true)])->get();
 
-        return view('lotes_entrega.index', compact('lotes', 'proveedores', 'proveedoresPaginados', 'estadoFiltro', 'proveedorFiltro', 'empresas'));
+        return view('lotes_entrega.index', compact('lotes', 'proveedores', 'estadoFiltro', 'proveedorFiltro', 'empresas'));
     }
 
     /**
