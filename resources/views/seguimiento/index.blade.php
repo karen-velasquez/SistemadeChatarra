@@ -242,7 +242,7 @@
                                             <ul class="dropdown-menu dropdown-menu-end">
                                                 @can('contratos.edit')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalLlegada('{{ $t->uuid }}','{{ $t->origen }} → {{ $t->destino }} ({{ $t->camion->placa }})','{{ $t->peso_salida }}','{{ $t->fecha_salida->format('Y-m-d') }}',{{ $t->camion_id }},{{ $t->conductor_id ?? 'null' }},'{{ $t->tipo_tramo }}',{{ $t->contratoCamion->contrato->proveedor_id }})">
+                                                    <button class="dropdown-item" onclick="abrirModalLlegada('{{ $t->uuid }}','{{ $t->origen }} → {{ $t->destino }} ({{ $t->camion->placa }})','{{ $t->peso_salida }}','{{ $t->fecha_salida->format('Y-m-d') }}',{{ $t->camion_id }},{{ $t->conductor_id ?? 'null' }},'{{ $t->tipo_tramo }}',{{ $t->contratoCamion->contrato->proveedor_id }},'{{ $t->contratoCamion->contrato->proveedor->tipo_proveedor }}')">
                                                         <i class="bi bi-geo-alt text-success me-2"></i> Registrar llegada
                                                     </button>
                                                 </li>
@@ -1227,17 +1227,23 @@
                                 <small class="text-muted">Máximo 60%.</small>
                             </div>
                         </div>
-                        {{-- Lote de entrega semanal --}}
+                        {{-- Lote de entrega --}}
                         <div class="col-12">
                             <label class="form-label fw-semibold">
                                 <i class="bi bi-collection text-primary"></i>
-                                Lote de entrega semanal
+                                Lote de entrega
                                 <span class="text-danger">(*)</span>
                             </label>
-                            <select class="form-select" name="lote_entrega_id" id="seg_sel_lote_entrega" required>
-                                <option value="">Cargando lotes...</option>
-                            </select>
-                            <small class="text-muted">Se asigna automáticamente al lote de esta semana. Puedes cambiar a una semana anterior si el lote aún está abierto.</small>
+                            <div class="input-group">
+                                <select class="form-select" name="lote_entrega_id" id="seg_sel_lote_entrega" required>
+                                    <option value="">Cargando lotes...</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-primary d-none" id="seg_btn_nuevo_lote"
+                                        title="Crear nuevo lote para este proveedor">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted" id="seg_lote_hint">Se asigna automáticamente al lote de esta semana.</small>
                         </div>
 
                         {{-- Documento de entrega --}}
@@ -1370,6 +1376,42 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Mini-modal: crear lote internacional desde seguimiento --}}
+<div class="modal fade" id="seg_modalNuevoLote" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-globe me-1"></i> Nuevo Lote Internacional</h5>
+                <button type="button" class="btn-close" id="seg_btn_cerrar_nuevo_lote"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Fecha inicio <span class="text-danger">(*)</span></label>
+                        <input type="date" id="seg_nl_fecha_inicio" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Fecha fin <span class="text-danger">(*)</span></label>
+                        <input type="date" id="seg_nl_fecha_fin" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observaciones</label>
+                        <textarea id="seg_nl_observaciones" class="form-control" rows="2" maxlength="500" placeholder="Notas opcionales..."></textarea>
+                    </div>
+                </div>
+                <div id="seg_nl_error" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="seg_btn_cancelar_nuevo_lote">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="seg_btn_guardar_lote">
+                    <i class="bi bi-check-lg"></i> Crear Lote
+                </button>
             </div>
         </div>
     </div>
@@ -1882,7 +1924,21 @@ function abrirModalFlete(ccUuid, label) {
     };
 })();
 
-function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo, proveedorId) {
+function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo, proveedorId, tipoProveedor) {
+    // Guardar en variable global para usarla en el mini-modal
+    window._segProveedorId   = proveedorId;
+    window._segTipoProveedor = tipoProveedor || 'NACIONAL';
+
+    // Mostrar/ocultar botón + según tipo de proveedor
+    const btnNuevoLote = document.getElementById('seg_btn_nuevo_lote');
+    const hint         = document.getElementById('seg_lote_hint');
+    if (btnNuevoLote) {
+        const esIntl = tipoProveedor === 'INTERNACIONAL';
+        btnNuevoLote.classList.toggle('d-none', !esIntl);
+        if (hint) hint.textContent = esIntl
+            ? 'Selecciona un lote existente o crea uno nuevo con +.'
+            : 'Se asigna automáticamente al lote de esta semana.';
+    }
     document.getElementById('llegada_tramo_info').textContent = info;
     document.getElementById('formLlegada').action            = '{{ url("tramo") }}/' + tramoUuid + '/llegada';
     document.getElementById('llegada_peso_max').textContent  =
@@ -2241,5 +2297,123 @@ function abrirHistorialPagos(ccId, camionLabel) {
             document.getElementById('hist_contenido').style.display = 'block';
         });
 }
+
+// ---- Mini-modal lote internacional (seguimiento) ----
+document.addEventListener('DOMContentLoaded', function () {
+    const today          = new Date().toISOString().split('T')[0];
+    const modalLlegada   = document.getElementById('modalLlegada');
+    const modalNuevoLote = document.getElementById('seg_modalNuevoLote');
+    if (!modalNuevoLote) return;
+
+    const bsModalNuevoLote = new bootstrap.Modal(modalNuevoLote);
+    const bsModalLlegada   = () => bootstrap.Modal.getOrCreateInstance(modalLlegada);
+
+    const nlInicio   = document.getElementById('seg_nl_fecha_inicio');
+    const nlFin      = document.getElementById('seg_nl_fecha_fin');
+    const nlError    = document.getElementById('seg_nl_error');
+    const btnGuardar = document.getElementById('seg_btn_guardar_lote');
+    const btnNuevo   = document.getElementById('seg_btn_nuevo_lote');
+
+    // Fecha fin sigue a fecha inicio
+    nlInicio.addEventListener('change', function () {
+        nlFin.min = this.value;
+        if (nlFin.value < this.value) nlFin.value = this.value;
+    });
+
+    // Abrir mini-modal
+    if (btnNuevo) {
+        btnNuevo.addEventListener('click', function () {
+            bsModalLlegada().hide();
+            modalLlegada.addEventListener('hidden.bs.modal', function abrirNuevo() {
+                modalLlegada.removeEventListener('hidden.bs.modal', abrirNuevo);
+                nlInicio.value = today;
+                nlFin.value    = today;
+                nlFin.min      = today;
+                nlError.classList.add('d-none');
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+                bsModalNuevoLote.show();
+            }, { once: true });
+        });
+    }
+
+    // Cancelar / cerrar: volver al modal de llegada
+    ['seg_btn_cerrar_nuevo_lote', 'seg_btn_cancelar_nuevo_lote'].forEach(function (id) {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', function () {
+            bsModalNuevoLote.hide();
+            modalNuevoLote.addEventListener('hidden.bs.modal', function volver() {
+                modalNuevoLote.removeEventListener('hidden.bs.modal', volver);
+                bsModalLlegada().show();
+            }, { once: true });
+        });
+    });
+
+    // Guardar lote vía AJAX
+    btnGuardar.addEventListener('click', function () {
+        const inicio = nlInicio.value;
+        const fin    = nlFin.value;
+
+        if (!inicio || !fin) {
+            nlError.textContent = 'Las fechas de inicio y fin son obligatorias.';
+            nlError.classList.remove('d-none');
+            return;
+        }
+        if (fin < inicio) {
+            nlError.textContent = 'La fecha fin no puede ser menor a la fecha inicio.';
+            nlError.classList.remove('d-none');
+            return;
+        }
+
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        nlError.classList.add('d-none');
+
+        fetch('{{ route("lotes_entrega.store.ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                proveedor_id:  window._segProveedorId,
+                fecha_inicio:  inicio,
+                fecha_fin:     fin,
+                observaciones: document.getElementById('seg_nl_observaciones').value,
+            }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                nlError.textContent = data.error;
+                nlError.classList.remove('d-none');
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+                return;
+            }
+            bsModalNuevoLote.hide();
+            modalNuevoLote.addEventListener('hidden.bs.modal', function volverConLote() {
+                modalNuevoLote.removeEventListener('hidden.bs.modal', volverConLote);
+                const selLote = document.getElementById('seg_sel_lote_entrega');
+                if (selLote.options.length === 1 && !selLote.options[0].value) {
+                    selLote.innerHTML = '';
+                }
+                const opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.nombre;
+                opt.selected = true;
+                selLote.insertBefore(opt, selLote.firstChild);
+                bsModalLlegada().show();
+            }, { once: true });
+        })
+        .catch(() => {
+            nlError.textContent = 'Error de conexión. Intenta de nuevo.';
+            nlError.classList.remove('d-none');
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="bi bi-check-lg"></i> Crear Lote';
+        });
+    });
+});
 </script>
 @endsection

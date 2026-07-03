@@ -20,8 +20,11 @@ class LoteEntregaController extends Controller
     {
         $proveedorFiltro = $request->get('proveedor_id');
         $estadoFiltro    = $request->get('estado', 'Abierto');
+        $tabActiva       = $request->get('tab', 'nacional');
+        $tipoProveedor   = $tabActiva === 'internacional' ? 'INTERNACIONAL' : 'NACIONAL';
 
         $query = LoteEntrega::with(['proveedor', 'tramos.contratoCamion.contrato', 'pagosExtras.cuentaOrigen.empresa', 'pagosExtras.cuentaOrigen.banco'])
+            ->whereHas('proveedor', fn($q) => $q->where('tipo_proveedor', $tipoProveedor))
             ->orderByDesc('anio')
             ->orderByDesc('numero_semana')
             ->orderBy('proveedor_id');
@@ -33,11 +36,11 @@ class LoteEntregaController extends Controller
             $query->where('estado', $estadoFiltro);
         }
 
-        $lotes       = $query->paginate(100)->withQueryString();
+        $lotes       = $query->paginate(200)->withQueryString();
         $proveedores = Proveedor::orderBy('nombre')->get();
         $empresas    = Empresa::with(['cuentas' => fn($q) => $q->where('activo', true)])->get();
 
-        return view('lotes_entrega.index', compact('lotes', 'proveedores', 'estadoFiltro', 'proveedorFiltro', 'empresas'));
+        return view('lotes_entrega.index', compact('lotes', 'proveedores', 'estadoFiltro', 'proveedorFiltro', 'tabActiva', 'empresas'));
     }
 
     /**

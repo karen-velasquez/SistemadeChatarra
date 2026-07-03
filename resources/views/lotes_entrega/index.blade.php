@@ -64,7 +64,27 @@
         </div>
     </div>
 
-    @if($lotes->isEmpty())
+    {{-- Pestañas NACIONAL / INTERNACIONAL --}}
+    <ul class="nav nav-tabs mb-3" id="tabsTipo" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ $tabActiva === 'nacional' ? 'active' : '' }}"
+               href="{{ request()->fullUrlWithQuery(['tab' => 'nacional', 'page' => 1]) }}">
+                <i class="bi bi-house me-1"></i> Nacional
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ $tabActiva === 'internacional' ? 'active' : '' }}"
+               href="{{ request()->fullUrlWithQuery(['tab' => 'internacional', 'page' => 1]) }}">
+                <i class="bi bi-globe me-1"></i> Internacional
+            </a>
+        </li>
+    </ul>
+
+    @php
+        $lotesPorProveedor = $lotes->getCollection()->groupBy(fn($l) => $l->proveedor_id);
+    @endphp
+
+    @if($lotesPorProveedor->isEmpty())
         <div class="card">
             <div class="card-body text-center py-5 text-muted">
                 <i class="bi bi-collection fs-1 d-block mb-2"></i>
@@ -72,10 +92,6 @@
             </div>
         </div>
     @else
-        @php
-            $lotesPorProveedor = $lotes->getCollection()->groupBy(fn($l) => $l->proveedor_id);
-        @endphp
-
         <div class="accordion" id="accordionProveedores">
         @foreach($lotesPorProveedor as $proveedorId => $lotesProveedor)
         @php
@@ -102,9 +118,6 @@
                         <span class="badge bg-secondary ms-1">{{ $totalLotes }} {{ Str::plural('lote', $totalLotes) }}</span>
                         @if($lotesAbiertos > 0)
                             <span class="badge bg-success">{{ $lotesAbiertos }} abierto{{ $lotesAbiertos > 1 ? 's' : '' }}</span>
-                        @endif
-                        @if($proveedor->tipo_proveedor === 'INTERNACIONAL')
-                            <span class="badge bg-info text-dark"><i class="bi bi-globe me-1"></i>Internacional</span>
                         @endif
                     </div>
                 </button>
