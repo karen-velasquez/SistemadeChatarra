@@ -242,7 +242,7 @@
                                             <ul class="dropdown-menu dropdown-menu-end">
                                                 @can('contratos.edit')
                                                 <li>
-                                                    <button class="dropdown-item" onclick="abrirModalLlegada('{{ $t->uuid }}','{{ $t->origen }} → {{ $t->destino }} ({{ $t->camion->placa }})','{{ $t->peso_salida }}','{{ $t->fecha_salida->format('Y-m-d') }}',{{ $t->camion_id }},{{ $t->conductor_id ?? 'null' }},'{{ $t->tipo_tramo }}',{{ $t->contratoCamion->contrato->proveedor_id }},'{{ $t->contratoCamion->contrato->proveedor->tipo_proveedor }}')">
+                                                    <button class="dropdown-item" onclick="abrirModalLlegada('{{ $t->uuid }}','{{ $t->origen }} → {{ $t->destino }} ({{ $t->camion->placa }})','{{ $t->peso_salida }}','{{ $t->fecha_salida->format('Y-m-d') }}',{{ $t->camion_id }},{{ $t->conductor_id ?? 'null' }},'{{ $t->tipo_tramo }}',{{ $t->contratoCamion->contrato->proveedor_id }},'{{ $t->contratoCamion->contrato->proveedor->tipo_proveedor }}',{{ $t->contratoCamion->contrato_id }})">
                                                         <i class="bi bi-geo-alt text-success me-2"></i> Registrar llegada
                                                     </button>
                                                 </li>
@@ -1000,6 +1000,41 @@
                 @csrf
                 <input type="hidden" name="origen" value="seguimiento">
                 <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+                    @if($errors->llegada->any())
+                    <div class="alert alert-danger py-2 mb-3" id="errores_llegada_backend">
+                        <ul class="mb-0 ps-3">
+                            @foreach($errors->llegada->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+                    <div class="alert alert-primary border-0 mb-2 py-2 d-flex flex-wrap gap-3 align-items-center" id="seg_llegada_resumen_contrato" style="display:none;">
+                        <div>
+                            <small class="text-primary-emphasis opacity-75">Contrato</small><br>
+                            <span class="fw-bold" id="seg_llegada_numero_contrato">—</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-primary-emphasis opacity-75">Estipuladas</small><br>
+                            <span class="fw-bold" id="seg_llegada_tn_pactadas">—</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-success opacity-75">Entregadas</small><br>
+                            <span class="fw-bold text-success" id="seg_llegada_tn_entregadas">—</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-info opacity-75">En ruta</small><br>
+                            <span class="fw-bold text-info" id="seg_llegada_tn_en_ruta">—</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-secondary opacity-75">Pendientes</small><br>
+                            <span class="fw-bold text-secondary" id="seg_llegada_tn_pendientes">—</span>
+                        </div>
+                    </div>
                     <div class="alert alert-light border mb-3 py-2">
                         <small class="text-muted">Tramo:</small><br>
                         <strong id="llegada_tramo_info"></strong>
@@ -1924,7 +1959,7 @@ function abrirModalFlete(ccUuid, label) {
     };
 })();
 
-function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo, proveedorId, tipoProveedor) {
+function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo, proveedorId, tipoProveedor, contratoId) {
     // Guardar en variable global para usarla en el mini-modal
     window._segProveedorId   = proveedorId;
     window._segTipoProveedor = tipoProveedor || 'NACIONAL';
@@ -1939,6 +1974,37 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
             ? 'Selecciona un lote existente o crea uno nuevo con +.'
             : 'Se asigna automáticamente al lote de esta semana.';
     }
+
+    // Resumen de toneladas del contrato (arriba, como en Gestionar Camiones)
+    const secResumen = document.getElementById('seg_llegada_resumen_contrato');
+    if (contratoId) {
+        secResumen.style.display = '';
+        document.getElementById('seg_llegada_numero_contrato').textContent = '—';
+        document.getElementById('seg_llegada_tn_pactadas').textContent     = '—';
+        document.getElementById('seg_llegada_tn_entregadas').textContent  = '—';
+        document.getElementById('seg_llegada_tn_en_ruta').textContent     = '—';
+        document.getElementById('seg_llegada_tn_pendientes').textContent  = '—';
+
+        fetch('{{ url("api/contrato") }}/' + contratoId + '/toneladas')
+            .then(r => r.json())
+            .then(d => {
+                const fmt = v => new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+                const pactadas   = parseFloat(d.toneladas_contrato) || 0;
+                const entregadas = parseFloat(d.toneladas_entregadas) || 0;
+                const enRuta     = parseFloat(d.toneladas_en_transito) || 0;
+                const pendientes = Math.max(0, pactadas - entregadas - enRuta);
+
+                document.getElementById('seg_llegada_numero_contrato').textContent = d.numero_contrato || '—';
+                document.getElementById('seg_llegada_tn_pactadas').textContent     = pactadas ? fmt(pactadas) + ' t' : '—';
+                document.getElementById('seg_llegada_tn_entregadas').textContent   = fmt(entregadas) + ' t';
+                document.getElementById('seg_llegada_tn_en_ruta').textContent      = fmt(enRuta) + ' t';
+                document.getElementById('seg_llegada_tn_pendientes').textContent   = fmt(pendientes) + ' t';
+            })
+            .catch(() => {});
+    } else {
+        secResumen.style.display = 'none';
+    }
+
     document.getElementById('llegada_tramo_info').textContent = info;
     document.getElementById('formLlegada').action            = '{{ url("tramo") }}/' + tramoUuid + '/llegada';
     document.getElementById('llegada_peso_max').textContent  =
@@ -2415,5 +2481,50 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
+@if(isset($tramoErrorLlegada) && $tramoErrorLlegada && $errors->llegada->any())
+// Reabrir modal de llegada con los datos del tramo que falló
+document.addEventListener('DOMContentLoaded', function () {
+    const t = {
+        uuid:          '{{ $tramoErrorLlegada->uuid }}',
+        info:          '{{ addslashes($tramoErrorLlegada->origen . " → " . $tramoErrorLlegada->destino . " (" . $tramoErrorLlegada->camion->placa . ")") }}',
+        pesoSalida:    {{ $tramoErrorLlegada->peso_salida }},
+        fechaSalida:   '{{ $tramoErrorLlegada->fecha_salida->format("Y-m-d") }}',
+        camionId:      {{ $tramoErrorLlegada->camion_id }},
+        conductorId:   {{ $tramoErrorLlegada->conductor_id ?? 'null' }},
+        tipoTramo:     '{{ $tramoErrorLlegada->tipo_tramo }}',
+        proveedorId:   {{ $tramoErrorLlegada->contratoCamion->contrato->proveedor_id ?? 'null' }},
+        tipoProveedor: '{{ $tramoErrorLlegada->contratoCamion->contrato->proveedor->tipo_proveedor ?? "NACIONAL" }}',
+        contratoId:    {{ $tramoErrorLlegada->contratoCamion->contrato_id ?? 'null' }},
+    };
+    abrirModalLlegada(t.uuid, t.info, t.pesoSalida, t.fechaSalida, t.camionId, t.conductorId, t.tipoTramo, t.proveedorId, t.tipoProveedor, t.contratoId);
+
+    // Restaurar campos del old input
+    @if(old('peso_llegada'))
+        document.getElementById('seg_inp_peso_llegada').value         = '{{ old("peso_llegada") }}';
+        document.getElementById('seg_inp_peso_llegada_display').value = new Intl.NumberFormat('es-BO', {minimumFractionDigits:2,maximumFractionDigits:2}).format({{ old("peso_llegada") }});
+        document.getElementById('seg_aviso_peso_requerido').style.display = 'none';
+        ['seg_accion_entregado','seg_accion_parcial','seg_accion_transbordo'].forEach(function(id){
+            const el = document.getElementById(id);
+            if (el) el.disabled = false;
+        });
+    @endif
+    @if(old('fecha_llegada'))
+        document.getElementById('inp_fecha_llegada').value = '{{ old("fecha_llegada") }}';
+    @endif
+    @if(old('accion'))
+        const radioOld = document.querySelector('#formLlegada input[name="accion"][value="{{ old("accion") }}"]');
+        if (radioOld) { radioOld.checked = true; segAccionLlegadaCambiada('{{ old("accion") }}'); }
+    @endif
+    @if(old('cliente_id'))
+        document.getElementById('seg_sel_cliente').value = '{{ old("cliente_id") }}';
+    @endif
+    @if(old('empresa_facturadora_id'))
+        document.getElementById('seg_sel_empresa_factura').value = '{{ old("empresa_facturadora_id") }}';
+    @endif
+
+    validarFormLlegadaSeg();
+});
+@endif
 </script>
 @endsection

@@ -28,7 +28,8 @@
                     {"element":"#metodo_pago","intro":"💳 <b>Método de pago</b> (transferencia o QR) para todo el lote.","position":"bottom"},
                     {"element":"#zona-proveedores","intro":"📦 Aquí están los contratos <b>agrupados por proveedor</b>. Marca la casilla del proveedor para seleccionar todos sus contratos, o marca contratos sueltos.","position":"top"},
                     {"element":"#col-pct","intro":"🔢 Para cada contrato marcado, escribe el <b>% del saldo</b> que vas a pagar. El sistema calcula el <b>monto</b> automáticamente en la columna de al lado.","position":"bottom"},
-                    {"element":"#zona-totales","intro":"🧮 Abajo ves cuántos contratos seleccionaste y el <b>total a pagar</b>. Cuando todo esté listo, el botón <b>Siguiente</b> te lleva al Paso 2 para asignar las cuentas destino y confirmar.","position":"top"}
+                    {"element":"#zona-totales","intro":"🧮 Abajo ves cuántos contratos seleccionaste y el <b>total a pagar</b>.","position":"top"},
+                    {"element":"#btn_paso2","intro":"➡️ Cuando todo esté listo, el botón <b>Siguiente</b> te lleva al Paso 2 para asignar las cuentas destino y confirmar.","position":"bottom"}
                 ]'
                 @endif>
             <i class="bi bi-question-circle"></i>
@@ -40,19 +41,23 @@
 <div class="row">
 <div class="col-12">
 
-{{-- ============================================================ PASO 1 ============================================================ --}}
-<div id="paso1_contenido">
-<div class="card">
+{{-- ============================================================ DATOS GLOBALES (fijo entre Paso 1 y Paso 2) ============================================================ --}}
+<div class="card mb-3">
   <div class="card-body">
-    <h5 class="card-title">Paso 1 — Seleccionar contratos y porcentaje a pagar</h5>
-    <p class="text-muted small mb-3">
-      <i class="bi bi-info-circle me-1"></i>
-      Seleccione los contratos y defina qué porcentaje del saldo pendiente desea pagar a cada proveedor.
-    </p>
-
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h6 class="card-title mb-0 text-muted"><i class="bi bi-gear me-1"></i>Datos del pago</h6>
+      <div>
+        <button type="button" class="btn btn-primary" id="btn_paso2" onclick="irAPaso2()" disabled>
+          Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btn_paso2_volver" onclick="volverPaso1()" style="display:none">
+          <i class="bi bi-arrow-left me-1"></i> Volver al Paso 1
+        </button>
+      </div>
+    </div>
     {{-- Datos globales del pago --}}
-    <div class="row g-3 mb-4 p-3 bg-light rounded">
-      <div class="col-md-4">
+    <div class="row g-3">
+      <div class="col-md-5">
         <label class="form-label fw-semibold"><i class="bi bi-building"></i> Cuenta de origen (empresa) <span class="text-danger">*</span></label>
         <select class="form-select" id="cuenta_origen_id" name="cuenta_origen_id_tmp" required onchange="onCuentaOrigenChange()">
           <option value="">— Seleccione cuenta —</option>
@@ -72,11 +77,11 @@
           </div>
         </div>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-3">
         <label class="form-label fw-semibold"><i class="bi bi-calendar3"></i> Fecha de pago <span class="text-danger">*</span></label>
         <input type="date" class="form-control" id="fecha_pago" value="{{ date('Y-m-d') }}" required>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-4">
         <label class="form-label fw-semibold"><i class="bi bi-credit-card"></i> Método de pago <span class="text-danger">*</span></label>
         <select class="form-select" id="metodo_pago" required>
           <option value="">— Seleccione —</option>
@@ -85,6 +90,18 @@
         </select>
       </div>
     </div>
+  </div>
+</div>
+
+{{-- ============================================================ PASO 1 ============================================================ --}}
+<div id="paso1_contenido">
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Paso 1 — Seleccionar contratos y porcentaje a pagar</h5>
+    <p class="text-muted small mb-3">
+      <i class="bi bi-info-circle me-1"></i>
+      Seleccione los contratos y defina qué porcentaje del saldo pendiente desea pagar a cada proveedor.
+    </p>
 
     @if($contratos->isEmpty())
       <div class="alert alert-info py-2">
@@ -162,16 +179,22 @@
                 </div>
               </td>
               <td class="text-end">
-                <span class="fw-semibold text-primary" id="monto_preview_{{ $c->id }}">—</span>
+                <div class="input-group input-group-sm justify-content-end">
+                  <span class="input-group-text text-muted" style="font-size:.75rem">{{ $moneda }}</span>
+                  <input type="number" class="form-control monto_input" id="monto_{{ $c->id }}"
+                         min="0.01" step="0.01" placeholder="0.00"
+                         disabled
+                         oninput="calcularPct({{ $c->id }})">
+                </div>
               </td>
               <td class="text-center">
                 @if($camiones->isNotEmpty())
                 <button type="button"
-                        class="btn btn-outline-info btn-sm"
+                        class="btn {{ $c->envios_cerrados ? 'btn-outline-success' : 'btn-outline-info' }} btn-sm"
                         title="Ver camiones del contrato"
                         onclick="verCamiones({{ $c->id }})">
                   <i class="bi bi-truck"></i>
-                  <span class="badge bg-info text-dark ms-1" style="font-size:.65rem">{{ $camiones->count() }}</span>
+                  <span class="badge {{ $c->envios_cerrados ? 'bg-success' : 'bg-info text-dark' }} ms-1" style="font-size:.65rem">{{ $camiones->count() }}</span>
                 </button>
                 @endif
               </td>
@@ -189,9 +212,6 @@
         Contratos seleccionados: <strong id="lbl_seleccionados">0</strong>
         &nbsp;|&nbsp; Total a pagar: <strong id="lbl_total">—</strong>
       </div>
-      <button type="button" class="btn btn-primary" id="btn_paso2" onclick="irAPaso2()" disabled>
-        Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
-      </button>
     </div>
     @endif
 
@@ -210,7 +230,7 @@
               data-steps='[
                   {"intro":"📍 Estás en el <b>Paso 2</b> del pago masivo. Aquí defines a qué <b>cuenta bancaria</b> llega el dinero de cada contrato que seleccionaste antes. Te explico."},
                   {"element":"#paso2_lista","intro":"📦 Los contratos aparecen agrupados por proveedor. Para cada uno se listan sus <b>cuentas bancarias</b>: haz clic en la fila de la cuenta a la que quieres pagar. Aparecerá una etiqueta verde <b>Asignada</b>.","position":"top"},
-                  {"element":"#btn_paso2_volver","intro":"↩️ Si te equivocaste o quieres cambiar montos, con <b>Volver al Paso 1</b> regresas sin perder lo seleccionado.","position":"right"},
+                  {"element":"#btn_paso2_volver","intro":"↩️ Si te equivocaste o quieres cambiar montos, con <b>Volver al Paso 1</b> regresas sin perder lo seleccionado.","position":"bottom"},
                   {"element":"#btn_confirmar","intro":"✅ Cuando <b>todos</b> los contratos tengan una cuenta asignada, este botón se activa. Te mostrará un resumen final (que puedes exportar a Excel) antes de registrar los pagos.","position":"left"}
               ]'>
           <i class="bi bi-question-circle"></i>
@@ -223,10 +243,7 @@
 
     <div id="paso2_lista"></div>
 
-    <div class="d-flex justify-content-between mt-4">
-      <button type="button" id="btn_paso2_volver" class="btn btn-outline-secondary" onclick="volverPaso1()">
-        <i class="bi bi-arrow-left me-1"></i> Volver al Paso 1
-      </button>
+    <div class="d-flex justify-content-end mt-4">
       <button type="button" class="btn btn-success" id="btn_confirmar" onclick="abrirConfirmacion()" disabled>
         <i class="bi bi-check-circle me-1"></i> Revisar y confirmar
       </button>
@@ -494,8 +511,10 @@ function toggleProveedor(provId, checked) {
 function onCheckContrato(contratoId, checked) {
     const row = document.querySelector(`tr[data-contrato-id="${contratoId}"]`);
     const pctInput = document.getElementById(`pct_${contratoId}`);
+    const montoInput = document.getElementById(`monto_${contratoId}`);
     if (checked) {
-        pctInput.disabled = false;
+        pctInput.disabled   = false;
+        montoInput.disabled = false;
         const saldo   = parseFloat(row.dataset.saldo);
         const moneda  = row.dataset.moneda;
         const provId  = parseInt(row.dataset.proveedorId);
@@ -511,9 +530,10 @@ function onCheckContrato(contratoId, checked) {
             cuentaDestinoLabel: null,
         };
     } else {
-        pctInput.disabled = true;
-        pctInput.value = '';
-        document.getElementById(`monto_preview_${contratoId}`).textContent = '—';
+        pctInput.disabled   = true;
+        pctInput.value      = '';
+        montoInput.disabled = true;
+        montoInput.value    = '';
         delete _seleccionados[contratoId];
     }
     actualizarTotales();
@@ -521,10 +541,11 @@ function onCheckContrato(contratoId, checked) {
 }
 
 function calcularMonto(contratoId) {
-    const input  = document.getElementById(`pct_${contratoId}`);
-    const errEl  = document.getElementById(`err_pct_${contratoId}`);
-    const pct    = parseFloat(input.value) || 0;
-    const entry  = _seleccionados[contratoId];
+    const input      = document.getElementById(`pct_${contratoId}`);
+    const montoInput = document.getElementById(`monto_${contratoId}`);
+    const errEl      = document.getElementById(`err_pct_${contratoId}`);
+    const pct        = parseFloat(input.value) || 0;
+    const entry      = _seleccionados[contratoId];
     if (!entry) return;
 
     const invalido = pct < 0;
@@ -536,8 +557,29 @@ function calcularMonto(contratoId) {
     entry.pct     = pctReal;
     entry.monto   = monto;
 
-    const lbl = document.getElementById(`monto_preview_${contratoId}`);
-    lbl.textContent = (pctReal > 0 && !invalido) ? `${entry.moneda} ${_fmtM(monto)}` : '—';
+    montoInput.value = (pctReal > 0 && !invalido) ? monto.toFixed(2) : '';
+    actualizarTotales();
+    actualizarBtnPaso2();
+}
+
+function calcularPct(contratoId) {
+    const montoInput = document.getElementById(`monto_${contratoId}`);
+    const pctInput   = document.getElementById(`pct_${contratoId}`);
+    const errEl      = document.getElementById(`err_pct_${contratoId}`);
+    const entry      = _seleccionados[contratoId];
+    if (!entry) return;
+
+    const monto = parseFloat(montoInput.value) || 0;
+    const pct   = entry.saldo > 0 ? Math.round(monto / entry.saldo * 10000) / 100 : 0;
+
+    const invalido = monto < 0 || monto > entry.saldo;
+    montoInput.classList.toggle('is-invalid', invalido);
+    errEl.style.display = invalido ? '' : 'none';
+
+    entry.monto = invalido ? 0 : monto;
+    entry.pct   = invalido ? 0 : pct;
+
+    pctInput.value = (monto > 0 && !invalido) ? pct.toFixed(2) : '';
     actualizarTotales();
     actualizarBtnPaso2();
 }
@@ -653,6 +695,9 @@ function irAPaso2() {
 
     document.getElementById('paso1_contenido').style.display = 'none';
     document.getElementById('paso2_contenido').style.display = '';
+    document.getElementById('btn_paso2').style.display        = 'none';
+    document.getElementById('btn_paso2_volver').style.display  = '';
+    document.getElementById('cuenta_origen_id').disabled       = true;
     actualizarBtnConfirmar();
 }
 
@@ -694,6 +739,9 @@ function actualizarBtnConfirmar() {
 function volverPaso1() {
     document.getElementById('paso2_contenido').style.display = 'none';
     document.getElementById('paso1_contenido').style.display = '';
+    document.getElementById('btn_paso2').style.display        = '';
+    document.getElementById('btn_paso2_volver').style.display  = 'none';
+    document.getElementById('cuenta_origen_id').disabled       = false;
 }
 
 // ===================== CONFIRMACIÓN =====================
@@ -980,12 +1028,21 @@ function verCamiones(contratoId) {
         var pctClamp = Math.min(pct, 100);
         var pctBg    = pct >= 100 ? '#16a34a' : pct >= 50 ? '#1976d2' : '#f59e0b';
 
+        // Para tramos Div. Carga: color amarillo si algún hijo aún no entregado
+        var hijosEstados = cc.tramos.filter(function(t){ return t.es_hijo; }).map(function(t){ return t.estado; });
+
+        // Camión entregado: el tramo raíz (último de la lista) ya llegó a destino
+        var ultimoTramo    = cc.tramos.length ? cc.tramos[cc.tramos.length - 1] : null;
+        var camionEntregado = !!ultimoTramo && (
+            ultimoTramo.estado === 'Entregado'
+            || (ultimoTramo.estado === 'Div. Carga' && hijosEstados.filter(function(e){ return e !== 'Entregado' && e !== 'Desactivado'; }).length === 0)
+        );
+        var truckGradient = camionEntregado ? 'linear-gradient(135deg,#0f5132,#16a34a)' : 'linear-gradient(135deg,#1a3a5c,#1976d2)';
+
         // Tramos
         var tramosHtml = '';
         if (cc.tramos.length) {
             tramosHtml = '<div class="mt-3">';
-            // Para tramos Div. Carga: color amarillo si algún hijo aún no entregado
-            var hijosEstados = cc.tramos.filter(function(t){ return t.es_hijo; }).map(function(t){ return t.estado; });
 
             cc.tramos.forEach(function(t, ti) {
                 var cfgBase = _estadoCfg[t.estado] || { bg:'#6c757d', icon:'bi-circle', label: t.estado };
@@ -1082,7 +1139,7 @@ function verCamiones(contratoId) {
 
         html += '<div class="card border-0 shadow-sm" style="border-radius:12px;overflow:hidden;margin-bottom:20px">'
             + '<div class="d-flex align-items-center gap-3 p-3" style="background:#fff;border-bottom:1px solid #e9ecef">'
-            + '<div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a3a5c,#1976d2);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+            + '<div style="width:44px;height:44px;border-radius:10px;background:' + truckGradient + ';display:flex;align-items:center;justify-content:center;flex-shrink:0">'
             + '<i class="bi bi-truck-front text-white" style="font-size:1.2rem"></i></div>'
             + '<div class="flex-grow-1 min-width-0">'
             + '<div class="fw-bold" style="font-size:1rem;letter-spacing:.5px">' + cc.placa

@@ -106,6 +106,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('contrato/{uuid}/destroy',[App\Http\Controllers\ContratoController::class,'destroy'])->name('contratos.destroy')->middleware('permission:contratos.destroy');
     Route::get('contrato/{uuid}/camiones',[App\Http\Controllers\ContratoController::class,'camiones'])->name('contratos.camiones')->middleware('permission:contratos.index');
     Route::get('contrato/{uuid}/pdf',[App\Http\Controllers\ContratoController::class,'verPdf'])->name('contratos.pdf')->middleware('permission:contratos.index');
+    Route::get('api/contrato/{id}/toneladas',[App\Http\Controllers\ContratoController::class,'toneladas'])->name('contrato.toneladas')->middleware('permission:seguimiento.index');
     Route::get('contrato/{uuid}/cerrar-envios',[App\Http\Controllers\ContratoController::class,'cerrarEnvios'])->name('contratos.cerrar')->middleware('permission:contratos.cerrar');
     Route::get('contrato/{uuid}/descerrar-envios',[App\Http\Controllers\ContratoController::class,'descerrarEnvios'])->name('contratos.descerrar')->middleware('permission:contratos.cerrar');
 
@@ -152,6 +153,7 @@ use Illuminate\Support\Facades\Route;
     Route::put('pagos/clientes/{uuid}',[App\Http\Controllers\PagoClienteController::class,'update'])->name('pagos.clientes.update')->middleware('permission:pagos_clientes.edit');
     Route::post('pagos/clientes/cobro-masivo',[App\Http\Controllers\PagoClienteController::class,'cobroMasivo'])->name('pagos.clientes.cobro_masivo')->middleware('permission:pagos_clientes.create');
     Route::get('api/pagos/clientes/{id}/detalle',[App\Http\Controllers\PagoClienteController::class,'detalle'])->name('pagos.clientes.detalle');
+    Route::get('pagos/clientes/{uuid}/voucher',[App\Http\Controllers\PagoClienteController::class,'verVoucher'])->name('pagos.clientes.voucher')->middleware('permission:pagos_clientes.index');
     Route::get('api/pagos/cuentas-cliente',[App\Http\Controllers\PagoClienteController::class,'cuentasCliente'])->name('pagos.cuentas-cliente');
 
     // Pagos a proveedores
@@ -162,6 +164,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('pagos/proveedores/{uuid}/destroy',[App\Http\Controllers\PagoProveedorController::class,'destroy'])->name('pagos.proveedores.destroy')->middleware('permission:pagos_proveedores.destroy');
     Route::put('pagos/proveedores/{uuid}',[App\Http\Controllers\PagoProveedorController::class,'update'])->name('pagos.proveedores.update')->middleware('permission:pagos_proveedores.edit');
     Route::get('api/pagos/proveedores/{id}/detalle',[App\Http\Controllers\PagoProveedorController::class,'detalle'])->name('pagos.proveedores.detalle');
+    Route::get('pagos/proveedores/{uuid}/voucher',[App\Http\Controllers\PagoProveedorController::class,'verVoucher'])->name('pagos.proveedores.voucher')->middleware('permission:pagos_proveedores.index');
     Route::get('api/pagos/cuentas-proveedor',[App\Http\Controllers\PagoProveedorController::class,'cuentasProveedor'])->name('pagos.cuentas-proveedor');
 
     // Lotes de pago masivo
@@ -220,6 +223,8 @@ use Illuminate\Support\Facades\Route;
     Route::get('empresas/nuevo-token',[App\Http\Controllers\EmpresaController::class,'nuevoToken'])->name('empresas.nuevo-token');
     Route::get('empresas/nuevo-token-cuenta',[App\Http\Controllers\EmpresaController::class,'nuevoTokenCuenta'])->name('empresas.nuevo-token-cuenta');
     Route::post('empresas/store', [App\Http\Controllers\EmpresaController::class, 'store'])->name('empresas.store')->middleware('permission:empresas.create');
+    Route::get('empresas/cuenta/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'editCuenta'])->name('empresas.cuenta.edit')->middleware('permission:empresas.edit');
+    Route::put('empresas/cuenta/{uuid}', [App\Http\Controllers\EmpresaController::class, 'updateCuenta'])->name('empresas.cuenta.update')->middleware('permission:empresas.edit');
     Route::get('empresas/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'edit'])->name('empresas.edit')->middleware('permission:empresas.edit');
     Route::put('empresas/{uuid}', [App\Http\Controllers\EmpresaController::class, 'update'])->name('empresas.update')->middleware('permission:empresas.edit');
     Route::get('empresas/{uuid}/destroy', [App\Http\Controllers\EmpresaController::class, 'destroy'])->name('empresas.destroy')->middleware('permission:empresas.destroy');

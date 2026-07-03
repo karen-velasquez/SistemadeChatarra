@@ -11,6 +11,7 @@ use App\Models\Empresa;
 use App\Models\Movimiento;
 use App\Models\Proveedor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class PagoProveedorController extends Controller
@@ -53,18 +54,21 @@ class PagoProveedorController extends Controller
             'fecha_pago'         => 'required|date',
             'metodo_pago'        => 'required|in:efectivo,transferencia,qr,cheque',
             'codigo_seguimiento' => 'nullable|string|max:100',
-            'cuenta_origen_id'   => 'nullable|exists:cuentas_empresa,id',
-            'cuenta_destino_id'  => 'nullable|exists:cuentas_bancarias,id',
+            'cuenta_origen_id'   => 'required|exists:cuentas_empresa,id',
+            'cuenta_destino_id'  => 'required|exists:cuentas_bancarias,id',
             'observaciones'      => 'nullable|string|max:500',
+            'voucher'            => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
-            'contrato_id.required' => 'Debe seleccionar el contrato.',
-            'tipo_pago.required'   => 'Debe indicar el tipo de pago.',
-            'monto.required'       => 'El monto es obligatorio.',
-            'monto.min'            => 'El monto debe ser mayor a cero.',
-            'moneda_pago.required' => 'Debe indicar la moneda del pago.',
-            'tipo_cambio.required' => 'Debe indicar el tipo de cambio.',
-            'tipo_cambio.min'      => 'El tipo de cambio debe ser mayor a cero.',
-            'fecha_pago.required'  => 'La fecha de pago es obligatoria.',
+            'contrato_id.required'       => 'Debe seleccionar el contrato.',
+            'tipo_pago.required'         => 'Debe indicar el tipo de pago.',
+            'monto.required'             => 'El monto es obligatorio.',
+            'monto.min'                  => 'El monto debe ser mayor a cero.',
+            'moneda_pago.required'       => 'Debe indicar la moneda del pago.',
+            'tipo_cambio.required'       => 'Debe indicar el tipo de cambio.',
+            'tipo_cambio.min'            => 'El tipo de cambio debe ser mayor a cero.',
+            'fecha_pago.required'        => 'La fecha de pago es obligatoria.',
+            'cuenta_origen_id.required'  => 'Debe seleccionar la cuenta de origen.',
+            'cuenta_destino_id.required' => 'Debe seleccionar la cuenta destino.',
             'metodo_pago.required' => 'Debe indicar el método de pago.',
         ]);
 
@@ -80,6 +84,7 @@ class PagoProveedorController extends Controller
             'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
             'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
             'observaciones'      => $request->observaciones ?: null,
+            'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_proveedor', 'public') : null,
             'created_by'         => auth()->id(),
             'updated_by'         => auth()->id(),
         ]);
@@ -187,6 +192,7 @@ class PagoProveedorController extends Controller
                 'tipo_raw'       => $p->tipo_pago,
                 'monto_bob'      => $p->monto_en_moneda_contrato,
                 'codigo'         => $p->codigo_seguimiento,
+                'tiene_voucher'  => (bool) $p->voucher,
                 'cuenta_destino' => $p->cuentaDestino ? [
                     'banco'          => $p->cuentaDestino->banco->nombre ?? '—',
                     'numero'         => $p->cuentaDestino->numero_cuenta,
@@ -201,6 +207,19 @@ class PagoProveedorController extends Controller
                 ] : null,
             ]),
         ]);
+    }
+
+    public function verVoucher($uuid)
+    {
+        $pago = PagoProveedor::where('uuid', $uuid)->firstOrFail();
+
+        abort_if(!$pago->voucher, 404, 'Este pago no tiene voucher adjunto.');
+
+        $path = Storage::disk('public')->path($pago->voucher);
+
+        abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+
+        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
     }
 
     public function pagoMasivoView()

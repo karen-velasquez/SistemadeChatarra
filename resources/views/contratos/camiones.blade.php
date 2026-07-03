@@ -111,6 +111,15 @@
                             <small><i class="bi bi-exclamation-triangle"></i> Sin toneladas definidas en el contrato.</small>
                         </div>
                     @endif
+
+                    @can('contratos.cerrar')
+                    @if(!$contrato->envios_cerrados)
+                    <a class="btn btn-warning btn-sm w-100 mt-3" href="{{ route('contratos.cerrar', $contrato->uuid) }}"
+                        onclick="return confirm('¿Cerrar envíos del contrato {{ $contrato->numero_contrato }}? Ya no se podrán agregar más camiones.')">
+                        <i class="bi bi-lock"></i> Cierre de Envíos
+                    </a>
+                    @endif
+                    @endcan
                 </div>
             </div>
         </div>
@@ -393,6 +402,38 @@
                         </ul>
                     </div>
                     @endif
+                    @php
+                        $tn_pactadas   = (float) $contrato->toneladas_contrato;
+                        $tn_entregadas = $contrato->toneladas_entregadas;
+                        $tn_en_ruta    = $contrato->toneladas_en_transito;
+                        $tn_pendientes = max(0, $tn_pactadas - $tn_entregadas - $tn_en_ruta);
+                    @endphp
+                    <div class="alert alert-primary border-0 mb-2 py-2 d-flex flex-wrap gap-3 align-items-center">
+                        <div>
+                            <small class="text-primary-emphasis opacity-75">Contrato</small><br>
+                            <span class="fw-bold">{{ $contrato->numero_contrato }}</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-primary-emphasis opacity-75">Estipuladas</small><br>
+                            <span class="fw-bold">{{ $tn_pactadas ? number_format($tn_pactadas, 2, ',', '.') . ' t' : '—' }}</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-success opacity-75">Entregadas</small><br>
+                            <span class="fw-bold text-success">{{ number_format($tn_entregadas, 2, ',', '.') }} t</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-info opacity-75">En ruta</small><br>
+                            <span class="fw-bold text-info">{{ number_format($tn_en_ruta, 2, ',', '.') }} t</span>
+                        </div>
+                        <div class="vr d-none d-sm-block"></div>
+                        <div>
+                            <small class="text-secondary opacity-75">Pendientes</small><br>
+                            <span class="fw-bold text-secondary">{{ number_format($tn_pendientes, 2, ',', '.') }} t</span>
+                        </div>
+                    </div>
                     <div class="alert alert-light border mb-3 py-2">
                         <small class="text-muted">Tramo:</small><br>
                         <strong id="llegada_tramo_info"></strong>

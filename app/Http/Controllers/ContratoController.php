@@ -98,6 +98,19 @@ class ContratoController extends Controller
         return response()->json($contrato);
     }
 
+    // API: resumen de toneladas del contrato, para el modal de Registrar Llegada
+    public function toneladas($id)
+    {
+        $contrato = Contrato::findOrFail($id);
+
+        return response()->json([
+            'numero_contrato'     => $contrato->numero_contrato,
+            'toneladas_contrato'  => (float) $contrato->toneladas_contrato,
+            'toneladas_entregadas'=> $contrato->toneladas_entregadas,
+            'toneladas_en_transito' => $contrato->toneladas_en_transito,
+        ]);
+    }
+
     public function update(ContratoRequest $request, Contrato $contrato)
     {
         if ($contrato->envios_cerrados) {

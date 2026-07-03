@@ -27,6 +27,7 @@ class PagoProveedor extends Model
         'cuenta_origen_id',
         'cuenta_destino_id',
         'observaciones',
+        'voucher',
         'created_by',
         'updated_by',
     ];

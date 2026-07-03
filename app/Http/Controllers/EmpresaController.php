@@ -151,6 +151,41 @@ class EmpresaController extends Controller
         return view('empresas.cuentas', compact('empresa', 'movimientos', 'bancos', 'monedas'));
     }
 
+    public function editCuenta(string $uuid)
+    {
+        $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
+        return response()->json($cuenta);
+    }
+
+    public function updateCuenta(Request $request, string $uuid)
+    {
+        $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
+        $request->validate([
+            'nombre_cuenta' => 'required|string|max:150',
+            'banco_id'      => 'required|exists:bancos,id',
+            'numero_cuenta' => 'required|digits_between:1,20',
+            'descripcion'   => 'nullable|string|max:500',
+            'activo'        => 'nullable|boolean',
+        ], [
+            'nombre_cuenta.required'           => 'El nombre de la cuenta es obligatorio.',
+            'banco_id.required'                => 'Debe seleccionar un banco.',
+            'banco_id.exists'                  => 'El banco seleccionado no existe.',
+            'numero_cuenta.required'           => 'El número de cuenta es obligatorio.',
+            'numero_cuenta.digits_between'     => 'El número de cuenta debe tener entre 1 y 20 dígitos numéricos.',
+        ]);
+
+        $cuenta->update([
+            'nombre_cuenta' => $request->nombre_cuenta,
+            'banco_id'      => $request->banco_id,
+            'numero_cuenta' => $request->numero_cuenta,
+            'descripcion'   => $request->descripcion,
+            'activo'        => $request->boolean('activo', true),
+            'updated_by'    => auth()->id(),
+        ]);
+        Alert::success('Actualizado', 'Cuenta actualizada correctamente.');
+        return redirect()->route('empresas.index');
+    }
+
     public function storeCuenta(Request $request, string $uuid)
     {
         if (!$this->tokenValido('empresa_cuenta_store_token', $request->input('_idempotency_token'))) {

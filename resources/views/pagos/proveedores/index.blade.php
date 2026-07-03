@@ -210,16 +210,17 @@
                                 {"element":"#inp_monto","intro":"🔢 <b>Monto</b> que se paga. Si la moneda no es BOB, abajo verás el equivalente en bolivianos calculado automáticamente.","position":"bottom"},
                                 {"element":"[name=\"fecha_pago\"]","intro":"📅 <b>Fecha del pago</b>. Por defecto es hoy.","position":"top"},
                                 {"element":"#metodo_pago","intro":"🏦 <b>Método de Pago</b>: transferencia, QR o cheque. Si es transferencia, se habilita un campo para el código/N° de referencia.","position":"top"},
-                                {"element":"[name=\"cuenta_origen_id\"]","intro":"📤 <b>Cuenta Origen</b>: de qué cuenta de la empresa (tesorería) sale el dinero. Si fue en efectivo, déjala vacía.","position":"top"},
+                                {"element":"[name=\"cuenta_origen_id\"]","intro":"📤 <b>Cuenta Origen</b> (obligatoria): de qué cuenta de la empresa (tesorería) sale el dinero.","position":"top"},
                                 {"element":"#sel_cuenta_destino","intro":"📥 <b>Cuenta Destino</b>: a qué cuenta del proveedor se le pagó. Se cargan según el proveedor del contrato.","position":"top"},
-                                {"element":"[name=\"observaciones\"]","intro":"📝 <b>Observaciones</b> (opcional): cualquier nota sobre el pago.","position":"top"}
+                                {"element":"[name=\"observaciones\"]","intro":"📝 <b>Observaciones</b> (opcional): cualquier nota sobre el pago.","position":"top"},
+                                {"element":"[name=\"voucher\"]","intro":"📎 <b>Voucher / Comprobante</b> (opcional): sube una foto o PDF del comprobante del pago realizado.","position":"top"}
                             ]'>
                         <i class="bi bi-question-circle"></i> Ayuda
                     </button>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form id="formPagoProveedor" method="POST" action="{{ route('pagos.proveedores.store') }}">
+            <form id="formPagoProveedor" method="POST" action="{{ route('pagos.proveedores.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_idempotency_token" id="idempotencyTokenPagoProveedor" value="{{ $idempotencyToken ?? '' }}">
                 <input type="hidden" name="contrato_id" id="pago_contrato_id">
@@ -258,7 +259,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Tipo de Pago <span class="text-danger">(*)</span></label>
-                            <select class="form-select" name="tipo_pago" required>
+                            <select class="form-select" name="tipo_pago" id="tipo_pago" required onchange="actualizarBtnPagoProveedor()">
                                 <option value="">-- Seleccione --</option>
                                 <option value="adelanto">Adelanto</option>
                                 <option value="pago_final">Pago Final</option>
@@ -272,7 +273,7 @@
 
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold mb-1">Moneda <span class="text-danger">*</span></label>
-                                        <select class="form-select form-select-sm" name="moneda_pago" id="moneda_pago" required onchange="toggleTipoCambio(this.value)">
+                                        <select class="form-select form-select-sm" name="moneda_pago" id="moneda_pago" required onchange="toggleTipoCambio(this.value); actualizarBtnPagoProveedor()">
                                             <option value="BOB">🇧🇴 BOB</option>
                                             <option value="USD">🇺🇸 USD</option>
                                             <option value="BRL">🇧🇷 BRL</option>
@@ -324,12 +325,12 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Fecha de Pago <span class="text-danger">(*)</span></label>
-                            <input type="date" class="form-control" name="fecha_pago" required value="{{ date('Y-m-d') }}">
+                            <input type="date" class="form-control" name="fecha_pago" id="fecha_pago" required value="{{ date('Y-m-d') }}" onchange="actualizarBtnPagoProveedor()">
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Método de Pago <span class="text-danger">(*)</span></label>
-                            <select class="form-select" name="metodo_pago" id="metodo_pago" required onchange="toggleCodigo(this.value)">
+                            <select class="form-select" name="metodo_pago" id="metodo_pago" required onchange="toggleCodigo(this.value); actualizarBtnPagoProveedor()">
                                 <option value="">-- Seleccione --</option>
                                 <option value="transferencia">Transferencia Bancaria</option>
                                 <option value="qr">QR</option>
@@ -339,34 +340,36 @@
 
                         <div class="col-md-6" id="sec_codigo" style="display:none;">
                             <label class="form-label">Código / N° Cheque</label>
-                            <input type="text" class="form-control" name="codigo_seguimiento" maxlength="100"
-                                placeholder="Ej: TRX-20260512-001">
+                            <input type="text" class="form-control" name="codigo_seguimiento" id="codigo_seguimiento" maxlength="100"
+                                placeholder="Ej: TRX-20260512-001" oninput="actualizarBtnPagoProveedor()">
                         </div>
 
                         {{-- Cuenta origen (tesorería empresa) --}}
                         <div class="col-md-6">
-                            <label class="form-label">Cuenta Origen (Tesorería)</label>
-                            <select class="form-select" name="cuenta_origen_id">
-                                <option value="">-- Efectivo / Sin cuenta --</option>
+                            <label class="form-label fw-semibold">Cuenta Origen (Tesorería) <span class="text-danger">(*)</span></label>
+                            <select class="form-select" name="cuenta_origen_id" id="sel_cuenta_origen_pp" required onchange="actualizarBtnPagoProveedor()">
+                                <option value="">-- Seleccione --</option>
                                 @foreach($empresas as $empresa)
                                     <optgroup label="{{ $empresa->nombre }}">
                                         @foreach($empresa->cuentas as $cta)
-                                            <option value="{{ $cta->id }}">
+                                            <option value="{{ $cta->id }}" data-moneda="{{ $cta->moneda }}" data-saldo="{{ $cta->saldo_actual }}">
                                                 {{ $cta->nombre_cuenta }}
                                                 @if($cta->banco) — {{ $cta->banco->nombre }} @endif
                                                 [{{ $cta->moneda }}]
+                                                — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
                                             </option>
                                         @endforeach
                                     </optgroup>
                                 @endforeach
                             </select>
+                            <div class="alert alert-danger py-1 px-2 mt-1 small mb-0" id="aviso_saldo_insuficiente_pp" style="display:none"></div>
                         </div>
 
                         {{-- Cuenta destino (proveedor) --}}
                         <div class="col-md-6">
-                            <label class="form-label">Cuenta Destino (Proveedor)</label>
-                            <select class="form-select" name="cuenta_destino_id" id="sel_cuenta_destino">
-                                <option value="">-- Efectivo / Sin cuenta --</option>
+                            <label class="form-label fw-semibold">Cuenta Destino (Proveedor) <span class="text-danger">(*)</span></label>
+                            <select class="form-select" name="cuenta_destino_id" id="sel_cuenta_destino" required onchange="actualizarBtnPagoProveedor()">
+                                <option value="">-- Seleccione --</option>
                             </select>
                         </div>
 
@@ -376,11 +379,17 @@
                                 placeholder="Notas del pago..."></textarea>
                         </div>
 
+                        <div class="col-12">
+                            <label class="form-label">Voucher / Comprobante <small class="text-muted">(opcional)</small></label>
+                            <input type="file" class="form-control" name="voucher" accept=".jpg,.jpeg,.png,.pdf">
+                            <div class="form-text">Imagen o PDF del comprobante de pago. Máximo 5 MB.</div>
+                        </div>
+
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnPagoProveedor"><i class="bi bi-save"></i> Registrar Pago</button>
+                    <button type="submit" class="btn btn-primary" id="btnPagoProveedor" disabled><i class="bi bi-save"></i> Registrar Pago</button>
                 </div>
             </form>
             <script>
@@ -428,8 +437,14 @@
                         if (onChangeCb) onChangeCb();
                     });
                 }
-                _initCajero('inp_monto_display',      'inp_monto',         2, function() { if (typeof calcEquivalente === 'function') calcEquivalente(); });
-                _initCajero('inp_tipo_cambio_display', 'inp_tipo_cambio',   4, function() { if (typeof calcEquivalente === 'function') calcEquivalente(); });
+                _initCajero('inp_monto_display',      'inp_monto',         2, function() {
+                    if (typeof calcEquivalente === 'function') calcEquivalente();
+                    if (typeof actualizarBtnPagoProveedor === 'function') actualizarBtnPagoProveedor();
+                });
+                _initCajero('inp_tipo_cambio_display', 'inp_tipo_cambio',   4, function() {
+                    if (typeof calcEquivalente === 'function') calcEquivalente();
+                    if (typeof actualizarBtnPagoProveedor === 'function') actualizarBtnPagoProveedor();
+                });
             })();
             </script>
         </div>
@@ -552,6 +567,7 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleTipoCambio(_monedaPendiente);
             _monedaPendiente = null;
         }
+        actualizarBtnPagoProveedor();
     });
     modalPago.addEventListener('hidden.bs.modal', function () {
         document.getElementById('sec_seleccionar_contrato').style.display = 'block';
@@ -576,7 +592,7 @@ function toggleTipoCambio(moneda) {
         secEquiv.style.display = 'none';
         inpTCDisp.disabled = true;
         inpTCDisp.value    = '';
-        inpTC.value        = '';
+        inpTC.value        = '1';
         inpBob.value       = '1';
     } else {
         secTC.style.display    = 'block';
@@ -599,6 +615,61 @@ function calcEquivalente() {
     } else {
         secEquiv.style.display = 'none';
     }
+}
+
+function actualizarBtnPagoProveedor() {
+    const btn   = document.getElementById('btnPagoProveedor');
+    const aviso = document.getElementById('aviso_saldo_insuficiente_pp');
+
+    // 1. Campos obligatorios del formulario
+    const contratoId  = document.getElementById('pago_contrato_id').value;
+    const tipoPago    = document.getElementById('tipo_pago').value;
+    const monto       = parseFloat(document.getElementById('inp_monto').value) || 0;
+    const monedaPago  = document.getElementById('moneda_pago').value;
+    const fechaPago   = document.getElementById('fecha_pago').value;
+    const metodoPago  = document.getElementById('metodo_pago').value;
+    const tc          = parseFloat(document.getElementById('inp_tipo_cambio').value) || 0;
+
+    const codigoVisible = document.getElementById('sec_codigo').style.display !== 'none';
+    const codigo         = document.getElementById('codigo_seguimiento').value.trim();
+    const codigoOk       = !codigoVisible || codigo !== '';
+
+    const tipoCambioOk = monedaPago === 'BOB' || tc > 0;
+
+    const cuentaOrigenId  = document.getElementById('sel_cuenta_origen_pp').value;
+    const cuentaDestinoId = document.getElementById('sel_cuenta_destino').value;
+
+    const camposOk = !!contratoId && !!tipoPago && monto > 0 && !!monedaPago
+        && tipoCambioOk && !!fechaPago && !!metodoPago && codigoOk
+        && !!cuentaOrigenId && !!cuentaDestinoId;
+
+    // 2. Saldo disponible en la cuenta origen (si se seleccionó una)
+    const sel = document.getElementById('sel_cuenta_origen_pp');
+    const opt = sel.options[sel.selectedIndex];
+    let insuficiente = false;
+
+    if (opt && opt.value) {
+        const saldo     = parseFloat(opt.dataset.saldo) || 0;
+        const monedaCta = opt.dataset.moneda || '';
+
+        // Convertimos el monto a pagar a la moneda de la cuenta origen para poder compararlo con el saldo
+        let montoEnMonedaCuenta = null;
+        if (monedaPago === monedaCta) {
+            montoEnMonedaCuenta = monto;
+        } else if (monedaCta === 'BOB') {
+            montoEnMonedaCuenta = monto * (tc || 1);
+        }
+
+        if (montoEnMonedaCuenta !== null) {
+            insuficiente = montoEnMonedaCuenta > saldo;
+            if (insuficiente) {
+                aviso.textContent = `Saldo insuficiente en la cuenta seleccionada. Disponible: ${monedaCta} ${_fmtP(saldo)}, requerido: ${monedaCta} ${_fmtP(montoEnMonedaCuenta)}.`;
+            }
+        }
+    }
+    aviso.style.display = insuficiente ? '' : 'none';
+
+    btn.disabled = !camposOk || insuficiente;
 }
 
 function abrirModalPago(contratoId, label, saldo, moneda, proveedorId) {
@@ -632,25 +703,28 @@ function cambiarContrato(contratoId) {
 
     _proveedorActual = opt.dataset.proveedorId || null;
     cargarCuentasProveedor(_proveedorActual);
+    actualizarBtnPagoProveedor();
 }
 
 function cargarCuentasProveedor(proveedorId) {
     const sel = document.getElementById('sel_cuenta_destino');
     sel.innerHTML = '<option value="">-- Cargando... --</option>';
     if (!proveedorId) {
-        sel.innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>';
+        sel.innerHTML = '<option value="">-- Seleccione --</option>';
+        actualizarBtnPagoProveedor();
         return;
     }
     fetch(`${url_global}/api/pagos/cuentas-proveedor?proveedor_id=${proveedorId}`)
         .then(r => r.json())
         .then(data => {
-            sel.innerHTML = '<option value="">-- Efectivo / Sin cuenta --</option>';
+            sel.innerHTML = '<option value="">-- Seleccione --</option>';
             data.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id;
                 opt.textContent = c.label;
                 sel.appendChild(opt);
             });
+            actualizarBtnPagoProveedor();
         });
 }
 
@@ -766,6 +840,10 @@ function verDetalle(contratoId) {
                                 ${destLine}
                             </div>
                             <div class="d-flex flex-column gap-1">
+                                ${p.tiene_voucher ? `<a href="/pagos/proveedores/${p.uuid}/voucher" target="_blank"
+                                    class="btn btn-sm btn-outline-secondary border-0" title="Ver voucher">
+                                    <i class="bi bi-paperclip"></i>
+                                </a>` : ''}
                                 ${canEditPago ? `<button class="btn btn-sm btn-outline-primary border-0"
                                     onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo_raw}',${p.monto},'${p.moneda_pago}',${p.tipo_cambio},'${p.fecha_raw}','${p.metodo_raw}','${p.codigo||''}')"
                                     title="Editar">

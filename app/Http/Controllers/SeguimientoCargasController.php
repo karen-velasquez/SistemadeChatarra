@@ -52,6 +52,13 @@ class SeguimientoCargasController extends Controller
 
         $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
 
-        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas'));
+        $tramoErrorLlegada = null;
+        if (session('abrirModalLlegada')) {
+            $tramoErrorLlegada = Tramo::with('contratoCamion.contrato.proveedor')
+                ->where('uuid', session('abrirModalLlegada'))
+                ->first();
+        }
+
+        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada'));
     }
 }

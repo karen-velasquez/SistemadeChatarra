@@ -11,6 +11,7 @@ use App\Models\Movimiento;
 use App\Models\Cliente;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 use Carbon\Carbon;
 
@@ -28,7 +29,7 @@ class PagoClienteController extends Controller
         // Tramos entregados con precio registrado
         $tramos = Tramo::with([
                 'cliente',
-                'contratoCamion.contrato',
+                'contratoCamion.contrato.proveedor',
                 'contratoCamion.camion.marca',
                 'contratoCamion.camion.tipoVehiculo',
                 'contratoCamion.camion.placaPais',
@@ -40,6 +41,14 @@ class PagoClienteController extends Controller
             ->get();
 
         $clientes = Cliente::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
+
+        // Proveedores presentes en las entregas listadas, para el filtro
+        $proveedores = $tramos
+            ->pluck('contratoCamion.contrato.proveedor')
+            ->filter()
+            ->unique('id')
+            ->sortBy('nombre')
+            ->values();
 
         // Cuentas de empresa (tesorería) para cuenta destino
         $empresas = Empresa::with('cuentas')->whereNull('deleted_at')->get();
@@ -62,7 +71,7 @@ class PagoClienteController extends Controller
         $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
         $idempotencyToken = $this->generarToken('pago_cliente_store_token');
 
-        return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas', 'idempotencyToken'));
+        return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas', 'idempotencyToken', 'proveedores'));
     }
 
     public function store(Request $request)
@@ -83,6 +92,7 @@ class PagoClienteController extends Controller
             'cuenta_origen_id'   => 'required|exists:cuentas_bancarias,id',
             'cuenta_destino_id'  => 'required|exists:cuentas_empresa,id',
             'observaciones'      => 'nullable|string|max:500',
+            'voucher'            => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'tramo_id.required'         => 'Debe seleccionar la entrega.',
             'tipo_pago.required'        => 'Debe indicar el tipo de pago.',
@@ -116,6 +126,7 @@ class PagoClienteController extends Controller
             'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
             'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
             'observaciones'      => $request->observaciones ?: null,
+            'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_cliente', 'public') : null,
             'created_by'         => auth()->id(),
             'updated_by'         => auth()->id(),
         ]);
@@ -396,6 +407,19 @@ class PagoClienteController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function verVoucher($uuid)
+    {
+        $pago = PagoCliente::where('uuid', $uuid)->firstOrFail();
+
+        abort_if(!$pago->voucher, 404, 'Este pago no tiene voucher adjunto.');
+
+        $path = Storage::disk('public')->path($pago->voucher);
+
+        abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+
+        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+    }
+
     // API: detalle de una entrega (tramo) con sus pagos
     public function detalle($id)
     {
@@ -437,6 +461,7 @@ class PagoClienteController extends Controller
                 'metodo_raw'     => $p->metodo_pago,
                 'codigo'         => $p->codigo_seguimiento,
                 'observaciones'  => $p->observaciones,
+                'tiene_voucher'  => (bool) $p->voucher,
                 'anulado'        => !is_null($p->deleted_at),
                 'cuenta_origen'  => $p->cuentaOrigen ? [
                     'banco'  => $p->cuentaOrigen->banco->nombre ?? '—',

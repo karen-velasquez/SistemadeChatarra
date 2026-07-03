@@ -23,10 +23,10 @@
                 data-steps='[
                     {"intro":"💵 Aquí registras los <b>cobros</b> de lo que vendes a los clientes. Cada fila es una <b>entrega</b> (un camión que llegó a un cliente). Te muestro cómo se usa."},
                     {"element":"#filtro_cliente","intro":"🔎 Filtra las entregas por <b>cliente</b> para enfocarte en uno.","position":"bottom"},
-                    {"element":"#tabla_cobros","intro":"📋 Cada fila es una entrega: el cliente, contrato, camión, peso, precio/t, la deuda total, lo cobrado y el saldo.","position":"top"},
-                    {"element":"#tabla_cobros thead th:nth-child(6)","intro":"🏷️ La entrega necesita un <b>Precio por tonelada</b> para poder cobrarse. Si dice <b>Sin precio</b>, primero hay que registrarlo (fila en amarillo).","position":"bottom"},
-                    {"element":"#tabla_cobros thead th:nth-child(10)","intro":"🚦 El <b>Estado</b> indica si está Pendiente, parcialmente cobrado o totalmente Cobrado.","position":"bottom"},
-                    {"element":"#tabla_cobros tbody tr:first-child td:last-child","intro":"⚙️ El botón <b>Opciones</b> de cada fila: registrar el precio/t, <b>Registrar cobro</b> o ver el detalle de cobros.","position":"left"},
+                    {"element":"#datos","intro":"📋 Cada fila es una entrega: el cliente, contrato, camión, peso, precio/t, la deuda total, lo cobrado y el saldo.","position":"top"},
+                    {"element":"#datos thead th:nth-child(7)","intro":"🏷️ La entrega necesita un <b>Precio por tonelada</b> para poder cobrarse. Si dice <b>Sin precio</b>, primero hay que registrarlo (fila en amarillo).","position":"bottom"},
+                    {"element":"#datos thead th:nth-child(11)","intro":"🚦 El <b>Estado</b> indica si está Pendiente, parcialmente cobrado o totalmente Cobrado.","position":"bottom"},
+                    {"element":"#datos tbody tr:first-child td:last-child","intro":"⚙️ El botón <b>Opciones</b> de cada fila: registrar el precio/t, <b>Registrar cobro</b> o ver el detalle de cobros.","position":"left"},
                     {"element":"#btnCobroMasivo","intro":"💰 Con <b>Cobro Masivo</b> registras un pago grande del cliente y lo repartes entre varias entregas a la vez.","position":"left"}
                 ]'
                 @endif>
@@ -83,7 +83,14 @@
     <div class="col-12">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Cobros por Entrega</h5>
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Cobros por Entrega</h5>
+                    @can('pagos_clientes.create')
+                    <button id="btnCobroMasivo" class="btn btn-success btn-sm" onclick="abrirCobroMasivo()">
+                        <i class="bi bi-cash-stack"></i> Cobro Masivo
+                    </button>
+                    @endcan
+                </div>
                 <p class="text-muted small mb-3">
                     <i class="bi bi-info-circle me-1"></i>
                     Lista de todos los camiones entregados a clientes. Si un camión no tiene precio/t registrado,
@@ -102,6 +109,15 @@
                         </select>
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-truck"></i> Filtrar por proveedor</label>
+                        <select class="form-select" id="filtro_proveedor" onchange="aplicarFiltros()">
+                            <option value="">— Todos los proveedores —</option>
+                            @foreach($proveedores as $prov)
+                                <option value="{{ $prov->id }}">{{ $prov->nombre }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label fw-semibold mb-1"><i class="bi bi-lock"></i> Estado de envíos</label>
                         <select class="form-select" id="filtro_envios" onchange="aplicarFiltros()">
                             <option value="">— Todos —</option>
@@ -114,13 +130,6 @@
                             <i class="bi bi-x-circle"></i> Limpiar
                         </button>
                     </div>
-                    @can('pagos_clientes.create')
-                    <div class="col-auto">
-                        <button id="btnCobroMasivo" class="btn btn-success btn-sm" onclick="abrirCobroMasivo()">
-                            <i class="bi bi-cash-stack"></i> Cobro Masivo
-                        </button>
-                    </div>
-                    @endcan
                     <div class="col-auto ms-auto">
                         <small class="text-muted">Mostrando <span id="lbl_count_visible">{{ $tramos->count() }}</span> entrega(s)</small>
                     </div>
@@ -136,10 +145,11 @@
                     </div>
                 @else
                 <div class="table-responsive">
-                    <table class="table table-hover table-bordered table-sm align-middle" id="tabla_cobros">
+                    <table class="table table-hover table-bordered table-sm align-middle" id="datos">
                         <thead class="table-light">
                             <tr>
                                 <th>Cliente</th>
+                                <th>Proveedor</th>
                                 <th>Contrato</th>
                                 <th>Camión</th>
                                 <th>Fecha entrega</th>
@@ -163,11 +173,20 @@
                                 $pct         = $deuda > 0 ? min(100, round($cobrado / $deuda * 100)) : 0;
                                 $rowClass    = $tienePrecio && $saldo <= 0 ? 'table-success' : ($tienePrecio ? '' : 'table-warning');
                             @endphp
-                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}">
-                                <td><strong>{{ $t->cliente->nombre ?? '—' }}</strong></td>
+                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id ?? '' }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}">
+                                <td>
+                                    <small class="d-inline-block text-truncate" style="max-width:140px;" title="{{ $t->cliente->nombre ?? '—' }}">
+                                        {{ $t->cliente->nombre ?? '—' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small class="d-inline-block text-truncate" style="max-width:140px;" title="{{ $t->contratoCamion->contrato->proveedor->nombre ?? '—' }}">
+                                        {{ $t->contratoCamion->contrato->proveedor->nombre ?? '—' }}
+                                    </small>
+                                </td>
                                 <td>
                                     <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid ?? '') }}"
-                                        class="text-decoration-none fw-semibold">
+                                        class="text-decoration-none fw-bold small">
                                         {{ $t->contratoCamion->contrato->numero_contrato ?? '—' }}
                                     </a>
                                 </td>
@@ -325,6 +344,7 @@
                                 {"element":"#cobro_metodo_pago","intro":"💳 <b>Método de Pago</b>. Si es transferencia, pedirá el código.","position":"bottom"},
                                 {"element":"#cobro_inp_monto","intro":"🔢 <b>Monto</b> cobrado. Si la moneda no es BOB, verás el equivalente en bolivianos.","position":"top"},
                                 {"element":"#cobro_fecha","intro":"📅 <b>Fecha del cobro</b>.","position":"top"},
+                                {"element":"#cobro_voucher","intro":"📎 <b>Voucher / Comprobante</b> (opcional): sube una foto o PDF del comprobante del cobro.","position":"top"},
                                 {"element":"#cobro_btn_guardar","intro":"💾 El botón <b>Registrar Cobro</b> se activa cuando completas todos los campos obligatorios.","position":"top"}
                             ]'>
                         <i class="bi bi-question-circle"></i> Ayuda
@@ -332,7 +352,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form id="formCobroCliente" method="POST" action="{{ route('pagos.clientes.store') }}">
+            <form id="formCobroCliente" method="POST" action="{{ route('pagos.clientes.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_idempotency_token" id="idempotencyTokenCobroCliente" value="{{ $idempotencyToken ?? '' }}">
                 <input type="hidden" name="tramo_id" id="cobro_tramo_id">
@@ -391,6 +411,7 @@
                                                 {{ $cta->nombre_cuenta }}
                                                 @if($cta->banco) — {{ $cta->banco->nombre }} @endif
                                                 [{{ $cta->moneda }}]
+                                                — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
                                             </option>
                                         @endforeach
                                     </optgroup>
@@ -457,6 +478,12 @@
                             <label class="form-label">Observaciones</label>
                             <textarea class="form-control" name="observaciones" id="cobro_obs" rows="2"
                                 maxlength="500" placeholder="Notas del cobro..." disabled></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Voucher / Comprobante <small class="text-muted">(opcional)</small></label>
+                            <input type="file" class="form-control" name="voucher" id="cobro_voucher" accept=".jpg,.jpeg,.png,.pdf" disabled>
+                            <div class="form-text">Imagen o PDF del comprobante de pago. Máximo 5 MB.</div>
                         </div>
 
                     </div>
@@ -728,25 +755,33 @@ const canDeleteCobro = {{ auth()->user()->can('pagos_clientes.destroy') ? 'true'
 
 let _clienteActual = null;
 
-// ===== Filtros de la tabla =====
+// ===== Filtros de la tabla (integrados con la paginación de DataTables) =====
+const tablaCobros = $('#datos').DataTable();
+
+$.fn.dataTable.ext.search.push(function (settings, data, dataIndex, rowData, counter) {
+    if (settings.nTable.id !== 'datos') return true;
+    const fila        = tablaCobros.row(dataIndex).node();
+    const clienteId   = document.getElementById('filtro_cliente').value;
+    const proveedorId = document.getElementById('filtro_proveedor').value;
+    const envios      = document.getElementById('filtro_envios').value;
+    const okCliente   = !clienteId || fila.dataset.clienteId === clienteId;
+    const okProveedor = !proveedorId || fila.dataset.proveedorId === proveedorId;
+    const okEnvios    = envios === '' || fila.dataset.enviosCerrados === envios;
+    return okCliente && okProveedor && okEnvios;
+});
+
+tablaCobros.on('draw', function () {
+    document.getElementById('lbl_count_visible').textContent = tablaCobros.rows({ search: 'applied' }).count();
+});
+
 function aplicarFiltros() {
-    const clienteId = document.getElementById('filtro_cliente').value;
-    const envios    = document.getElementById('filtro_envios').value;
-    const filas     = document.querySelectorAll('#tabla_cobros tbody tr');
-    let count = 0;
-    filas.forEach(function (fila) {
-        const okCliente = !clienteId || fila.dataset.clienteId === clienteId;
-        const okEnvios  = envios === '' || fila.dataset.enviosCerrados === envios;
-        const visible   = okCliente && okEnvios;
-        fila.style.display = visible ? '' : 'none';
-        if (visible) count++;
-    });
-    document.getElementById('lbl_count_visible').textContent = count;
+    tablaCobros.draw();
 }
 
 function limpiarFiltros() {
-    document.getElementById('filtro_cliente').value = '';
-    document.getElementById('filtro_envios').value  = '';
+    document.getElementById('filtro_cliente').value   = '';
+    document.getElementById('filtro_proveedor').value = '';
+    document.getElementById('filtro_envios').value    = '';
     aplicarFiltros();
 }
 
@@ -785,7 +820,7 @@ function _parseFmtC(v) {
 
 function _setCamposCobro(habilitado) {
     ['cobro_tipo_pago','cobro_cuenta_destino','cobro_metodo_pago',
-     'cobro_inp_monto_display','cobro_fecha','cobro_obs'].forEach(id => {
+     'cobro_inp_monto_display','cobro_fecha','cobro_obs','cobro_voucher'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = !habilitado;
     });
@@ -872,7 +907,7 @@ function toggleTipoCambio(moneda) {
         secEquiv.style.display = 'none';
         inpTCDisp.disabled = true;
         inpTCDisp.value    = '';
-        inpTC.value        = '';
+        inpTC.value        = '1';
         inpBob.value       = '1';
     } else {
         secTC.style.display = 'block';
@@ -1027,9 +1062,15 @@ function verDetalle(tramoId) {
                         ? `<span class="badge bg-danger ms-1" style="font-size:.65rem">ANULADO</span>`
                         : '';
                     const montoStyle = p.anulado ? 'text-decoration:line-through;opacity:.6' : '';
+                    const voucherBtn = p.tiene_voucher
+                        ? `<a href="/pagos/clientes/${p.uuid}/voucher" target="_blank"
+                               class="btn btn-sm btn-outline-secondary" title="Ver voucher">
+                               <i class="bi bi-paperclip"></i>
+                            </a>`
+                        : '';
                     const acciones = p.anulado
                         ? `<span class="text-muted small"><i class="bi bi-slash-circle me-1"></i>Anulado</span>`
-                        : (canDeleteCobro
+                        : voucherBtn + (canDeleteCobro
                             ? `<a href="/pagos/clientes/${p.uuid}/destroy"
                                    class="btn btn-sm btn-outline-danger"
                                    onclick="return confirm('¿Anular este cobro? Se revertirá el movimiento en tesorería.')">

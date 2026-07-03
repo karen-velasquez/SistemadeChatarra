@@ -583,7 +583,7 @@
     }
 
     function toneladasCargar(valor) {
-        _cargarCampo('toneladas_contrato_display', 'toneladas_contrato', valor, 3);
+        _cargarCampo('toneladas_contrato_display', 'toneladas_contrato', valor, 2);
     }
 
     function costoUnitarioCargar(valor) {
@@ -603,10 +603,10 @@
 
         // Toneladas
         document.getElementById('toneladas_contrato_display').addEventListener('input', function (e) {
-            _cajeroOnInput(e, 'toneladas_contrato', 3, _onToneladasChange);
+            _cajeroOnInput(e, 'toneladas_contrato', 2, _onToneladasChange);
         });
         document.getElementById('toneladas_contrato_display').addEventListener('blur', function () {
-            _cajeroBlur('toneladas_contrato_display', 'toneladas_contrato', 3);
+            _cajeroBlur('toneladas_contrato_display', 'toneladas_contrato', 2);
             _onToneladasChange();
         });
 

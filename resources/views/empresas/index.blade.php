@@ -200,11 +200,10 @@
                     <div class="d-flex flex-column gap-1 mt-1 flex-grow-1">
                         @foreach($cuentasOrden as $cuenta)
                         @php $pctCuenta = $saldoEmpresa > 0 ? min(100, round($cuenta->saldo_actual / $saldoEmpresa * 100)) : 0; @endphp
-                        <a href="{{ route('tesoreria.cuenta', $cuenta->uuid) }}" class="text-decoration-none">
-                            <div class="rounded border px-2 py-2 {{ !$cuenta->activo ? 'opacity-50' : '' }}"
-                                 style="background:#f8f9fa; transition:background .15s;"
-                                 onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
-                                <div class="d-flex justify-content-between align-items-start mb-1">
+                        <div class="rounded border px-2 py-2 {{ !$cuenta->activo ? 'opacity-50' : '' }}"
+                             style="background:#f8f9fa; transition:background .15s;">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <a href="{{ route('tesoreria.cuenta', $cuenta->uuid) }}" class="text-decoration-none flex-grow-1 me-2">
                                     <div>
                                         <div class="small fw-semibold text-dark d-flex align-items-center gap-1">
                                             <i class="bi bi-wallet2 text-primary"></i>
@@ -226,7 +225,9 @@
                                         </div>
                                         @endif
                                     </div>
-                                    <div class="text-end ms-2 flex-shrink-0">
+                                </a>
+                                <div class="d-flex align-items-start gap-2 flex-shrink-0">
+                                    <div class="text-end">
                                         <div class="small fw-bold {{ $cuenta->saldo_actual >= 0 ? 'text-success' : 'text-danger' }}">
                                             BOB {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}
                                         </div>
@@ -234,14 +235,22 @@
                                         <div class="text-muted" style="font-size:.65rem">{{ $pctCuenta }}%</div>
                                         @endif
                                     </div>
+                                    @can('empresas.edit')
+                                    <button class="btn btn-outline-secondary btn-sm p-0 px-1"
+                                            onclick="editarCuenta('{{ $cuenta->uuid }}')"
+                                            title="Editar cuenta"
+                                            style="font-size:.7rem; line-height:1.4;">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @endcan
                                 </div>
-                                @if($saldoEmpresa > 0 && $cuenta->activo)
-                                <div class="progress" style="height:3px;">
-                                    <div class="progress-bar bg-info" style="width:{{ $pctCuenta }}%"></div>
-                                </div>
-                                @endif
                             </div>
-                        </a>
+                            @if($saldoEmpresa > 0 && $cuenta->activo)
+                            <div class="progress" style="height:3px;">
+                                <div class="progress-bar bg-info" style="width:{{ $pctCuenta }}%"></div>
+                            </div>
+                            @endif
+                        </div>
                         @endforeach
                     </div>
                     @else
@@ -268,6 +277,60 @@
         @endforelse
     </div>
 </section>
+
+{{-- MODAL EDITAR CUENTA --}}
+<div class="modal fade" id="modalEditarCuenta" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header position-relative">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Editar Cuenta</h5>
+                <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-3" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarCuenta" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nombre de la cuenta <span class="text-danger">*</span></label>
+                            <input type="text" name="nombre_cuenta" id="ec_nombre_cuenta" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Banco <span class="text-danger">*</span></label>
+                            <select name="banco_id" id="ec_banco" class="form-select" required>
+                                <option value="">-- Seleccione un banco --</option>
+                                @foreach($bancos as $banco)
+                                    <option value="{{ $banco->id }}">{{ $banco->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">N° de cuenta <span class="text-danger">*</span></label>
+                            <input type="text" name="numero_cuenta" id="ec_numero_cuenta" class="form-control font-monospace"
+                                inputmode="numeric" maxlength="20" required
+                                oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,20)">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Estado</label>
+                            <select name="activo" id="ec_activo" class="form-select">
+                                <option value="1">Activa</option>
+                                <option value="0">Inactiva</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            <textarea name="descripcion" id="ec_descripcion" class="form-control" rows="2" maxlength="500"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnGuardarEditarCuenta"><i class="bi bi-save me-1"></i>Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 {{-- MODAL NUEVA CUENTA --}}
 <div class="modal fade" id="modalNuevaCuenta" tabindex="-1">
@@ -855,6 +918,28 @@ function verInfoEmpresa(uuid) {
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalInfoEmpresa')).show();
         });
 }
+function editarCuenta(uuid) {
+    fetch(url_global + '/empresas/cuenta/' + uuid + '/edit')
+        .then(r => r.json())
+        .then(c => {
+            document.getElementById('formEditarCuenta').action = url_global + '/empresas/cuenta/' + uuid;
+            document.getElementById('ec_nombre_cuenta').value  = c.nombre_cuenta ?? '';
+            document.getElementById('ec_banco').value          = c.banco_id ?? '';
+            document.getElementById('ec_numero_cuenta').value  = c.numero_cuenta ?? '';
+            document.getElementById('ec_activo').value         = c.activo ? '1' : '0';
+            document.getElementById('ec_descripcion').value    = c.descripcion ?? '';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCuenta')).show();
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('formEditarCuenta').addEventListener('submit', function(e) {
+        var btn = document.getElementById('btnGuardarEditarCuenta');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    });
+});
+
 // ── Cajero saldo inicial nueva cuenta ──
 (function() {
     var display = document.getElementById('nc_saldo_inicial_display');

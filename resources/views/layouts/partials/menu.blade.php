@@ -73,7 +73,7 @@
           <li>
             <a href="{{ route('pagos.proveedores.index') }}"
                class="{{ isActiveRoute(['pagos.proveedores.index']) ? 'active' : '' }}">
-              <i class="bi bi-cash-stack"></i><span>Historial Pagos</span>
+              <i class="bi bi-cash-stack"></i><span>Pagos a proveedores</span>
             </a>
           </li>
           @endcan
