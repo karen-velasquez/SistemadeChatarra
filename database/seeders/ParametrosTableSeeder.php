@@ -111,6 +111,24 @@ class ParametrosTableSeeder extends Seeder
         Parametro::create(['tipo' => 'camion_tipo', 'descripcion' => 'Camioneta', 'valor' => 'CAMIONETA']);
         Parametro::create(['tipo' => 'camion_tipo', 'descripcion' => 'Otro', 'valor' => 'OTRO']);
 
+        // Tipos de bien (Créditos y Adquisiciones)
+        Parametro::firstOrCreate(['tipo' => 'bien_tipo', 'valor' => 'CAMIONES'], ['descripcion' => 'Camiones y unidades de transporte']);
+        Parametro::firstOrCreate(['tipo' => 'bien_tipo', 'valor' => 'VEHICULO_LIVIANO'], ['descripcion' => 'Auto, camioneta u otro vehículo liviano']);
+        Parametro::firstOrCreate(['tipo' => 'bien_tipo', 'valor' => 'MAQUINARIA'], ['descripcion' => 'Maquinaria y equipo pesado']);
+        Parametro::firstOrCreate(['tipo' => 'bien_tipo', 'valor' => 'INMUEBLE'], ['descripcion' => 'Terrenos, oficinas, galpones']);
+        Parametro::firstOrCreate(['tipo' => 'bien_tipo', 'valor' => 'ARTEFACTO'], ['descripcion' => 'Artefactos y equipos varios']);
+        Parametro::firstOrCreate(['tipo' => 'bien_tipo', 'valor' => 'OTRO'], ['descripcion' => 'Otro tipo de bien']);
+
+        // Países de origen para adquisiciones/importaciones (Bolivia y limítrofes primero, se puede ampliar)
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'BOLIVIA'], ['descripcion' => 'Bolivia']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'BRASIL'], ['descripcion' => 'Brasil']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'CHILE'], ['descripcion' => 'Chile']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'ARGENTINA'], ['descripcion' => 'Argentina']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'PARAGUAY'], ['descripcion' => 'Paraguay']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'PERU'], ['descripcion' => 'Perú']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'CHINA'], ['descripcion' => 'China']);
+        Parametro::firstOrCreate(['tipo' => 'pais_exportacion', 'valor' => 'ESTADOS_UNIDOS'], ['descripcion' => 'Estados Unidos']);
+
         // Países de Sudamérica para documentos (primero Bolivia y limítrofes, luego los demás)
         Parametro::create(['tipo' => 'pais_documento', 'descripcion' => 'Bolivia', 'valor' => 'BOLIVIA']);
         Parametro::create(['tipo' => 'pais_documento', 'descripcion' => 'Perú', 'valor' => 'PERU']);

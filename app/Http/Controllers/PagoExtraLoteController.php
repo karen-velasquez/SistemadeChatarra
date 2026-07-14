@@ -6,6 +6,7 @@ use App\Models\LoteEntrega;
 use App\Models\Movimiento;
 use App\Models\PagoExtraLote;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class PagoExtraLoteController extends Controller
@@ -47,44 +48,30 @@ class PagoExtraLoteController extends Controller
         $codigoSeguimiento = $request->codigo_seguimiento
             ?: $prefijo . '-' . $lote->codigo . '-' . now()->format('Ymd') . '-' . strtoupper(substr(uniqid(), -5));
 
-        $pago = PagoExtraLote::create([
-            'lote_entrega_id'    => $lote->id,
-            'cuenta_origen_id'   => $request->cuenta_origen_id,
-            'monto'              => $request->monto,
-            'moneda'             => $request->moneda,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'monto_bolivianos'   => $montoBs,
-            'fecha'              => $request->fecha,
-            'metodo_pago'        => $metodo,
-            'codigo_seguimiento' => $codigoSeguimiento,
-            'descripcion'        => $request->descripcion,
-            'created_by'         => auth()->id(),
-            'updated_by'         => auth()->id(),
-        ]);
+        DB::transaction(function () use ($request, $lote, $montoBs, $metodo, $codigoSeguimiento) {
+            $pago = PagoExtraLote::create([
+                'lote_entrega_id'    => $lote->id,
+                'cuenta_origen_id'   => $request->cuenta_origen_id,
+                'monto'              => $request->monto,
+                'moneda'             => $request->moneda,
+                'tipo_cambio'        => $request->tipo_cambio,
+                'monto_bolivianos'   => $montoBs,
+                'fecha'              => $request->fecha,
+                'metodo_pago'        => $metodo,
+                'codigo_seguimiento' => $codigoSeguimiento,
+                'descripcion'        => $request->descripcion,
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
+            ]);
 
-        $concepto = 'Pago extra lote ' . ($lote->codigo ?? "#{$lote->id}")
-            . ' — ' . $lote->proveedor->nombre
-            . ' (Sem. ' . $lote->numero_semana . '/' . $lote->anio
-            . ', ' . $lote->fecha_inicio->format('d/m') . ' al ' . $lote->fecha_fin->format('d/m/Y') . ')'
-            . ($request->descripcion ? ': ' . $request->descripcion : '');
+            $concepto = 'Pago extra lote ' . ($lote->codigo ?? "#{$lote->id}")
+                . ' — ' . $lote->proveedor->nombre
+                . ' (Sem. ' . $lote->numero_semana . '/' . $lote->anio
+                . ', ' . $lote->fecha_inicio->format('d/m') . ' al ' . $lote->fecha_fin->format('d/m/Y') . ')'
+                . ($request->descripcion ? ': ' . $request->descripcion : '');
 
-        Movimiento::create([
-            'cuenta_empresa_id'  => $request->cuenta_origen_id,
-            'tipo'               => 'egreso',
-            'categoria'          => 'pago_proveedor',
-            'monto'              => $request->monto,
-            'moneda'             => $request->moneda,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'monto_bolivianos'   => $montoBs,
-            'fecha'              => $request->fecha,
-            'concepto'           => $concepto,
-            'codigo_seguimiento' => $codigoSeguimiento,
-            'observaciones'      => $request->descripcion,
-            'origen_type'        => PagoExtraLote::class,
-            'origen_id'          => $pago->id,
-            'created_by'         => auth()->id(),
-            'updated_by'         => auth()->id(),
-        ]);
+            Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, $concepto, $request->descripcion);
+        });
 
         Alert::success('Pago registrado', 'El pago extra fue registrado y reflejado en movimientos.');
         return back();
@@ -94,9 +81,12 @@ class PagoExtraLoteController extends Controller
     {
         $pago = PagoExtraLote::where('uuid', $uuid)->firstOrFail();
 
-        // Eliminar movimiento asociado (revierte el saldo automáticamente via booted())
-        $pago->movimiento()->delete();
-        $pago->delete();
+        // Eliminar movimiento asociado. Debe borrarse modelo por modelo (each) para
+        // disparar los eventos de booted() que revierten el saldo; un delete() masivo no los dispara.
+        DB::transaction(function () use ($pago) {
+            $pago->movimiento()->each(fn($m) => $m->delete());
+            $pago->delete();
+        });
 
         Alert::success('Eliminado', 'El pago extra fue eliminado y el movimiento revertido.');
         return back();

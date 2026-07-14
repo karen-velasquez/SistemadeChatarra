@@ -11,6 +11,7 @@ use App\Models\Movimiento;
 use App\Models\Cliente;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 use Carbon\Carbon;
@@ -114,50 +115,36 @@ class PagoClienteController extends Controller
             $codigo = $request->codigo_seguimiento ?: null;
         }
 
-        $pago = PagoCliente::create([
-            'tramo_id'           => $request->tramo_id,
-            'tipo_pago'          => $request->tipo_pago,
-            'monto'              => $request->monto,
-            'moneda_pago'        => $request->moneda_pago,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'codigo_seguimiento' => $codigo,
-            'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
-            'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
-            'observaciones'      => $request->observaciones ?: null,
-            'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_cliente', 'public') : null,
-            'created_by'         => auth()->id(),
-            'updated_by'         => auth()->id(),
-        ]);
-
-        // Registrar movimiento en tesorería si se seleccionó cuenta destino
-        if ($request->cuenta_destino_id) {
-            $tramo = Tramo::find($request->tramo_id);
-            $conceptoDetalle = ($tramo->cliente->nombre ?? 'Cliente');
-            $conceptoDetalle .= ' - Tramo ' . ($tramo->origen ?? '') . ' → ' . ($tramo->destino ?? '');
-            if ($tramo->peso_llegada) {
-                $conceptoDetalle .= ' (' . number_format($tramo->peso_llegada, 2) . ' t)';
-            }
-
-            Movimiento::create([
-                'cuenta_empresa_id'  => $request->cuenta_destino_id,
-                'tipo'               => 'ingreso',
-                'categoria'          => 'pago_cliente',
+        DB::transaction(function () use ($request, $codigo) {
+            $pago = PagoCliente::create([
+                'tramo_id'           => $request->tramo_id,
+                'tipo_pago'          => $request->tipo_pago,
                 'monto'              => $request->monto,
-                'moneda'             => $request->moneda_pago,
+                'moneda_pago'        => $request->moneda_pago,
                 'tipo_cambio'        => $request->tipo_cambio,
-                'monto_bolivianos'   => $request->monto * $request->tipo_cambio,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Cobro cliente: ' . $conceptoDetalle,
+                'fecha_pago'         => $request->fecha_pago,
+                'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $codigo,
-                'observaciones'      => $request->observaciones,
-                'origen_type'        => PagoCliente::class,
-                'origen_id'          => $pago->id,
+                'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
+                'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
+                'observaciones'      => $request->observaciones ?: null,
+                'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_cliente', 'public') : null,
                 'created_by'         => auth()->id(),
                 'updated_by'         => auth()->id(),
             ]);
-        }
+
+            // Registrar movimiento en tesorería si se seleccionó cuenta destino
+            if ($request->cuenta_destino_id) {
+                $tramo = Tramo::find($request->tramo_id);
+                $conceptoDetalle = ($tramo->cliente->nombre ?? 'Cliente');
+                $conceptoDetalle .= ' - Tramo ' . ($tramo->origen ?? '') . ' → ' . ($tramo->destino ?? '');
+                if ($tramo->peso_llegada) {
+                    $conceptoDetalle .= ' (' . number_format($tramo->peso_llegada, 2) . ' t)';
+                }
+
+                Movimiento::registrarDePago($pago, 'ingreso', 'pago_cliente', $request->cuenta_destino_id, 'Cobro cliente: ' . $conceptoDetalle, $request->observaciones);
+            }
+        });
 
         Alert::success('Éxito', 'Pago del cliente registrado correctamente.');
         return redirect()->route('pagos.clientes.index');
@@ -220,102 +207,92 @@ class PagoClienteController extends Controller
         $tramos        = Tramo::whereIn('id', $request->tramo_ids)
                             ->where('cliente_id', $request->cliente_id)
                             ->get();
-        $montoRestante = round((float) $request->monto_total, 2);
-        $lineas        = []; // resumen para mostrar al usuario
 
-        foreach ($tramos as $tramo) {
-            if ($montoRestante <= 0) break;
+        $lineas = DB::transaction(function () use ($request, $cliente, $monedaPago, $tipoCambio, $codigo, $tramos) {
+            $montoRestante = round((float) $request->monto_total, 2);
+            $lineas        = []; // resumen para mostrar al usuario
+            $cuentaOrigenInfo = null;
 
-            $saldo = $tramo->saldo_cliente;
-            if ($saldo <= 0) continue;
+            foreach ($tramos as $tramo) {
+                if ($montoRestante <= 0) break;
 
-            $montoPago     = min($saldo, $montoRestante);
-            $montoRestante = round($montoRestante - $montoPago, 2);
-            $esFinal       = round($montoPago, 2) >= round($saldo, 2);
-            $contrato      = $tramo->contratoCamion->contrato->numero_contrato ?? '—';
-            $camion        = $tramo->contratoCamion->camion->placa ?? '—';
+                $saldo = $tramo->saldo_cliente;
+                if ($saldo <= 0) continue;
 
-            // Info de cuenta origen para el concepto del movimiento
-            $cuentaOrigen     = $request->cuenta_origen_id
-                ? \App\Models\CuentaBancaria::with('banco')->find($request->cuenta_origen_id)
-                : null;
-            $cuentaOrigenInfo = $cuentaOrigen
-                ? (($cuentaOrigen->banco->nombre ?? '') . ' ' . $cuentaOrigen->numero_cuenta)
-                : null;
+                $montoPago     = min($saldo, $montoRestante);
+                $montoRestante = round($montoRestante - $montoPago, 2);
+                $esFinal       = round($montoPago, 2) >= round($saldo, 2);
+                $contrato      = $tramo->contratoCamion->contrato->numero_contrato ?? '—';
+                $camion        = $tramo->contratoCamion->camion->placa ?? '—';
 
-            $pago = PagoCliente::create([
-                'tramo_id'           => $tramo->id,
-                'tipo_pago'          => $esFinal ? 'pago_final' : 'adelanto',
-                'monto'              => $montoPago,
-                'moneda_pago'        => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
-                'fecha_pago'         => $request->fecha_pago,
-                'metodo_pago'        => $request->metodo_pago,
-                'codigo_seguimiento' => $codigo,
-                'cuenta_origen_id'   => $request->cuenta_origen_id,
-                'cuenta_destino_id'  => $request->cuenta_destino_id,
-                'observaciones'      => $request->observaciones ?: null,
-                'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
-            ]);
+                // Info de cuenta origen para el concepto del movimiento
+                $cuentaOrigen     = $request->cuenta_origen_id
+                    ? \App\Models\CuentaBancaria::with('banco')->find($request->cuenta_origen_id)
+                    : null;
+                $cuentaOrigenInfo = $cuentaOrigen
+                    ? (($cuentaOrigen->banco->nombre ?? '') . ' ' . $cuentaOrigen->numero_cuenta)
+                    : null;
 
-            $obs = 'Ref: ' . $codigo;
-            if ($cuentaOrigenInfo) $obs .= ' | Desde: ' . $cuentaOrigenInfo . ' (' . $cliente->nombre . ')';
-            if ($request->observaciones) $obs .= ' | ' . $request->observaciones;
+                $pago = PagoCliente::create([
+                    'tramo_id'           => $tramo->id,
+                    'tipo_pago'          => $esFinal ? 'pago_final' : 'adelanto',
+                    'monto'              => $montoPago,
+                    'moneda_pago'        => $monedaPago,
+                    'tipo_cambio'        => $tipoCambio,
+                    'fecha_pago'         => $request->fecha_pago,
+                    'metodo_pago'        => $request->metodo_pago,
+                    'codigo_seguimiento' => $codigo,
+                    'cuenta_origen_id'   => $request->cuenta_origen_id,
+                    'cuenta_destino_id'  => $request->cuenta_destino_id,
+                    'observaciones'      => $request->observaciones ?: null,
+                    'created_by'         => auth()->id(),
+                    'updated_by'         => auth()->id(),
+                ]);
 
-            Movimiento::create([
-                'cuenta_empresa_id'  => $request->cuenta_destino_id,
-                'tipo'               => 'ingreso',
-                'categoria'          => 'pago_cliente',
-                'monto'              => $montoPago,
-                'moneda'             => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
-                'monto_bolivianos'   => $montoPago * $tipoCambio,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Cobro cliente: ' . $cliente->nombre . ' — ' . $contrato . ' (' . $camion . ')',
-                'codigo_seguimiento' => $codigo,
-                'observaciones'      => $obs,
-                'origen_type'        => PagoCliente::class,
-                'origen_id'          => $pago->id,
-                'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
-            ]);
+                $obs = 'Ref: ' . $codigo;
+                if ($cuentaOrigenInfo) $obs .= ' | Desde: ' . $cuentaOrigenInfo . ' (' . $cliente->nombre . ')';
+                if ($request->observaciones) $obs .= ' | ' . $request->observaciones;
 
-            $lineas[] = [
-                'tipo'     => $esFinal ? 'Pago final' : 'Parcial',
-                'contrato' => $contrato,
-                'camion'   => $camion,
-                'monto'    => $monedaPago . ' ' . number_format($montoPago, 2),
-            ];
-        }
+                Movimiento::registrarDePago($pago, 'ingreso', 'pago_cliente', $request->cuenta_destino_id, 'Cobro cliente: ' . $cliente->nombre . ' — ' . $contrato . ' (' . $camion . ')', $obs);
 
-        // Excedente → anticipo
-        if ($montoRestante > 0.009) {
-            Movimiento::create([
-                'cuenta_empresa_id'  => $request->cuenta_destino_id,
-                'tipo'               => 'ingreso',
-                'categoria'          => 'anticipo_cliente',
-                'monto'              => $montoRestante,
-                'moneda'             => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
-                'monto_bolivianos'   => $montoRestante * $tipoCambio,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Anticipo sin aplicar — ' . $cliente->nombre,
-                'codigo_seguimiento' => $codigo,
-                'observaciones'      => 'Ref: ' . $codigo
-                    . (isset($cuentaOrigenInfo) ? ' | Desde: ' . $cuentaOrigenInfo . ' (' . $cliente->nombre . ')' : '')
-                    . ' | Excedente pendiente de justificar.',
-                'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
-            ]);
+                $lineas[] = [
+                    'tipo'     => $esFinal ? 'Pago final' : 'Parcial',
+                    'contrato' => $contrato,
+                    'camion'   => $camion,
+                    'monto'    => $monedaPago . ' ' . number_format($montoPago, 2),
+                ];
+            }
 
-            $lineas[] = [
-                'tipo'     => 'Anticipo (excedente)',
-                'contrato' => '—',
-                'camion'   => '—',
-                'monto'    => $monedaPago . ' ' . number_format($montoRestante, 2),
-            ];
-        }
+            // Excedente → anticipo
+            if ($montoRestante > 0.009) {
+                Movimiento::create([
+                    'cuenta_empresa_id'  => $request->cuenta_destino_id,
+                    'tipo'               => 'ingreso',
+                    'categoria'          => 'anticipo_cliente',
+                    'monto'              => $montoRestante,
+                    'moneda'             => $monedaPago,
+                    'tipo_cambio'        => $tipoCambio,
+                    'monto_bolivianos'   => $montoRestante * $tipoCambio,
+                    'fecha'              => $request->fecha_pago,
+                    'concepto'           => 'Anticipo sin aplicar — ' . $cliente->nombre,
+                    'codigo_seguimiento' => $codigo,
+                    'observaciones'      => 'Ref: ' . $codigo
+                        . ($cuentaOrigenInfo ? ' | Desde: ' . $cuentaOrigenInfo . ' (' . $cliente->nombre . ')' : '')
+                        . ' | Excedente pendiente de justificar.',
+                    'created_by'         => auth()->id(),
+                    'updated_by'         => auth()->id(),
+                ]);
+
+                $lineas[] = [
+                    'tipo'     => 'Anticipo (excedente)',
+                    'contrato' => '—',
+                    'camion'   => '—',
+                    'monto'    => $monedaPago . ' ' . number_format($montoRestante, 2),
+                ];
+            }
+
+            return $lineas;
+        });
 
         // Pasar resumen a la vista para mostrarlo
         session()->flash('cobro_masivo_resumen', [
@@ -332,11 +309,14 @@ class PagoClienteController extends Controller
     {
         $pago = PagoCliente::where('uuid', $uuid)->firstOrFail();
 
-        Movimiento::where('origen_type', PagoCliente::class)
-            ->where('origen_id', $pago->id)
-            ->each(fn($m) => $m->delete());
+        DB::transaction(function () use ($pago) {
+            Movimiento::where('origen_type', PagoCliente::class)
+                ->where('origen_id', $pago->id)
+                ->each(fn($m) => $m->delete());
 
-        $pago->delete();
+            $pago->delete();
+        });
+
         Alert::success('Éxito', 'Cobro eliminado y movimiento en tesorería revertido.');
         return redirect()->route('pagos.clientes.index');
     }
@@ -357,52 +337,54 @@ class PagoClienteController extends Controller
         $montoAnterior = $pago->monto;
         $diferencia    = round((float)$request->monto - $montoAnterior, 2);
 
-        $pago->update([
-            'tipo_pago'          => $request->tipo_pago,
-            'monto'              => $request->monto,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'codigo_seguimiento' => $request->codigo_seguimiento ?: $pago->codigo_seguimiento,
-            'observaciones'      => $request->observaciones,
-            'updated_by'         => auth()->id(),
-        ]);
+        DB::transaction(function () use ($request, $pago, $montoAnterior, $diferencia) {
+            $pago->update([
+                'tipo_pago'          => $request->tipo_pago,
+                'monto'              => $request->monto,
+                'fecha_pago'         => $request->fecha_pago,
+                'metodo_pago'        => $request->metodo_pago,
+                'codigo_seguimiento' => $request->codigo_seguimiento ?: $pago->codigo_seguimiento,
+                'observaciones'      => $request->observaciones,
+                'updated_by'         => auth()->id(),
+            ]);
 
-        // Ajuste en tesorería solo si el monto cambió
-        if ($diferencia != 0) {
-            $movOrig = Movimiento::where('origen_type', PagoCliente::class)
-                ->where('origen_id', $pago->id)
-                ->whereNull('deleted_at')
-                ->first();
+            // Ajuste en tesorería solo si el monto cambió
+            if ($diferencia != 0) {
+                $movOrig = Movimiento::where('origen_type', PagoCliente::class)
+                    ->where('origen_id', $pago->id)
+                    ->whereNull('deleted_at')
+                    ->first();
 
-            if ($movOrig) {
-                // Actualizar el movimiento original
-                $movOrig->update([
-                    'monto'            => $request->monto,
-                    'monto_bolivianos' => $request->monto * $pago->tipo_cambio,
-                    'fecha'            => $request->fecha_pago,
-                    'updated_by'       => auth()->id(),
-                ]);
+                if ($movOrig) {
+                    // Actualizar el movimiento original
+                    $movOrig->update([
+                        'monto'            => $request->monto,
+                        'monto_bolivianos' => $request->monto * $pago->tipo_cambio,
+                        'fecha'            => $request->fecha_pago,
+                        'updated_by'       => auth()->id(),
+                    ]);
 
-                // Registrar movimiento de ajuste para trazabilidad
-                $tipoAjuste = $diferencia > 0 ? 'ingreso' : 'egreso';
-                Movimiento::create([
-                    'cuenta_empresa_id' => $movOrig->cuenta_empresa_id,
-                    'tipo'              => $tipoAjuste,
-                    'categoria'         => 'otro',
-                    'monto'             => abs($diferencia),
-                    'moneda'            => $pago->moneda_pago,
-                    'tipo_cambio'       => $pago->tipo_cambio,
-                    'monto_bolivianos'  => abs($diferencia) * $pago->tipo_cambio,
-                    'fecha'             => now()->toDateString(),
-                    'concepto'          => 'Ajuste cobro cliente — ' . ($pago->codigo_seguimiento ?? 'uuid:' . $pago->uuid),
-                    'observaciones'     => 'Monto anterior: ' . $pago->moneda_pago . ' ' . number_format($montoAnterior, 2) . ' → nuevo: ' . $pago->moneda_pago . ' ' . number_format($request->monto, 2),
-                    'origen_type'       => PagoCliente::class,
-                    'origen_id'         => $pago->id,
-                    'created_by'        => auth()->id(),
-                    'updated_by'        => auth()->id(),
-                ]);
+                    // Registrar movimiento de ajuste para trazabilidad
+                    $tipoAjuste = $diferencia > 0 ? 'ingreso' : 'egreso';
+                    Movimiento::create([
+                        'cuenta_empresa_id' => $movOrig->cuenta_empresa_id,
+                        'tipo'              => $tipoAjuste,
+                        'categoria'         => 'otro',
+                        'monto'             => abs($diferencia),
+                        'moneda'            => $pago->moneda_pago,
+                        'tipo_cambio'       => $pago->tipo_cambio,
+                        'monto_bolivianos'  => abs($diferencia) * $pago->tipo_cambio,
+                        'fecha'             => now()->toDateString(),
+                        'concepto'          => 'Ajuste cobro cliente — ' . ($pago->codigo_seguimiento ?? 'uuid:' . $pago->uuid),
+                        'observaciones'     => 'Monto anterior: ' . $pago->moneda_pago . ' ' . number_format($montoAnterior, 2) . ' → nuevo: ' . $pago->moneda_pago . ' ' . number_format($request->monto, 2),
+                        'origen_type'       => PagoCliente::class,
+                        'origen_id'         => $pago->id,
+                        'created_by'        => auth()->id(),
+                        'updated_by'        => auth()->id(),
+                    ]);
+                }
             }
-        }
+        });
 
         return response()->json(['ok' => true]);
     }

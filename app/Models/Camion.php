@@ -26,6 +26,8 @@ class Camion extends Model implements Auditable
         'capacidad_kg',
         'color',
         'estado',
+        'es_propio',
+        'kilometraje_actual',
         'documento_ruat',
         'propietario_id',
         'created_by',
@@ -80,5 +82,21 @@ class Camion extends Model implements Auditable
     public function fotos()
     {
         return $this->hasMany(CamionFoto::class, 'camion_id');
+    }
+
+    // ===== Unidades propias =====
+    public function documentos()
+    {
+        return $this->hasMany(CamionDocumento::class, 'camion_id');
+    }
+
+    public function mantenimientos()
+    {
+        return $this->hasMany(CamionMantenimiento::class, 'camion_id');
+    }
+
+    public function planMantenimientos()
+    {
+        return $this->hasMany(CamionPlanMantenimiento::class, 'camion_id');
     }
 }

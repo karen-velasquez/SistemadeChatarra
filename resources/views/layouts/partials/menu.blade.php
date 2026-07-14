@@ -90,8 +90,8 @@
       @endif
 
       {{-- TRANSPORTE --}}
-      @php $enTransporte = request()->routeIs(['camiones.index','seguimiento.index','pagos.camiones.index','pagos.camiones.pago_masivo']); @endphp
-      @if(auth()->user()->can('camiones.index') || auth()->user()->can('seguimiento.index') || auth()->user()->can('pagos_camiones.index'))
+      @php $enTransporte = request()->routeIs(['camiones.index','unidades.*','seguimiento.index','pagos.camiones.index','pagos.camiones.pago_masivo']); @endphp
+      @if(auth()->user()->can('camiones.index') || auth()->user()->can('unidades.index') || auth()->user()->can('seguimiento.index') || auth()->user()->can('pagos_camiones.index'))
       <li class="nav-item">
         <a class="nav-link {{ $enTransporte ? '' : 'collapsed' }}"
            data-sidebar-target="menu-transporte" href="#">
@@ -106,6 +106,14 @@
             <a href="{{ route('camiones.index') }}"
                class="{{ isActiveRoute(['camiones.index']) ? 'active' : '' }}">
               <i class="bi bi-truck-front"></i><span>Camiones</span>
+            </a>
+          </li>
+          @endcan
+          @can('unidades.index')
+          <li>
+            <a href="{{ route('unidades.index') }}"
+               class="{{ isActiveRoute(['unidades.index','unidades.show']) ? 'active' : '' }}">
+              <i class="bi bi-truck-flatbed"></i><span>Unidades Propias</span>
             </a>
           </li>
           @endcan
@@ -171,7 +179,7 @@
 
       {{-- TESORERÍA --}}
       @can('empresas.index')
-      @php $enTesoreria = request()->routeIs(['tesoreria.*','empresas.*','prestamos_internos.*','lotes_pago.*']); @endphp
+      @php $enTesoreria = request()->routeIs(['tesoreria.*','empresas.*','prestamos_internos.*','lotes_pago.*','adquisiciones.*']); @endphp
       <li class="nav-item">
         <a class="nav-link {{ $enTesoreria ? '' : 'collapsed' }}"
            data-sidebar-target="menu-tesoreria" href="#">
@@ -205,6 +213,14 @@
               <i class="bi bi-collection"></i><span>Lotes de Pago</span>
             </a>
           </li>
+          @can('adquisiciones.index')
+          <li>
+            <a href="{{ route('adquisiciones.index') }}"
+               class="{{ isActiveRoute(['adquisiciones.index','adquisiciones.show']) ? 'active' : '' }}">
+              <i class="bi bi-credit-card"></i><span>Créditos y Adquisiciones</span>
+            </a>
+          </li>
+          @endcan
         </ul>
       </li>
       @endcan

@@ -59,6 +59,30 @@ class Movimiento extends Model
         });
     }
 
+    // Movimiento de tesorería espejo de un pago (PagoCliente, PagoProveedor, PagoCamion, PagoExtraLote):
+    // monto, moneda, tipo de cambio, fecha, código y lote salen del propio pago.
+    // monto_bolivianos lo calcula el hook creating().
+    public static function registrarDePago(Model $pago, string $tipo, string $categoria, $cuentaEmpresaId, string $concepto, ?string $observaciones = null): self
+    {
+        return self::create([
+            'lote_pago_id'       => $pago->lote_pago_id ?? null,
+            'cuenta_empresa_id'  => $cuentaEmpresaId,
+            'tipo'               => $tipo,
+            'categoria'          => $categoria,
+            'monto'              => $pago->monto,
+            'moneda'             => $pago->moneda_pago ?? $pago->moneda,
+            'tipo_cambio'        => $pago->tipo_cambio,
+            'fecha'              => $pago->fecha_pago ?? $pago->fecha,
+            'concepto'           => $concepto,
+            'codigo_seguimiento' => $pago->codigo_seguimiento,
+            'observaciones'      => $observaciones,
+            'origen_type'        => get_class($pago),
+            'origen_id'          => $pago->id,
+            'created_by'         => auth()->id(),
+            'updated_by'         => auth()->id(),
+        ]);
+    }
+
     public function cuentaEmpresa()
     {
         return $this->belongsTo(CuentaEmpresa::class, 'cuenta_empresa_id');

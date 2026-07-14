@@ -11,6 +11,7 @@ use App\Models\Empresa;
 use App\Models\Movimiento;
 use App\Models\Proveedor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -72,49 +73,35 @@ class PagoProveedorController extends Controller
             'metodo_pago.required' => 'Debe indicar el método de pago.',
         ]);
 
-        $pago = PagoProveedor::create([
-            'contrato_id'        => $request->contrato_id,
-            'tipo_pago'          => $request->tipo_pago,
-            'monto'              => $request->monto,
-            'moneda_pago'        => $request->moneda_pago,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
-            'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
-            'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
-            'observaciones'      => $request->observaciones ?: null,
-            'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_proveedor', 'public') : null,
-            'created_by'         => auth()->id(),
-            'updated_by'         => auth()->id(),
-        ]);
-
-        // Registrar egreso en tesorería si se seleccionó cuenta origen de empresa
-        if ($request->cuenta_origen_id) {
-            $contrato = Contrato::find($request->contrato_id);
-            $conceptoDetalle = ($contrato->proveedor->nombre ?? 'Proveedor');
-            if ($contrato->numero_contrato) {
-                $conceptoDetalle .= ' - Contrato ' . $contrato->numero_contrato;
-            }
-
-            Movimiento::create([
-                'cuenta_empresa_id'  => $request->cuenta_origen_id,
-                'tipo'               => 'egreso',
-                'categoria'          => 'pago_proveedor',
+        DB::transaction(function () use ($request) {
+            $pago = PagoProveedor::create([
+                'contrato_id'        => $request->contrato_id,
+                'tipo_pago'          => $request->tipo_pago,
                 'monto'              => $request->monto,
-                'moneda'             => $request->moneda_pago,
+                'moneda_pago'        => $request->moneda_pago,
                 'tipo_cambio'        => $request->tipo_cambio,
-                'monto_bolivianos'   => $request->monto * $request->tipo_cambio,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Pago proveedor: ' . $conceptoDetalle,
+                'fecha_pago'         => $request->fecha_pago,
+                'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
-                'observaciones'      => $request->observaciones,
-                'origen_type'        => PagoProveedor::class,
-                'origen_id'          => $pago->id,
+                'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
+                'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
+                'observaciones'      => $request->observaciones ?: null,
+                'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_proveedor', 'public') : null,
                 'created_by'         => auth()->id(),
-                'updated_by'        => auth()->id(),
+                'updated_by'         => auth()->id(),
             ]);
-        }
+
+            // Registrar egreso en tesorería si se seleccionó cuenta origen de empresa
+            if ($request->cuenta_origen_id) {
+                $contrato = Contrato::find($request->contrato_id);
+                $conceptoDetalle = ($contrato->proveedor->nombre ?? 'Proveedor');
+                if ($contrato->numero_contrato) {
+                    $conceptoDetalle .= ' - Contrato ' . $contrato->numero_contrato;
+                }
+
+                Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago proveedor: ' . $conceptoDetalle, $request->observaciones);
+            }
+        });
 
         Alert::success('Éxito', 'Pago al proveedor registrado correctamente.');
         return redirect()->route('pagos.proveedores.index');
@@ -153,11 +140,14 @@ class PagoProveedorController extends Controller
     {
         $pago = PagoProveedor::where('uuid', $uuid)->firstOrFail();
 
-        Movimiento::where('origen_type', PagoProveedor::class)
-            ->where('origen_id', $pago->id)
-            ->each(fn($m) => $m->delete());
+        DB::transaction(function () use ($pago) {
+            Movimiento::where('origen_type', PagoProveedor::class)
+                ->where('origen_id', $pago->id)
+                ->each(fn($m) => $m->delete());
 
-        $pago->delete();
+            $pago->delete();
+        });
+
         Alert::success('Éxito', 'Pago eliminado y movimiento en tesorería revertido.');
         return redirect()->route('pagos.proveedores.index');
     }
@@ -301,84 +291,71 @@ class PagoProveedorController extends Controller
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
         $codigoLote = $prefijo . '-' . strtoupper(\Illuminate\Support\Str::random(8));
 
-        $lote = LotePago::create([
-            'tipo'               => 'proveedor',
-            'codigo_provisional' => $codigoLote,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'cuenta_origen_id'   => $request->cuenta_origen_id,
-            'observaciones'      => $request->observaciones ?: null,
-            'created_by'         => auth()->id(),
-        ]);
-
-        $resumen = [];
-
-        foreach ($request->contrato_ids as $contratoId) {
-            $pct       = (float) ($request->porcentaje[$contratoId] ?? 0);
-            $ctaDestId = $request->cuenta_destino[$contratoId] ?? null;
-
-            if ($pct <= 0 || !$ctaDestId) continue;
-
-            $contrato = Contrato::with('proveedor')->find($contratoId);
-            if (!$contrato) continue;
-
-            $saldo = $contrato->saldo_pendiente_proveedor;
-            $monto = round($saldo * $pct / 100, 2);
-            if ($monto <= 0) continue;
-
-            $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
-            if (!$ctaDest) continue;
-
-            $pago = PagoProveedor::create([
-                'lote_pago_id'       => $lote->id,
-                'contrato_id'        => $contratoId,
-                'tipo_pago'          => 'parcial',
-                'monto'              => $monto,
-                'moneda_pago'        => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
+        $resumen = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote) {
+            $lote = LotePago::create([
+                'tipo'               => 'proveedor',
+                'codigo_provisional' => $codigoLote,
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
-                'codigo_seguimiento' => $codigoLote,
                 'cuenta_origen_id'   => $request->cuenta_origen_id,
-                'cuenta_destino_id'  => $ctaDest->id,
                 'observaciones'      => $request->observaciones ?: null,
                 'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
             ]);
 
-            $conceptoDetalle = ($contrato->proveedor->nombre ?? 'Proveedor');
-            if ($contrato->numero_contrato) {
-                $conceptoDetalle .= ' - Contrato ' . $contrato->numero_contrato;
+            $resumen = [];
+
+            foreach ($request->contrato_ids as $contratoId) {
+                $pct       = (float) ($request->porcentaje[$contratoId] ?? 0);
+                $ctaDestId = $request->cuenta_destino[$contratoId] ?? null;
+
+                if ($pct <= 0 || !$ctaDestId) continue;
+
+                $contrato = Contrato::with('proveedor')->find($contratoId);
+                if (!$contrato) continue;
+
+                $saldo = $contrato->saldo_pendiente_proveedor;
+                $monto = round($saldo * $pct / 100, 2);
+                if ($monto <= 0) continue;
+
+                $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
+                if (!$ctaDest) continue;
+
+                $pago = PagoProveedor::create([
+                    'lote_pago_id'       => $lote->id,
+                    'contrato_id'        => $contratoId,
+                    'tipo_pago'          => 'parcial',
+                    'monto'              => $monto,
+                    'moneda_pago'        => $monedaPago,
+                    'tipo_cambio'        => $tipoCambio,
+                    'fecha_pago'         => $request->fecha_pago,
+                    'metodo_pago'        => $request->metodo_pago,
+                    'codigo_seguimiento' => $codigoLote,
+                    'cuenta_origen_id'   => $request->cuenta_origen_id,
+                    'cuenta_destino_id'  => $ctaDest->id,
+                    'observaciones'      => $request->observaciones ?: null,
+                    'created_by'         => auth()->id(),
+                    'updated_by'         => auth()->id(),
+                ]);
+
+                $conceptoDetalle = ($contrato->proveedor->nombre ?? 'Proveedor');
+                if ($contrato->numero_contrato) {
+                    $conceptoDetalle .= ' - Contrato ' . $contrato->numero_contrato;
+                }
+
+                Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago masivo proveedor: ' . $conceptoDetalle, $request->observaciones);
+
+                $resumen[] = [
+                    'proveedor'      => $contrato->proveedor->nombre ?? '—',
+                    'contrato'       => $contrato->numero_contrato ?? '#' . $contrato->id,
+                    'porcentaje'     => $pct,
+                    'monto'          => $monto,
+                    'moneda'         => $monedaPago,
+                    'cuenta_destino' => ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta,
+                ];
             }
 
-            Movimiento::create([
-                'lote_pago_id'       => $lote->id,
-                'cuenta_empresa_id'  => $request->cuenta_origen_id,
-                'tipo'               => 'egreso',
-                'categoria'          => 'pago_proveedor',
-                'monto'              => $monto,
-                'moneda'             => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
-                'monto_bolivianos'   => $monto,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Pago masivo proveedor: ' . $conceptoDetalle,
-                'codigo_seguimiento' => $codigoLote,
-                'observaciones'      => $request->observaciones,
-                'origen_type'        => PagoProveedor::class,
-                'origen_id'          => $pago->id,
-                'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
-            ]);
-
-            $resumen[] = [
-                'proveedor'      => $contrato->proveedor->nombre ?? '—',
-                'contrato'       => $contrato->numero_contrato ?? '#' . $contrato->id,
-                'porcentaje'     => $pct,
-                'monto'          => $monto,
-                'moneda'         => $monedaPago,
-                'cuenta_destino' => ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta,
-            ];
-        }
+            return $resumen;
+        });
 
         if (empty($resumen)) {
             Alert::warning('Sin pagos', 'No se registró ningún pago. Verifique los porcentajes y cuentas seleccionadas.');

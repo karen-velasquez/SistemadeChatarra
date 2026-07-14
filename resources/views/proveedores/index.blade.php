@@ -20,7 +20,7 @@
                         {"intro":"📦 Bienvenido al módulo <b>Proveedores</b>: las personas o empresas que le venden chatarra a la empresa. Aquí los registras y mantienes sus datos al día. Te muestro cómo funciona."},
                         {"element":"#datos","intro":"📋 Esta es la lista de todos los proveedores registrados, con su NIT, país, teléfonos, direcciones y tipo de producto.","position":"top"},
                         {"element":"#datos thead th:nth-child(4)","intro":"📞 En <b>Teléfonos</b> y <b>Direcciones</b> un mismo proveedor puede tener varios; se muestran como etiquetas.","position":"bottom"},
-                        {"element":"#datos tbody tr:first-child .btn-group","intro":"⚙️ Con el botón <b>Opciones</b> de cada fila puedes <b>Modificar</b> o <b>Eliminar</b> el proveedor.","position":"left"},
+                        {"element":"#datos tbody tr:first-child .btn-group","intro":"⚙️ Con el botón <b>Opciones</b> de cada fila puedes <b>Ver información</b>, <b>Modificar</b> o <b>Eliminar</b> el proveedor.","position":"left"},
                         {"element":"#btnNuevoProveedor","intro":"➕ Para registrar uno nuevo, pulsa <b>Nuevo Proveedor</b>. Se abrirá un formulario con su propia guía ❓.","position":"left"}
                     ]'>
                 <i class="bi bi-question-circle"></i>
@@ -52,7 +52,6 @@
                                             <th class="text-left">Pais</th>
                                             <th class="text-left">TeléfonoS</th>
                                             <th class="text-left">Direcciones</th>
-                                            <th class="text-left">Email</th>
                                             <th class="text-left">Tipo de Producto</th>
                                             <th class="text-left">Tipo</th>
                                             <th class="text-left">Acciones</th>
@@ -80,8 +79,6 @@
                                                             <span class="text-muted">Sin direcciones</span>
                                                         @endforelse
                                                     </td>
-                                                    <td class="text-left">{{$e->email}}</td>
-                                                  
                                                     <td class="text-left">{{$e->tipo_producto}}</td>
                                                     <td class="text-center">
                                                         @if($e->tipo_proveedor === 'NACIONAL')
@@ -99,6 +96,9 @@
                                                                     Opciones
                                                                 </button>
                                                                 <ul class="dropdown-menu">
+                                                                    @can('proveedores.show')
+                                                                        <li><a class="dropdown-item" href="#" onclick="verProveedor({{ $e }})"><i class="bi bi-eye"></i> Ver información</a></li>
+                                                                    @endcan
                                                                     @can('proveedores.edit')
                                                                         <li><a class="dropdown-item" href="#" onclick="editarProveedor({{ $e }})"><i class="bi bi-pencil"></i> Modificar</a></li>
                                                                     @endcan
@@ -120,6 +120,62 @@
             </div>
         </div>
     </section>
+
+{{-- ===== MODAL VER INFORMACIÓN DEL PROVEEDOR ===== --}}
+<div class="modal fade" id="modalVerProveedor" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-building"></i> Información del Proveedor</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Nombre</small>
+                        <strong id="ver_prov_nombre">—</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">NIT / CI / RUC</small>
+                        <strong id="ver_prov_nit">—</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">País</small>
+                        <strong id="ver_prov_pais">—</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Email</small>
+                        <strong id="ver_prov_email">—</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Tipo de Producto</small>
+                        <strong id="ver_prov_tipo_producto">—</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Tipo de Proveedor</small>
+                        <strong id="ver_prov_tipo_proveedor">—</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Teléfonos</small>
+                        <div id="ver_prov_telefonos">—</div>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Direcciones</small>
+                        <div id="ver_prov_direcciones">—</div>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Fecha de registro</small>
+                        <strong id="ver_prov_fecha">—</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @include('proveedores.modal')
 @endsection
 @section('scripts')
@@ -162,6 +218,31 @@ document.getElementById('formProveedor').addEventListener('submit', function(e) 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 });
+function verProveedor(proveedor) {
+    document.getElementById('ver_prov_nombre').textContent          = proveedor.nombre || '—';
+    document.getElementById('ver_prov_nit').textContent             = proveedor.nit || '—';
+    document.getElementById('ver_prov_pais').textContent            = proveedor.pais?.valor || '—';
+    document.getElementById('ver_prov_email').textContent           = proveedor.email || '—';
+    document.getElementById('ver_prov_tipo_producto').textContent   = proveedor.tipo_producto || '—';
+    document.getElementById('ver_prov_tipo_proveedor').textContent  = proveedor.tipo_proveedor || '—';
+    document.getElementById('ver_prov_fecha').textContent           = proveedor.created_at
+        ? new Date(proveedor.created_at).toLocaleDateString('es-BO')
+        : '—';
+
+    const telefonos   = proveedor.contacts?.filter(c => c.tipo === 'telefono') ?? [];
+    const direcciones = proveedor.contacts?.filter(c => c.tipo === 'direccion') ?? [];
+
+    document.getElementById('ver_prov_telefonos').innerHTML = telefonos.length
+        ? telefonos.map(t => `<span class="badge bg-primary me-1 mb-1">${t.valor}</span>`).join('')
+        : '<span class="text-muted">Sin teléfonos</span>';
+
+    document.getElementById('ver_prov_direcciones').innerHTML = direcciones.length
+        ? direcciones.map((d, i) => `<span class="badge bg-secondary d-block mb-1">Dir ${i + 1}: ${d.valor}</span>`).join('')
+        : '<span class="text-muted">Sin direcciones</span>';
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalVerProveedor')).show();
+}
+
 function editarProveedor(proveedor) {
     const baseUrl = "{{ url('/') }}";
     document.getElementById('tituloProveedor').innerHTML = '<i class="bi bi-pencil-square"></i> Editar Proveedor';

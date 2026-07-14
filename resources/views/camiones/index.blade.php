@@ -1765,6 +1765,19 @@
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalOperador')).show();
     }
 
+    // ── Camión: Select2 con buscador en el select de Propietario ────
+    $('#modalCamion').on('shown.bs.modal', function () {
+        if (!$('#cam_propietario').data('select2')) {
+            $('#cam_propietario').select2({
+                placeholder: '-- Seleccione propietario --',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#modalCamion'),
+                language: { noResults: () => 'No se encontró ningún propietario.', searching: () => 'Buscando...' }
+            });
+        }
+    });
+
     // ── Asignación: inicializar Select2 en los selects del modal ────
     $('#modalAsignacion').on('shown.bs.modal', function () {
         if (!$('#asig_camion_id').data('select2')) {

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <style>
+    @page { margin: 2cm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #222; }
 
@@ -113,6 +114,9 @@
 {{-- RUTA --}}
 <div class="ruta">
     {{ strtoupper($tramo->origen) }}
+    @if($tramo->contratoCamion->contrato->proveedor?->nombre)
+        ({{ $tramo->contratoCamion->contrato->proveedor->nombre }})
+    @endif
     <span class="arrow">&#8594;</span>
     {{ strtoupper($tramo->destino) }}
     &nbsp;&nbsp;

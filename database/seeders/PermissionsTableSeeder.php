@@ -17,6 +17,7 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'proveedores.create',  'descripcion' => 'Agregar Proveedores',        'grupo' => 'PROVEEDORES'],
             ['name' => 'proveedores.edit',    'descripcion' => 'Editar Proveedores',         'grupo' => 'PROVEEDORES'],
             ['name' => 'proveedores.destroy', 'descripcion' => 'Eliminar Proveedores',       'grupo' => 'PROVEEDORES'],
+            ['name' => 'proveedores.show',    'descripcion' => 'Ver detalle de Proveedores', 'grupo' => 'PROVEEDORES'],
             // Clientes
             ['name' => 'clientes.index',   'descripcion' => 'Ver todos los Clientes', 'grupo' => 'CLIENTES'],
             ['name' => 'clientes.create',  'descripcion' => 'Agregar Clientes',       'grupo' => 'CLIENTES'],
@@ -27,6 +28,11 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'camiones.create',  'descripcion' => 'Agregar Camiones',       'grupo' => 'CAMIONES'],
             ['name' => 'camiones.edit',    'descripcion' => 'Editar Camiones',        'grupo' => 'CAMIONES'],
             ['name' => 'camiones.destroy', 'descripcion' => 'Eliminar Camiones',      'grupo' => 'CAMIONES'],
+            // Unidades Propias
+            ['name' => 'unidades.index',   'descripcion' => 'Ver Unidades Propias',                          'grupo' => 'UNIDADES_PROPIAS'],
+            ['name' => 'unidades.create',  'descripcion' => 'Agregar Unidades Propias',                      'grupo' => 'UNIDADES_PROPIAS'],
+            ['name' => 'unidades.edit',    'descripcion' => 'Registrar documentos, mantenimientos y talleres','grupo' => 'UNIDADES_PROPIAS'],
+            ['name' => 'unidades.destroy', 'descripcion' => 'Eliminar registros de Unidades Propias',        'grupo' => 'UNIDADES_PROPIAS'],
             // Operadores de Transporte
             ['name' => 'operadores.index',   'descripcion' => 'Ver todos los Operadores', 'grupo' => 'OPERADORES'],
             ['name' => 'operadores.create',  'descripcion' => 'Agregar Operadores',       'grupo' => 'OPERADORES'],
@@ -106,6 +112,15 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'empresas.create',  'descripcion' => 'Registrar Empresas y Movimientos', 'grupo' => 'EMPRESAS'],
             ['name' => 'empresas.edit',    'descripcion' => 'Editar Empresas',                   'grupo' => 'EMPRESAS'],
             ['name' => 'empresas.destroy', 'descripcion' => 'Eliminar Empresas',                 'grupo' => 'EMPRESAS'],
+            // Créditos y Adquisiciones
+            ['name' => 'adquisiciones.index',   'descripcion' => 'Ver Créditos y Adquisiciones',               'grupo' => 'ADQUISICIONES'],
+            ['name' => 'adquisiciones.create',  'descripcion' => 'Registrar Adquisiciones',                    'grupo' => 'ADQUISICIONES'],
+            ['name' => 'adquisiciones.edit',    'descripcion' => 'Editar Adquisiciones y registrar pagos',     'grupo' => 'ADQUISICIONES'],
+            ['name' => 'adquisiciones.destroy', 'descripcion' => 'Eliminar Adquisiciones y anular pagos',      'grupo' => 'ADQUISICIONES'],
+            // Lotes de entrega
+            ['name' => 'lotes_entrega.index',  'descripcion' => 'Ver Lotes de Entrega',          'grupo' => 'LOTES_ENTREGA'],
+            ['name' => 'lotes_entrega.cerrar', 'descripcion' => 'Cerrar Lotes de Entrega',        'grupo' => 'LOTES_ENTREGA'],
+            ['name' => 'lotes_entrega.pago',   'descripcion' => 'Registrar Pagos Extra en Lote',  'grupo' => 'LOTES_ENTREGA'],
             // Parámetros
             ['name' => 'parametros.index',   'descripcion' => 'Ver Parámetros',      'grupo' => 'PARAMETROS'],
             ['name' => 'parametros.create',  'descripcion' => 'Agregar Parámetros',  'grupo' => 'PARAMETROS'],

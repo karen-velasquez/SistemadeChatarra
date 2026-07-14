@@ -1549,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalLlegada     = document.getElementById('modalLlegada');
     const modalNuevoLote   = document.getElementById('modalNuevoLoteLlegada');
     const bsModalNuevoLote = new bootstrap.Modal(modalNuevoLote);
-    const bsModalLlegada   = bootstrap.Modal.getOrCreateInstance(modalLlegada);
+    const bsModalLlegada   = () => bootstrap.Modal.getOrCreateInstance(modalLlegada);
 
     const nlInicio  = document.getElementById('nl_fecha_inicio');
     const nlFin     = document.getElementById('nl_fecha_fin');
@@ -1571,7 +1571,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Abrir mini-modal ocultando el de llegada momentáneamente
     if (btnNuevoLote) {
         btnNuevoLote.addEventListener('click', function () {
-            bsModalLlegada.hide();
+            bsModalLlegada().hide();
             modalLlegada.addEventListener('hidden.bs.modal', function abrirNuevo() {
                 modalLlegada.removeEventListener('hidden.bs.modal', abrirNuevo);
                 nlInicio.value = today;
@@ -1593,7 +1593,7 @@ document.addEventListener('DOMContentLoaded', function () {
             bsModalNuevoLote.hide();
             modalNuevoLote.addEventListener('hidden.bs.modal', function volver() {
                 modalNuevoLote.removeEventListener('hidden.bs.modal', volver);
-                bsModalLlegada.show();
+                bsModalLlegada().show();
             }, { once: true });
         });
     });
@@ -1618,19 +1618,16 @@ document.addEventListener('DOMContentLoaded', function () {
         btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
         nlError.classList.add('d-none');
 
+        const _fd1 = new FormData();
+        _fd1.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+        _fd1.append('proveedor_id', {{ $contrato->proveedor_id }});
+        _fd1.append('fecha_inicio', inicio);
+        _fd1.append('fecha_fin', fin);
+        _fd1.append('observaciones', document.getElementById('nl_observaciones').value);
         fetch('{{ route("lotes_entrega.store.ajax") }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                proveedor_id:  {{ $contrato->proveedor_id }},
-                fecha_inicio:  inicio,
-                fecha_fin:     fin,
-                observaciones: document.getElementById('nl_observaciones').value,
-            }),
+            headers: { 'Accept': 'application/json' },
+            body: _fd1,
         })
         .then(r => r.json())
         .then(data => {
@@ -1655,7 +1652,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 opt.textContent = data.nombre;
                 opt.selected = true;
                 selLote.insertBefore(opt, selLote.firstChild);
-                bsModalLlegada.show();
+                bsModalLlegada().show();
             }, { once: true });
         })
         .catch(() => {

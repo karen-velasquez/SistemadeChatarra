@@ -165,7 +165,7 @@
                         <table id="tabla_en_ruta" class="table table-hover table-bordered table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Contrato</th>
+                                    <th style="white-space:nowrap; width:1%;">Contrato</th>
                                     <th>Proveedor</th>
                                     <th>Camión</th>
                                     <th>Conductor</th>
@@ -184,7 +184,7 @@
                                     $fleteEstado = !$ccFlete->monto_acordado ? 'sin_flete' : ($ccFlete->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
                                 <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado }}">
-                                    <td>
+                                    <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
                                             {{ $t->contratoCamion->contrato->numero_contrato }}
@@ -295,7 +295,7 @@
                         <table id="tabla_transbordando" class="table table-hover table-bordered table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Contrato</th>
+                                    <th style="white-space:nowrap; width:1%;">Contrato</th>
                                     <th>Proveedor</th>
                                     <th>Camión</th>
                                     <th>Conductor</th>
@@ -316,7 +316,7 @@
                                     $fleteEstado2 = !$ccFlete2->monto_acordado ? 'sin_flete' : ($ccFlete2->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
                                 <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado2 }}">
-                                    <td>
+                                    <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
                                             {{ $t->contratoCamion->contrato->numero_contrato }}
@@ -433,7 +433,7 @@
                         <table id="tabla_transbordado" class="table table-hover table-bordered table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Contrato</th>
+                                    <th style="white-space:nowrap; width:1%;">Contrato</th>
                                     <th>Proveedor</th>
                                     <th>Camión</th>
                                     <th>Conductor</th>
@@ -452,7 +452,7 @@
                                     $fleteEstado3 = !$ccFlete3->monto_acordado ? 'sin_flete' : ($ccFlete3->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
                                 <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado3 }}">
-                                    <td>
+                                    <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
                                             {{ $t->contratoCamion->contrato->numero_contrato }}
@@ -563,7 +563,7 @@
                         <table id="tabla_entregados" class="table table-hover table-bordered table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Contrato</th>
+                                    <th style="white-space:nowrap; width:1%;">Contrato</th>
                                     <th>Proveedor</th>
                                     <th>Camión</th>
                                     <th>Conductor</th>
@@ -584,7 +584,7 @@
                                     $fleteEstado4 = !$cc->monto_acordado ? 'sin_flete' : ($cc->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
                                 <tr class="{{ !$cc->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $cc->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado4 }}">
-                                    <td>
+                                    <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $cc->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
                                             {{ $cc->contrato->numero_contrato }}
@@ -2435,19 +2435,16 @@ document.addEventListener('DOMContentLoaded', function () {
         btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
         nlError.classList.add('d-none');
 
+        const _fd2 = new FormData();
+        _fd2.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+        _fd2.append('proveedor_id', window._segProveedorId);
+        _fd2.append('fecha_inicio', inicio);
+        _fd2.append('fecha_fin', fin);
+        _fd2.append('observaciones', document.getElementById('seg_nl_observaciones').value);
         fetch('{{ route("lotes_entrega.store.ajax") }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                proveedor_id:  window._segProveedorId,
-                fecha_inicio:  inicio,
-                fecha_fin:     fin,
-                observaciones: document.getElementById('seg_nl_observaciones').value,
-            }),
+            headers: { 'Accept': 'application/json' },
+            body: _fd2,
         })
         .then(r => r.json())
         .then(data => {

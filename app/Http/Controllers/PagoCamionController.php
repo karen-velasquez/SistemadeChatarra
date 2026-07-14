@@ -10,6 +10,7 @@ use App\Models\CuentaEmpresa;
 use App\Models\Empresa;
 use App\Models\Movimiento;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class PagoCamionController extends Controller
@@ -83,52 +84,38 @@ class PagoCamionController extends Controller
 
         $cc = ContratoCamion::with(['camion', 'conductor'])->findOrFail($request->contrato_camion_id);
 
-        $pago = PagoCamion::create([
-            'contrato_camion_id' => $request->contrato_camion_id,
-            'tipo_pago'          => $request->tipo_pago,
-            'monto'              => $request->monto,
-            'moneda_pago'        => $request->moneda_pago,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'fecha_pago'         => $request->fecha_pago,
-            'receptor_type'      => $receptorType,
-            'receptor_id'        => $request->receptor_id ?: null,
-            'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
-            'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
-            'metodo_pago'        => $request->metodo_pago,
-            'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
-            'observaciones'      => $request->observaciones ?: null,
-            'created_by'         => auth()->id(),
-            'updated_by'         => auth()->id(),
-        ]);
-
-        // Registrar egreso en tesorería si se seleccionó cuenta origen de empresa
-        if ($request->cuenta_origen_id) {
-            $conceptoDetalle = ($cc->camion->placa ?? 'Camión');
-            if ($cc->contrato) {
-                $conceptoDetalle .= ' - Proveedor: ' . ($cc->contrato->proveedor->nombre ?? '');
-                if ($cc->contrato->numero_contrato) {
-                    $conceptoDetalle .= ' (Contrato ' . $cc->contrato->numero_contrato . ')';
-                }
-            }
-
-            Movimiento::create([
-                'cuenta_empresa_id'  => $request->cuenta_origen_id,
-                'tipo'               => 'egreso',
-                'categoria'          => 'pago_camion',
+        DB::transaction(function () use ($request, $receptorType, $cc) {
+            $pago = PagoCamion::create([
+                'contrato_camion_id' => $request->contrato_camion_id,
+                'tipo_pago'          => $request->tipo_pago,
                 'monto'              => $request->monto,
-                'moneda'             => $request->moneda_pago,
+                'moneda_pago'        => $request->moneda_pago,
                 'tipo_cambio'        => $request->tipo_cambio,
-                'monto_bolivianos'   => $request->monto * $request->tipo_cambio,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Pago flete: ' . $conceptoDetalle,
+                'fecha_pago'         => $request->fecha_pago,
+                'receptor_type'      => $receptorType,
+                'receptor_id'        => $request->receptor_id ?: null,
+                'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
+                'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
+                'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
-                'observaciones'      => $request->observaciones,
-                'origen_type'        => PagoCamion::class,
-                'origen_id'          => $pago->id,
+                'observaciones'      => $request->observaciones ?: null,
                 'created_by'         => auth()->id(),
                 'updated_by'         => auth()->id(),
             ]);
-        }
+
+            // Registrar egreso en tesorería si se seleccionó cuenta origen de empresa
+            if ($request->cuenta_origen_id) {
+                $conceptoDetalle = ($cc->camion->placa ?? 'Camión');
+                if ($cc->contrato) {
+                    $conceptoDetalle .= ' - Proveedor: ' . ($cc->contrato->proveedor->nombre ?? '');
+                    if ($cc->contrato->numero_contrato) {
+                        $conceptoDetalle .= ' (Contrato ' . $cc->contrato->numero_contrato . ')';
+                    }
+                }
+
+                Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $conceptoDetalle, $request->observaciones);
+            }
+        });
 
         Alert::success('Éxito', 'Pago registrado correctamente.');
         return redirect()->route('seguimiento.index');
@@ -168,11 +155,14 @@ class PagoCamionController extends Controller
         $pago = PagoCamion::where('uuid', $uuid)->firstOrFail();
 
         // Eliminar movimiento de tesorería asociado
-        Movimiento::where('origen_type', PagoCamion::class)
-            ->where('origen_id', $pago->id)
-            ->each(fn($m) => $m->delete());
+        DB::transaction(function () use ($pago) {
+            Movimiento::where('origen_type', PagoCamion::class)
+                ->where('origen_id', $pago->id)
+                ->each(fn($m) => $m->delete());
 
-        $pago->delete();
+            $pago->delete();
+        });
+
         Alert::success('Éxito', 'Pago eliminado y movimiento en tesorería revertido.');
         return redirect()->route('seguimiento.index');
     }
@@ -346,96 +336,83 @@ class PagoCamionController extends Controller
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
         $codigoLote = $prefijo . '-' . strtoupper(bin2hex(random_bytes(4)));
 
-        $lote = LotePago::create([
-            'tipo'               => 'camion',
-            'codigo_provisional' => $codigoLote,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'cuenta_origen_id'   => $request->cuenta_origen_id,
-            'observaciones'      => $request->observaciones ?: null,
-            'created_by'         => auth()->id(),
-        ]);
-
-        $contratos      = ContratoCamion::with(['contrato.proveedor', 'camion', 'pagos'])
-            ->whereIn('id', $request->contrato_camion_ids)
-            ->get();
-        $cuentaDestino  = $request->input('cuenta_destino', []);
-
-        $lineas = [];
-
-        foreach ($contratos as $cc) {
-            $saldo = $cc->saldo_pendiente;
-            if ($saldo <= 0) continue;
-
-            $proveedor  = $cc->contrato->proveedor->nombre ?? '—';
-            $placa      = $cc->camion->placa ?? '—';
-            $contrato   = $cc->contrato->numero_contrato ?? '—';
-            $ctaDestId  = $cuentaDestino[$cc->id] ?? null;
-
-            // Obtener cuenta destino, receptor y label para el resumen
-            $ctaDestLabel  = '—';
-            $receptorType  = null;
-            $receptorId    = null;
-            if ($ctaDestId) {
-                $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
-                if ($ctaDest) {
-                    $ctaDestLabel = ($ctaDest->nombre_titular_cuenta ? $ctaDest->nombre_titular_cuenta . ' — ' : '')
-                        . ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta
-                        . ($ctaDest->alias ? ' (' . $ctaDest->alias . ')' : '');
-
-                    if ($ctaDest->titular_id && $ctaDest->titular_type) {
-                        $receptorType = $ctaDest->titular_type;
-                        $receptorId   = $ctaDest->titular_id;
-                    }
-                }
-            }
-
-            $pago = PagoCamion::create([
-                'lote_pago_id'       => $lote->id,
-                'contrato_camion_id' => $cc->id,
-                'tipo_pago'          => 'pago_final',
-                'monto'              => $saldo,
-                'moneda_pago'        => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
+        $lineas = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote) {
+            $lote = LotePago::create([
+                'tipo'               => 'camion',
+                'codigo_provisional' => $codigoLote,
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
-                'codigo_seguimiento' => $codigoLote,
                 'cuenta_origen_id'   => $request->cuenta_origen_id,
-                'cuenta_destino_id'  => $ctaDestId ?: null,
-                'receptor_type'      => $receptorType,
-                'receptor_id'        => $receptorId,
                 'observaciones'      => $request->observaciones ?: null,
                 'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
             ]);
 
-            Movimiento::create([
-                'lote_pago_id'       => $lote->id,
-                'cuenta_empresa_id'  => $request->cuenta_origen_id,
-                'tipo'               => 'egreso',
-                'categoria'          => 'pago_camion',
-                'monto'              => $saldo,
-                'moneda'             => $monedaPago,
-                'tipo_cambio'        => $tipoCambio,
-                'monto_bolivianos'   => $saldo * $tipoCambio,
-                'fecha'              => $request->fecha_pago,
-                'concepto'           => 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')',
-                'codigo_seguimiento' => $codigoLote,
-                'observaciones'      => $request->observaciones ?: null,
-                'origen_type'        => PagoCamion::class,
-                'origen_id'          => $pago->id,
-                'created_by'         => auth()->id(),
-                'updated_by'         => auth()->id(),
-            ]);
+            $contratos      = ContratoCamion::with(['contrato.proveedor', 'camion', 'pagos'])
+                ->whereIn('id', $request->contrato_camion_ids)
+                ->get();
+            $cuentaDestino  = $request->input('cuenta_destino', []);
 
-            $lineas[] = [
-                'proveedor'     => $proveedor,
-                'camion'        => $placa,
-                'contrato'      => $contrato,
-                'cuenta_destino'=> $ctaDestLabel,
-                'monto'         => $monedaPago . ' ' . number_format($saldo, 2),
-            ];
-        }
+            $lineas = [];
+
+            foreach ($contratos as $cc) {
+                $saldo = $cc->saldo_pendiente;
+                if ($saldo <= 0) continue;
+
+                $proveedor  = $cc->contrato->proveedor->nombre ?? '—';
+                $placa      = $cc->camion->placa ?? '—';
+                $contrato   = $cc->contrato->numero_contrato ?? '—';
+                $ctaDestId  = $cuentaDestino[$cc->id] ?? null;
+
+                // Obtener cuenta destino, receptor y label para el resumen
+                $ctaDestLabel  = '—';
+                $receptorType  = null;
+                $receptorId    = null;
+                if ($ctaDestId) {
+                    $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
+                    if ($ctaDest) {
+                        $ctaDestLabel = ($ctaDest->nombre_titular_cuenta ? $ctaDest->nombre_titular_cuenta . ' — ' : '')
+                            . ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta
+                            . ($ctaDest->alias ? ' (' . $ctaDest->alias . ')' : '');
+
+                        if ($ctaDest->titular_id && $ctaDest->titular_type) {
+                            $receptorType = $ctaDest->titular_type;
+                            $receptorId   = $ctaDest->titular_id;
+                        }
+                    }
+                }
+
+                $pago = PagoCamion::create([
+                    'lote_pago_id'       => $lote->id,
+                    'contrato_camion_id' => $cc->id,
+                    'tipo_pago'          => 'pago_final',
+                    'monto'              => $saldo,
+                    'moneda_pago'        => $monedaPago,
+                    'tipo_cambio'        => $tipoCambio,
+                    'fecha_pago'         => $request->fecha_pago,
+                    'metodo_pago'        => $request->metodo_pago,
+                    'codigo_seguimiento' => $codigoLote,
+                    'cuenta_origen_id'   => $request->cuenta_origen_id,
+                    'cuenta_destino_id'  => $ctaDestId ?: null,
+                    'receptor_type'      => $receptorType,
+                    'receptor_id'        => $receptorId,
+                    'observaciones'      => $request->observaciones ?: null,
+                    'created_by'         => auth()->id(),
+                    'updated_by'         => auth()->id(),
+                ]);
+
+                Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')', $request->observaciones ?: null);
+
+                $lineas[] = [
+                    'proveedor'     => $proveedor,
+                    'camion'        => $placa,
+                    'contrato'      => $contrato,
+                    'cuenta_destino'=> $ctaDestLabel,
+                    'monto'         => $monedaPago . ' ' . number_format($saldo, 2),
+                ];
+            }
+
+            return $lineas;
+        });
 
         session()->flash('pago_masivo_camion_resumen', [
             'codigo' => $codigoLote,

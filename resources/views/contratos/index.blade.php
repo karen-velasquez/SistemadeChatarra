@@ -47,11 +47,50 @@
                         Registra y hace seguimiento a los contratos de compra y venta de chatarra celebrados con clientes y proveedores.
                         Cada contrato puede tener camiones asignados para la entrega del material y un documento PDF adjunto como respaldo legal.
                     </p>
+
+                    {{-- ===== FILTROS ===== --}}
+                    <div class="row g-2 align-items-end mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1"><i class="bi bi-tag"></i> Tipo</label>
+                            <select class="form-select" id="filtro_tipo" onchange="aplicarFiltrosContratos()">
+                                <option value="">— Todos —</option>
+                                <option value="Nacional">Nacional</option>
+                                <option value="Internacional">Internacional</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1"><i class="bi bi-box-seam"></i> Proveedor</label>
+                            <select class="form-select" id="filtro_proveedor_contrato" onchange="aplicarFiltrosContratos()">
+                                <option value="">— Todos —</option>
+                                @foreach($proveedores as $prov)
+                                    <option value="{{ $prov->id }}">{{ $prov->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1"><i class="bi bi-people"></i> Cliente</label>
+                            <select class="form-select" id="filtro_cliente_contrato" onchange="aplicarFiltrosContratos()">
+                                <option value="">— Todos —</option>
+                                @foreach($clientes as $cli)
+                                    <option value="{{ $cli->id }}">{{ $cli->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosContratos()">
+                                <i class="bi bi-x-circle"></i> Limpiar
+                            </button>
+                        </div>
+                        <div class="col-auto ms-auto">
+                            <small class="text-muted">Mostrando <span id="lbl_count_contratos">{{ $contratos->count() }}</span> contrato(s)</small>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table id="datos" class="table table-hover table-bordered table-sm">
                             <thead>
                                 <tr>
-                                    <th>N° Contrato</th>
+                                    <th style="white-space:nowrap; width:1%;">N° Contrato</th>
                                     <th>Tipo</th>
                                     <th>Proveedor</th>
                                     <th style="max-width:180px;">Clientes</th>
@@ -64,8 +103,9 @@
                             </thead>
                             <tbody>
                                 @foreach($contratos as $c)
-                                <tr>
-                                    <td><span class="fw-bold text-primary">{{ $c->numero_contrato }}</span></td>
+                                @php $clientesEntregados = $c->clientes_entregados; @endphp
+                                <tr data-tipo="{{ $c->tipo_contrato }}" data-proveedor-id="{{ $c->proveedor_id }}" data-clientes-ids="{{ $clientesEntregados->pluck('id')->implode(',') }}">
+                                    <td style="white-space:nowrap;"><span class="fw-bold text-primary">{{ $c->numero_contrato }}</span></td>
                                     <td>
                                         @if($c->tipo_contrato === 'Nacional')
                                             <span class="badge bg-info text-dark">Nacional</span>
@@ -75,7 +115,7 @@
                                     </td>
                                     <td>{{ $c->proveedor->nombre }} <small class="text-muted">({{ $c->proveedor->pais->valor ?? '-' }})</small></td>
                                     <td style="max-width:180px;">
-                                        @forelse($c->clientes_entregados as $cli)
+                                        @forelse($clientesEntregados as $cli)
                                             <span class="badge bg-light text-dark border d-inline-block text-truncate"
                                                   style="max-width:160px; vertical-align:middle;"
                                                   title="{{ $cli->nombre }}"
@@ -381,6 +421,39 @@
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContrato')).show();
         });
     @endif
+
+    // ===== Filtros de la tabla (integrados con la paginación de DataTables) =====
+    const tablaContratos = $('#datos').DataTable();
+
+    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+        if (settings.nTable.id !== 'datos') return true;
+        const fila         = tablaContratos.row(dataIndex).node();
+        const tipo         = document.getElementById('filtro_tipo').value;
+        const proveedorId  = document.getElementById('filtro_proveedor_contrato').value;
+        const clienteId    = document.getElementById('filtro_cliente_contrato').value;
+
+        const okTipo      = !tipo || fila.dataset.tipo === tipo;
+        const okProveedor = !proveedorId || fila.dataset.proveedorId === proveedorId;
+        const clientesIds = (fila.dataset.clientesIds || '').split(',');
+        const okCliente   = !clienteId || clientesIds.includes(clienteId);
+
+        return okTipo && okProveedor && okCliente;
+    });
+
+    tablaContratos.on('draw', function () {
+        document.getElementById('lbl_count_contratos').textContent = tablaContratos.rows({ search: 'applied' }).count();
+    });
+
+    function aplicarFiltrosContratos() {
+        tablaContratos.draw();
+    }
+
+    function limpiarFiltrosContratos() {
+        document.getElementById('filtro_tipo').value               = '';
+        document.getElementById('filtro_proveedor_contrato').value = '';
+        document.getElementById('filtro_cliente_contrato').value   = '';
+        aplicarFiltrosContratos();
+    }
 
     function resetModalContrato() {
         document.getElementById('tituloContrato').innerText  = 'Nuevo Contrato';

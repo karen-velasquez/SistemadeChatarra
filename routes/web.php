@@ -87,6 +87,25 @@ use Illuminate\Support\Facades\Route;
     Route::get('camion/{uuid}/ruat',[App\Http\Controllers\CamionController::class,'verRuat'])->name('camiones.ruat')->middleware('permission:camiones.index');
     Route::delete('camion/foto/{foto}',[App\Http\Controllers\CamionController::class,'eliminarFoto'])->name('camiones.foto.destroy')->middleware('permission:camiones.edit');
 
+    //Unidades Propias (camiones de la empresa: documentos, mantenimiento, talleres)
+    Route::get('unidades',[App\Http\Controllers\UnidadPropiaController::class,'index'])->name('unidades.index')->middleware('permission:unidades.index');
+    Route::post('unidades/marcar',[App\Http\Controllers\UnidadPropiaController::class,'marcar'])->name('unidades.marcar')->middleware('permission:unidades.create');
+    Route::get('unidades/{uuid}/desmarcar',[App\Http\Controllers\UnidadPropiaController::class,'desmarcar'])->name('unidades.desmarcar')->middleware('permission:unidades.destroy');
+    Route::get('unidades/{uuid}',[App\Http\Controllers\UnidadPropiaController::class,'show'])->name('unidades.show')->middleware('permission:unidades.index');
+    Route::post('unidades/{uuid}/kilometraje',[App\Http\Controllers\UnidadPropiaController::class,'actualizarKm'])->name('unidades.km')->middleware('permission:unidades.edit');
+    Route::post('unidades/{uuid}/documentos',[App\Http\Controllers\UnidadPropiaController::class,'storeDocumento'])->name('unidades.documentos.store')->middleware('permission:unidades.edit');
+    Route::get('unidades/documento/{uuid}/ver',[App\Http\Controllers\UnidadPropiaController::class,'verDocumento'])->name('unidades.documentos.ver')->middleware('permission:unidades.index');
+    Route::get('unidades/documento/{uuid}/destroy',[App\Http\Controllers\UnidadPropiaController::class,'destroyDocumento'])->name('unidades.documentos.destroy')->middleware('permission:unidades.destroy');
+    Route::post('unidades/{uuid}/mantenimientos',[App\Http\Controllers\UnidadPropiaController::class,'storeMantenimiento'])->name('unidades.mantenimientos.store')->middleware('permission:unidades.edit');
+    Route::get('unidades/mantenimiento/{uuid}/comprobante',[App\Http\Controllers\UnidadPropiaController::class,'verComprobante'])->name('unidades.mantenimientos.comprobante')->middleware('permission:unidades.index');
+    Route::get('unidades/mantenimiento/{uuid}/destroy',[App\Http\Controllers\UnidadPropiaController::class,'destroyMantenimiento'])->name('unidades.mantenimientos.destroy')->middleware('permission:unidades.destroy');
+    Route::post('unidades/{uuid}/plan',[App\Http\Controllers\UnidadPropiaController::class,'storePlan'])->name('unidades.plan.store')->middleware('permission:unidades.edit');
+    Route::get('unidades/plan/{uuid}/realizar',[App\Http\Controllers\UnidadPropiaController::class,'realizarPlan'])->name('unidades.plan.realizar')->middleware('permission:unidades.edit');
+    Route::get('unidades/plan/{uuid}/destroy',[App\Http\Controllers\UnidadPropiaController::class,'destroyPlan'])->name('unidades.plan.destroy')->middleware('permission:unidades.destroy');
+    Route::post('talleres/store',[App\Http\Controllers\UnidadPropiaController::class,'storeTaller'])->name('talleres.store')->middleware('permission:unidades.edit');
+    Route::put('talleres/{uuid}',[App\Http\Controllers\UnidadPropiaController::class,'updateTaller'])->name('talleres.update')->middleware('permission:unidades.edit');
+    Route::get('talleres/{uuid}/destroy',[App\Http\Controllers\UnidadPropiaController::class,'destroyTaller'])->name('talleres.destroy')->middleware('permission:unidades.destroy');
+
     //Operadores de Transporte (propietarios y conductores)
     Route::get('operador/buscar-ci',[App\Http\Controllers\OperadorTransporteController::class,'buscarPorCi'])->name('operadores.buscar-ci')->middleware('permission:operadores.index');
     Route::post('operador/store',[App\Http\Controllers\OperadorTransporteController::class,'store'])->name('operadores.store')->middleware('permission:operadores.create');
@@ -174,8 +193,8 @@ use Illuminate\Support\Facades\Route;
     // Lotes de entrega semanal por proveedor
     Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:lotes_entrega.index');
     Route::post('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'store'])->name('lotes_entrega.store')->middleware('permission:lotes_entrega.index');
-    Route::post('lotes-entrega/ajax', [App\Http\Controllers\LoteEntregaController::class, 'storeAjax'])->name('lotes_entrega.store.ajax');
-    Route::get('lotes-entrega/proveedor/{proveedorId}', [App\Http\Controllers\LoteEntregaController::class, 'lotesProveedor'])->name('lotes_entrega.proveedor');
+    Route::post('lotes-entrega/ajax', [App\Http\Controllers\LoteEntregaController::class, 'storeAjax'])->name('lotes_entrega.store.ajax')->middleware('permission:lotes_entrega.index');
+    Route::get('lotes-entrega/proveedor/{proveedorId}', [App\Http\Controllers\LoteEntregaController::class, 'lotesProveedor'])->name('lotes_entrega.proveedor')->middleware('permission:lotes_entrega.index');
     Route::post('lotes-entrega/{uuid}/cerrar', [App\Http\Controllers\LoteEntregaController::class, 'cerrar'])->name('lotes_entrega.cerrar')->middleware('permission:lotes_entrega.cerrar');
     // Pagos extras por lote
     Route::post('lotes-entrega/{uuid}/pago-extra', [App\Http\Controllers\PagoExtraLoteController::class, 'store'])->name('lotes_entrega.pago_extra.store')->middleware('permission:lotes_entrega.pago');
@@ -236,6 +255,23 @@ use Illuminate\Support\Facades\Route;
     Route::get('tesoreria/cuenta/{uuid}', [App\Http\Controllers\MovimientoController::class, 'porCuenta'])->name('tesoreria.cuenta')->middleware('permission:empresas.index');
     Route::post('tesoreria/movimiento/store', [App\Http\Controllers\MovimientoController::class, 'store'])->name('tesoreria.movimiento.store')->middleware('permission:empresas.create');
     Route::get('tesoreria/movimiento/{uuid}/destroy', [App\Http\Controllers\MovimientoController::class, 'destroy'])->name('tesoreria.movimiento.destroy')->middleware('permission:empresas.destroy');
+
+    // Créditos y Adquisiciones (bienes por crédito bancario o capital, plan de pagos)
+    Route::get('adquisiciones',[App\Http\Controllers\AdquisicionController::class,'index'])->name('adquisiciones.index')->middleware('permission:adquisiciones.index');
+    Route::post('adquisiciones/store',[App\Http\Controllers\AdquisicionController::class,'store'])->name('adquisiciones.store')->middleware('permission:adquisiciones.create');
+    Route::get('adquisiciones/cuota/{uuid}/anular-pago',[App\Http\Controllers\AdquisicionController::class,'anularPago'])->name('adquisiciones.cuotas.anular')->middleware('permission:adquisiciones.destroy');
+    Route::get('adquisiciones/cuota/{uuid}/comprobante',[App\Http\Controllers\AdquisicionController::class,'verComprobante'])->name('adquisiciones.cuotas.comprobante')->middleware('permission:adquisiciones.index');
+    Route::get('adquisiciones/cuota/{uuid}/destroy',[App\Http\Controllers\AdquisicionController::class,'destroyCuota'])->name('adquisiciones.cuotas.destroy')->middleware('permission:adquisiciones.destroy');
+    Route::post('adquisiciones/cuota/{uuid}/pagar',[App\Http\Controllers\AdquisicionController::class,'pagarCuota'])->name('adquisiciones.cuotas.pagar')->middleware('permission:adquisiciones.edit');
+    Route::put('adquisiciones/cuota/{uuid}',[App\Http\Controllers\AdquisicionController::class,'updateCuota'])->name('adquisiciones.cuotas.update')->middleware('permission:adquisiciones.edit');
+    Route::get('adquisiciones/factura/{uuid}/ver',[App\Http\Controllers\AdquisicionController::class,'verFactura'])->name('adquisiciones.facturas.ver')->middleware('permission:adquisiciones.index');
+    Route::get('adquisiciones/factura/{uuid}/destroy',[App\Http\Controllers\AdquisicionController::class,'destroyFactura'])->name('adquisiciones.facturas.destroy')->middleware('permission:adquisiciones.destroy');
+    Route::get('adquisiciones/{uuid}',[App\Http\Controllers\AdquisicionController::class,'show'])->name('adquisiciones.show')->middleware('permission:adquisiciones.index');
+    Route::put('adquisiciones/{uuid}',[App\Http\Controllers\AdquisicionController::class,'update'])->name('adquisiciones.update')->middleware('permission:adquisiciones.edit');
+    Route::get('adquisiciones/{uuid}/destroy',[App\Http\Controllers\AdquisicionController::class,'destroy'])->name('adquisiciones.destroy')->middleware('permission:adquisiciones.destroy');
+    Route::post('adquisiciones/{uuid}/generar-plan',[App\Http\Controllers\AdquisicionController::class,'generarPlan'])->name('adquisiciones.generar_plan')->middleware('permission:adquisiciones.edit');
+    Route::post('adquisiciones/{uuid}/cuotas',[App\Http\Controllers\AdquisicionController::class,'storeCuota'])->name('adquisiciones.cuotas.store')->middleware('permission:adquisiciones.edit');
+    Route::post('adquisiciones/{uuid}/facturas',[App\Http\Controllers\AdquisicionController::class,'storeFactura'])->name('adquisiciones.facturas.store')->middleware('permission:adquisiciones.edit');
 
     // Préstamos internos
     Route::get('prestamos-internos', [App\Http\Controllers\PrestamoInternoController::class, 'index'])->name('prestamos_internos.index')->middleware('permission:empresas.index');

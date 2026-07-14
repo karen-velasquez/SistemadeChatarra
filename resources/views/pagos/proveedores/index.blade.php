@@ -76,7 +76,7 @@
                     <table id="tabla_pagos_prov" class="table table-hover table-bordered table-sm align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Contrato</th>
+                                <th style="white-space:nowrap; width:1%;">Contrato</th>
                                 <th>Proveedor</th>
                                 <th>Tipo</th>
                                 <th class="text-end">Total acordado</th>
@@ -97,7 +97,7 @@
                                 $rowClass = $saldo <= 0 ? 'table-success' : '';
                             @endphp
                             <tr class="{{ $rowClass }}" data-proveedor-id="{{ $c->proveedor_id }}">
-                                <td>
+                                <td style="white-space:nowrap;">
                                     <a href="{{ route('contratos.camiones', $c->uuid) }}" class="text-decoration-none fw-semibold">
                                         {{ $c->numero_contrato }}
                                     </a>

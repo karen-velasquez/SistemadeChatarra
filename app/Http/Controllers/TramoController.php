@@ -341,7 +341,12 @@ class TramoController extends Controller
         abort_if($tramo->estado === 'Div. Carga', 403, 'Este tramo tiene carga dividida entre dos clientes. Use las notas de entrega de cada tramo hijo.');
 
         $pdf = Pdf::loadView('contratos.partials.nota-entrega-pdf', compact('tramo'))
-            ->setPaper('letter', 'portrait');
+            ->setPaper('letter', 'portrait')
+            ->setOption('isPhpEnabled', true)
+            ->setOption('margin_top', 56.7)
+            ->setOption('margin_bottom', 56.7)
+            ->setOption('margin_left', 56.7)
+            ->setOption('margin_right', 56.7);
 
         $fecha = $tramo->fecha_llegada?->format('Y-m-d') ?? $tramo->fecha_salida?->format('Y-m-d') ?? now()->format('Y-m-d');
 
