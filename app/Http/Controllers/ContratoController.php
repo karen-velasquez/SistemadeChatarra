@@ -33,6 +33,7 @@ class ContratoController extends Controller
         $contratos  = Contrato::with([
                             'proveedor.pais',
                             'contratoCamiones.tramos',
+                            'usuarioCreador',
                         ])
                         ->whereNull('deleted_at')
                         ->orderByDesc('created_at')
@@ -197,10 +198,11 @@ class ContratoController extends Controller
     public function cerrarEnvios($uuid)
     {
         $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+        $retorno  = $this->retornoTrasToggleEnvios($uuid);
 
         if ($contrato->envios_cerrados) {
             Alert::warning('Aviso', 'Los envíos de este contrato ya están cerrados.');
-            return redirect()->route('contratos.index');
+            return $retorno;
         }
 
         $contrato->update([
@@ -210,16 +212,17 @@ class ContratoController extends Controller
         ]);
 
         Alert::success('Cierre de Envíos', "Contrato {$contrato->numero_contrato}: envíos cerrados. Ya no se pueden agregar más camiones.");
-        return redirect()->route('contratos.index');
+        return $retorno;
     }
 
     public function descerrarEnvios($uuid)
     {
         $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+        $retorno  = $this->retornoTrasToggleEnvios($uuid);
 
         if (!$contrato->envios_cerrados) {
             Alert::warning('Aviso', 'Los envíos de este contrato no están cerrados.');
-            return redirect()->route('contratos.index');
+            return $retorno;
         }
 
         // Reabrir: el contrato vuelve a estar editable y sale de la liquidación
@@ -231,7 +234,15 @@ class ContratoController extends Controller
         ]);
 
         Alert::success('Envíos Reabiertos', "Contrato {$contrato->numero_contrato}: envíos reabiertos. Vuelve a estar disponible para agregar camiones y ya no aparece en liquidación.");
-        return redirect()->route('contratos.index');
+        return $retorno;
+    }
+
+    // Si la acción vino desde la pantalla de Gestión de Camiones, vuelve ahí; si no, al listado.
+    private function retornoTrasToggleEnvios($uuid)
+    {
+        return request('origen') === 'camiones'
+            ? redirect()->route('contratos.camiones', $uuid)
+            : redirect()->route('contratos.index');
     }
 
     public function liquidacion()

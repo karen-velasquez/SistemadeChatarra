@@ -137,6 +137,8 @@ use Illuminate\Support\Facades\Route;
 
     //Tramos de transporte
     Route::post('tramo/store',[App\Http\Controllers\TramoController::class,'store'])->name('tramo.store')->middleware('permission:contratos.edit');
+    Route::get('tramo/{uuid}/edit',[App\Http\Controllers\TramoController::class,'edit'])->name('tramo.edit')->middleware('permission:contratos.edit');
+    Route::put('tramo/{uuid}',[App\Http\Controllers\TramoController::class,'update'])->name('tramo.update')->middleware('permission:contratos.edit');
     Route::post('tramo/{uuid}/llegada',[App\Http\Controllers\TramoController::class,'registrarLlegada'])->name('tramo.llegada')->middleware('permission:contratos.edit');
     Route::get('tramo/{uuid}/toggle-activo',[App\Http\Controllers\TramoController::class,'toggleActivo'])->name('tramo.toggle-activo')->middleware('permission:contratos.edit');
     Route::get('tramo/{uuid}/nota-entrega',[App\Http\Controllers\TramoController::class,'notaEntrega'])->name('tramo.nota-entrega')->middleware('permission:contratos.index');

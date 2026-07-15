@@ -366,6 +366,70 @@ class TramoController extends Controller
         return response()->file($path, ['Content-Type' => mime_content_type($path)]);
     }
 
+    // Devuelve los datos del tramo para poblar el modal de edición
+    public function edit($uuid)
+    {
+        $tramo = Tramo::where('uuid', $uuid)->firstOrFail();
+
+        abort_if($tramo->estado !== 'En ruta', 403, 'Solo se puede editar un tramo mientras está en ruta.');
+
+        return response()->json([
+            'uuid'           => $tramo->uuid,
+            'camion_id'      => $tramo->camion_id,
+            'camion_uuid'    => $tramo->camion->uuid,
+            'conductor_id'   => $tramo->conductor_id,
+            'origen'         => $tramo->origen,
+            'destino'        => $tramo->destino,
+            'tipo_tramo'     => $tramo->tipo_tramo,
+            'peso_salida'    => $tramo->peso_salida ?? $tramo->peso_declarado,
+            'fecha_salida'   => $tramo->fecha_salida?->format('Y-m-d'),
+            'observaciones'  => $tramo->observaciones,
+            'es_raiz'        => is_null($tramo->tramo_padre_id),
+        ]);
+    }
+
+    // Editar un tramo mientras está en ruta (antes de registrar su llegada)
+    public function update(Request $request, $uuid)
+    {
+        $tramo        = Tramo::where('uuid', $uuid)->firstOrFail();
+        $contratoUuid = $tramo->contratoCamion->contrato->uuid;
+
+        if ($tramo->estado !== 'En ruta') {
+            Alert::error('No permitido', 'Solo se puede editar un tramo que está en ruta.');
+            return redirect()->route('contratos.camiones', $contratoUuid);
+        }
+
+        $esRaiz = is_null($tramo->tramo_padre_id);
+        $fechaMin = $esRaiz ? null : $tramo->tramoPadre->fecha_llegada?->format('Y-m-d');
+
+        $request->validate([
+            'camion_id'     => 'required|exists:camiones,id',
+            'conductor_id'  => 'required|exists:operadores_transporte,id',
+            'origen'        => 'required|string|max:150',
+            'destino'       => 'required|string|max:150',
+            'tipo_tramo'    => 'required|in:Internacional,Nacional',
+            'peso_salida'   => 'required|numeric|min:0.001',
+            'fecha_salida'  => 'required|date' . ($fechaMin ? "|after_or_equal:$fechaMin" : ''),
+            'observaciones' => 'nullable|string|max:500',
+        ]);
+
+        $tramo->update([
+            'camion_id'     => $request->camion_id,
+            'conductor_id'  => $request->conductor_id,
+            'origen'        => $request->origen,
+            'destino'       => $request->destino,
+            'tipo_tramo'    => $request->tipo_tramo,
+            'peso_salida'   => $request->peso_salida,
+            'peso_declarado'=> $esRaiz ? $request->peso_salida : $tramo->peso_declarado,
+            'fecha_salida'  => $request->fecha_salida,
+            'observaciones' => $request->observaciones,
+            'updated_by'    => auth()->id(),
+        ]);
+
+        Alert::success('Tramo actualizado', 'Los datos del tramo en ruta se actualizaron con éxito.');
+        return redirect()->route('contratos.camiones', $contratoUuid);
+    }
+
     public function toggleActivo($uuid)
     {
         $tramo        = Tramo::where('uuid', $uuid)->firstOrFail();

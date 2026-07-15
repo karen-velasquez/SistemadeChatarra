@@ -266,6 +266,8 @@ class PagoProveedorController extends Controller
             'porcentaje.*'     => 'numeric|min:0.01|max:100',
             'cuenta_destino'   => 'required|array',
             'cuenta_destino.*' => 'exists:cuentas_bancarias,id',
+            'vouchers'         => 'nullable|array',
+            'vouchers.*'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         $cuentaOrigen = CuentaEmpresa::with('empresa')->findOrFail($request->cuenta_origen_id);
@@ -320,6 +322,9 @@ class PagoProveedorController extends Controller
                 $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
                 if (!$ctaDest) continue;
 
+                $voucherFile = $request->file("vouchers.$contratoId");
+                $voucherPath = $voucherFile ? $voucherFile->store('vouchers_pago_proveedor', 'public') : null;
+
                 $pago = PagoProveedor::create([
                     'lote_pago_id'       => $lote->id,
                     'contrato_id'        => $contratoId,
@@ -332,6 +337,7 @@ class PagoProveedorController extends Controller
                     'codigo_seguimiento' => $codigoLote,
                     'cuenta_origen_id'   => $request->cuenta_origen_id,
                     'cuenta_destino_id'  => $ctaDest->id,
+                    'voucher'            => $voucherPath,
                     'observaciones'      => $request->observaciones ?: null,
                     'created_by'         => auth()->id(),
                     'updated_by'         => auth()->id(),

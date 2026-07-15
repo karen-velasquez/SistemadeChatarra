@@ -86,8 +86,12 @@
 
             @can('contratos.edit')
                 @if(!($enviosCerrados ?? false) && $tramo->estado !== 'Desactivado')
-                    {{-- Botón llegada: visible si está en ruta --}}
+                    {{-- Botones llegada / editar: visibles si está en ruta --}}
                     @if($tramo->estado === 'En ruta')
+                        <button class="btn btn-sm btn-outline-secondary"
+                            onclick="abrirModalEditarTramo('{{ $tramo->uuid }}')">
+                            <i class="bi bi-pencil"></i> Editar
+                        </button>
                         <button class="btn btn-sm btn-outline-success"
                             onclick="abrirModalLlegada(
                                 '{{ $tramo->uuid }}',

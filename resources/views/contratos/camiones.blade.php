@@ -112,14 +112,6 @@
                         </div>
                     @endif
 
-                    @can('contratos.cerrar')
-                    @if(!$contrato->envios_cerrados)
-                    <a class="btn btn-warning btn-sm w-100 mt-3" href="{{ route('contratos.cerrar', $contrato->uuid) }}"
-                        onclick="return confirm('¿Cerrar envíos del contrato {{ $contrato->numero_contrato }}? Ya no se podrán agregar más camiones.')">
-                        <i class="bi bi-lock"></i> Cierre de Envíos
-                    </a>
-                    @endif
-                    @endcan
                 </div>
             </div>
         </div>
@@ -128,6 +120,30 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-body">
+
+                    @can('contratos.cerrar')
+                    <div class="btn-group w-100 mt-2 mb-3" role="group" aria-label="Estado de envíos" id="toggle-envios">
+                        @if($contrato->envios_cerrados)
+                            <a href="{{ route('contratos.descerrar', $contrato->uuid) }}?origen=camiones"
+                               class="btn btn-sm btn-outline-secondary"
+                               onclick="return confirm('¿Reabrir los envíos del contrato {{ $contrato->numero_contrato }}? Volverá a estar editable y saldrá de la liquidación de envíos.')">
+                                <i class="bi bi-unlock"></i> Envíos Abiertos
+                            </a>
+                            <button type="button" class="btn btn-sm btn-warning" disabled>
+                                <i class="bi bi-lock"></i> Envíos Cerrados
+                            </button>
+                        @else
+                            <button type="button" class="btn btn-sm btn-success" disabled>
+                                <i class="bi bi-unlock"></i> Envíos Abiertos
+                            </button>
+                            <a href="{{ route('contratos.cerrar', $contrato->uuid) }}?origen=camiones"
+                               class="btn btn-sm btn-outline-secondary"
+                               onclick="return confirm('¿Cerrar envíos del contrato {{ $contrato->numero_contrato }}? Ya no se podrán agregar más camiones.')">
+                                <i class="bi bi-lock"></i> Envíos Cerrados
+                            </a>
+                        @endif
+                    </div>
+                    @endcan
 
                     @if($contrato->envios_cerrados)
                     <div class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2">
@@ -831,6 +847,84 @@
     </div>
 </div>
 
+{{-- ===== MODAL EDITAR TRAMO EN RUTA ===== --}}
+<div class="modal fade" id="modalEditarTramo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Tramo en Ruta</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarTramo" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Solo se puede editar mientras el tramo está <strong>en ruta</strong> (antes de registrar su llegada).
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Camión <span class="text-danger">(*)</span></label>
+                            <select class="form-select" name="camion_id" id="et_camion_id" required>
+                                <option value="">-- Seleccione --</option>
+                                @foreach($camionesDisponibles as $cam)
+                                    <option value="{{ $cam->id }}" data-uuid="{{ $cam->uuid }}">
+                                        {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Conductor <span class="text-danger">(*)</span></label>
+                            <select class="form-select" name="conductor_id" id="et_conductor_id" disabled required>
+                                <option value="">— Seleccione un camión primero —</option>
+                            </select>
+                        </div>
+                        @if($contrato->tipo_contrato === 'Internacional')
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo de Tramo <span class="text-danger">(*)</span></label>
+                            <select class="form-select" name="tipo_tramo" id="et_tipo_tramo" required>
+                                <option value="Nacional">Nacional</option>
+                                <option value="Internacional">Internacional</option>
+                            </select>
+                        </div>
+                        @else
+                            <input type="hidden" name="tipo_tramo" value="Nacional">
+                        @endif
+                        <div class="col-md-6">
+                            <label class="form-label">Origen <span class="text-danger">(*)</span></label>
+                            <input type="text" class="form-control" name="origen" id="et_origen" required maxlength="150"
+                                style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Destino <span class="text-danger">(*)</span></label>
+                            <input type="text" class="form-control" name="destino" id="et_destino" required maxlength="150"
+                                style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Peso (t) <span class="text-danger">(*)</span></label>
+                            <input type="number" step="0.001" min="0.001" class="form-control" name="peso_salida" id="et_peso_salida" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha de Salida <span class="text-danger">(*)</span></label>
+                            <input type="date" class="form-control" name="fecha_salida" id="et_fecha_salida" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Observaciones</label>
+                            <textarea class="form-control" name="observaciones" id="et_observaciones" rows="2" maxlength="500"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {{-- ===== MODAL TOGGLE ACTIVO CAMIÓN ===== --}}
 <div class="modal fade" id="modalToggleCC" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -970,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-function cargarConductores(uuid, selectId, sinConductoresId, dropdownParent) {
+function cargarConductores(uuid, selectId, sinConductoresId, dropdownParent, conductorPreseleccionado) {
     const sel = document.getElementById(selectId);
     const sin = sinConductoresId ? document.getElementById(sinConductoresId) : null;
 
@@ -1013,6 +1107,10 @@ function cargarConductores(uuid, selectId, sinConductoresId, dropdownParent) {
         });
         sel.disabled = false;
 
+        if (conductorPreseleccionado) {
+            sel.value = conductorPreseleccionado;
+        }
+
         // Inicializar Select2 con buscador
         const s2opts = {
             placeholder: 'Busque por nombre...',
@@ -1027,13 +1125,49 @@ function cargarConductores(uuid, selectId, sinConductoresId, dropdownParent) {
         $(sel).on('change', function () {
             if (selectId === 'cc_conductor_id') {
                 validarFormAsignar();
-            } else {
+            } else if (selectId === 'tsb_conductor_id') {
                 validarFormTransbordo();
             }
         });
     })
     .catch(() => { sel.innerHTML = '<option value="">— Error al cargar —</option>'; });
 }
+
+function abrirModalEditarTramo(tramoUuid) {
+    fetch('{{ url("tramo") }}/' + tramoUuid + '/edit', { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(t => {
+            document.getElementById('formEditarTramo').action = '{{ url("tramo") }}/' + t.uuid;
+            document.getElementById('et_origen').value        = t.origen ?? '';
+            document.getElementById('et_destino').value       = t.destino ?? '';
+            document.getElementById('et_peso_salida').value   = t.peso_salida ?? '';
+            document.getElementById('et_fecha_salida').value  = t.fecha_salida ?? '';
+            document.getElementById('et_observaciones').value = t.observaciones ?? '';
+            const tipoSel = document.getElementById('et_tipo_tramo');
+            if (tipoSel) tipoSel.value = t.tipo_tramo ?? 'Nacional';
+
+            const camionSel = document.getElementById('et_camion_id');
+            if ($.fn.select2 && $(camionSel).data('select2')) $(camionSel).select2('destroy');
+            camionSel.value = t.camion_id ?? '';
+            $(camionSel).select2({
+                placeholder: 'Busque por placa...',
+                width: '100%',
+                dropdownParent: $('#modalEditarTramo'),
+                language: { noResults: () => 'No se encontró ningún camión.', searching: () => 'Buscando...' }
+            });
+
+            cargarConductores(t.camion_uuid, 'et_conductor_id', null, '#modalEditarTramo', t.conductor_id);
+
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarTramo')).show();
+        })
+        .catch(() => { Swal?.fire?.('Error', 'No se pudo cargar el tramo.', 'error'); });
+}
+
+document.getElementById('et_camion_id')?.addEventListener('change', function () {
+    const opt  = this.options[this.selectedIndex];
+    const uuid = opt?.dataset?.uuid || '';
+    cargarConductores(uuid, 'et_conductor_id', null, '#modalEditarTramo');
+});
 
 function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, conductorId, tipoTramo) {
     document.getElementById('llegada_tramo_info').textContent = info;

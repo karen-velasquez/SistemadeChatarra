@@ -253,7 +253,7 @@
 </div>{{-- /paso2 --}}
 
 {{-- FORM oculto para envío --}}
-<form id="form_pago_masivo" method="POST" action="{{ route('pagos.proveedores.pago_masivo.store') }}" style="display:none">
+<form id="form_pago_masivo" method="POST" action="{{ route('pagos.proveedores.pago_masivo.store') }}" enctype="multipart/form-data" style="display:none">
   @csrf
   <input type="hidden" name="cuenta_origen_id" id="h_cuenta_origen_id">
   <input type="hidden" name="fecha_pago"        id="h_fecha_pago">
@@ -685,6 +685,14 @@ function irAPaso2() {
                 });
                 bodyHtml += `</tbody></table></div>`;
             }
+            bodyHtml += `
+                <div class="mb-1">
+                  <label class="form-label small mb-1"><i class="bi bi-paperclip me-1"></i>Voucher de este pago (opcional)</label>
+                  <input type="file" class="form-control form-control-sm voucher_input" style="max-width:320px"
+                         id="voucher_input_${ctr.id}" accept=".jpg,.jpeg,.png,.pdf"
+                         onchange="marcarVoucher(${ctr.id}, this)">
+                  <span class="small text-success ms-1 d-none" id="voucher_ok_${ctr.id}"><i class="bi bi-check-circle"></i> adjuntado</span>
+                </div>`;
             bodyHtml += `</div>`;
         });
 
@@ -728,6 +736,11 @@ function seleccionarCuenta(contratoId, ctaId, ctaLabel, tr, nombreTitular, nroDo
     if (badge) badge.classList.remove('d-none');
 
     actualizarBtnConfirmar();
+}
+
+function marcarVoucher(contratoId, input) {
+    const ok = document.getElementById(`voucher_ok_${contratoId}`);
+    if (ok) ok.classList.toggle('d-none', !input.files.length);
 }
 
 function actualizarBtnConfirmar() {
@@ -850,6 +863,13 @@ function confirmarYEnviar() {
         addHidden(`contrato_ids[]`, r.contratoId);
         addHidden(`porcentaje[${r.contratoId}]`, r.pct);
         addHidden(`cuenta_destino[${r.contratoId}]`, r.ctaId);
+
+        // Mover (no clonar) el input file al form oculto para que viaje en el submit
+        const fileInput = document.getElementById(`voucher_input_${r.contratoId}`);
+        if (fileInput && fileInput.files.length) {
+            fileInput.name = `vouchers[${r.contratoId}]`;
+            contenedor.appendChild(fileInput);
+        }
     });
 
     document.getElementById('form_pago_masivo').submit();

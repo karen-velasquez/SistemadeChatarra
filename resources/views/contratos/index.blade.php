@@ -98,6 +98,8 @@
                                     <th>Fecha Fin</th>
                                     <th>Toneladas</th>
                                     <th>Monto al Proveedor</th>
+                                    <th>Fecha Registro</th>
+                                    <th>Registrado por</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -169,6 +171,8 @@
                                             </span>
                                         @endif
                                     </td>
+                                    <td style="white-space:nowrap;">{{ $c->created_at?->format('d/m/Y H:i') ?? '-' }}</td>
+                                    <td>{{ $c->usuarioCreador->name ?? '—' }}</td>
                                     <td class="text-center">
                                         <div class="btn-group">
                                             <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>

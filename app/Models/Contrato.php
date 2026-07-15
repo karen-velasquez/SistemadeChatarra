@@ -87,6 +87,11 @@ class Contrato extends Model implements Auditable
         return $this->hasMany(ContratoCamion::class, 'contrato_id');
     }
 
+    public function usuarioCreador()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function pagosProveedor()
     {
         return $this->hasMany(PagoProveedor::class, 'contrato_id');
