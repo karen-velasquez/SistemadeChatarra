@@ -1805,6 +1805,8 @@
         hint.classList.add('d-none');
     }
 
+    const _hintConductorOriginal = '<i class="bi bi-info-circle"></i> Se muestran todos los conductores disponibles, excluyendo los que ya están asignados a este camión.';
+
     function _cargarConductoresCamion(uuid) {
         const sel  = document.getElementById('asig_conductor_id');
         const hint = document.getElementById('asig_conductor_hint');
@@ -1812,6 +1814,7 @@
         sel.innerHTML = '<option value="">— Cargando... —</option>';
         sel.disabled  = true;
         hint.classList.add('d-none');
+        hint.innerHTML = _hintConductorOriginal;
 
         fetch('{{ url("api/camion") }}/' + uuid + '/conductores-disponibles', {
             headers: { 'Accept': 'application/json' }
@@ -1826,14 +1829,23 @@
             }
 
             sel.innerHTML = '<option value="">— Seleccione conductor —</option>';
+            let hayConductoresSinLicencia = false;
             conductores.forEach(function(c) {
                 const op = document.createElement('option');
-                op.value       = c.id;
-                op.textContent = c.nombre + ' — Lic: ' + (c.licencia || 'S/N');
+                op.value = c.id;
+                if (c.licencia) {
+                    op.textContent = c.nombre + ' — Lic: ' + c.licencia;
+                } else {
+                    op.textContent = '⚠️ ' + c.nombre + ' — Sin licencia registrada';
+                    hayConductoresSinLicencia = true;
+                }
                 sel.appendChild(op);
             });
             sel.disabled = false;
             hint.classList.remove('d-none');
+            if (hayConductoresSinLicencia) {
+                hint.innerHTML = '<i class="bi bi-exclamation-triangle text-warning"></i> Los conductores marcados con ⚠️ no tienen N° de licencia registrado. Puede asignarlos igual, pero se recomienda completar su licencia en la pestaña <strong>Operadores</strong>.';
+            }
 
             // Inicializar Select2 en el conductor
             $(sel).select2({

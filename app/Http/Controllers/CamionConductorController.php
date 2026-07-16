@@ -79,7 +79,8 @@ class CamionConductorController extends Controller
         return response()->json($camiones);
     }
 
-    // Endpoint: todos los conductores con licencia que NO están asignados activamente a este camión
+    // Endpoint: todos los operadores chofer/ambos que NO están asignados activamente a este camión
+    // (incluye a quienes no tienen licencia registrada; el frontend los marca con aviso)
     public function conductoresDisponibles($uuid)
     {
         $camion = Camion::where('uuid', $uuid)->firstOrFail();
@@ -90,7 +91,6 @@ class CamionConductorController extends Controller
             ->pluck('conductor_id');
 
         $conductores = OperadorTransporte::whereIn('tipo_operador', ['chofer', 'ambos'])
-            ->whereNotNull('licencia_numero')
             ->whereNull('deleted_at')
             ->whereNotIn('id', $asignadosIds)
             ->orderBy('nombre')

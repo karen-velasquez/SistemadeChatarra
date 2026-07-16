@@ -30,10 +30,10 @@ class CamionConductorRequest extends FormRequest
 
             if (!$conductorId) return;
 
-            // Validar que el operador puede conducir
+            // Validar que el operador sea de tipo chofer/ambos (la falta de licencia ya no bloquea, solo se avisa en el frontend)
             $operador = OperadorTransporte::find($conductorId);
-            if ($operador && !$operador->puedeConducir()) {
-                $validator->errors()->add('conductor_id', 'Este operador no tiene licencia registrada y no puede ser asignado como conductor.');
+            if ($operador && !in_array($operador->tipo_operador, ['chofer', 'ambos'])) {
+                $validator->errors()->add('conductor_id', 'Este operador no está registrado como chofer y no puede ser asignado como conductor.');
             }
 
             // Validar que no haya asignación activa duplicada
