@@ -283,6 +283,7 @@ use Illuminate\Support\Facades\Route;
     // Parámetros
     Route::get('parametros', [App\Http\Controllers\ParametroController::class, 'index'])->name('parametros.index')->middleware('permission:parametros.index');
     Route::post('parametros/store', [App\Http\Controllers\ParametroController::class, 'store'])->name('parametros.store')->middleware('permission:parametros.create');
+    Route::post('parametros/store-ajax', [App\Http\Controllers\ParametroController::class, 'storeAjax'])->name('parametros.store.ajax')->middleware('permission:parametros.create');
     Route::get('parametros/{uuid}/edit', [App\Http\Controllers\ParametroController::class, 'edit'])->name('parametros.edit')->middleware('permission:parametros.edit');
     Route::put('parametros/{uuid}', [App\Http\Controllers\ParametroController::class, 'update'])->name('parametros.update')->middleware('permission:parametros.edit');
     Route::get('parametros/{uuid}/destroy', [App\Http\Controllers\ParametroController::class, 'destroy'])->name('parametros.destroy')->middleware('permission:parametros.destroy');

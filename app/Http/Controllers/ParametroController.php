@@ -23,6 +23,13 @@ class ParametroController extends Controller
         return view('parametros.index', compact('parametros', 'tipos', 'idempotencyToken'));
     }
 
+    // Quita espacios de los extremos y colapsa espacios múltiples internos a uno solo
+    // (" VOLVO   TRUCK  " -> "VOLVO TRUCK"), sin alterar el resto del texto.
+    private function normalizarValor(string $valor): string
+    {
+        return preg_replace('/\s+/', ' ', trim($valor));
+    }
+
     public function store(Request $request)
     {
         if (!$this->tokenValido('parametro_store_token', $request->input('_idempotency_token'))) {
@@ -35,9 +42,18 @@ class ParametroController extends Controller
             'descripcion' => 'nullable|string|max:255',
         ]);
 
+        $tipo  = strtolower($this->normalizarValor($request->tipo));
+        $valor = strtoupper($this->normalizarValor($request->valor));
+
+        $duplicado = Parametro::where('tipo', $tipo)->whereRaw('UPPER(valor) = ?', [$valor])->exists();
+        if ($duplicado) {
+            Alert::warning('Ya existe', "El valor \"{$valor}\" ya está registrado en este grupo de parámetros.");
+            return redirect()->route('parametros.index');
+        }
+
         Parametro::create([
-            'tipo'        => strtolower(trim($request->tipo)),
-            'valor'       => strtoupper(trim($request->valor)),
+            'tipo'        => $tipo,
+            'valor'       => $valor,
             'descripcion' => $request->descripcion ? trim($request->descripcion) : null,
             'created_by'  => auth()->id(),
             'updated_by'  => auth()->id(),
@@ -45,6 +61,40 @@ class ParametroController extends Controller
 
         Alert::success('Guardado', 'Parámetro registrado correctamente.');
         return redirect()->route('parametros.index');
+    }
+
+    // Crea un parámetro desde un modal rápido (ej: Nuevo Camión) y devuelve JSON
+    // en vez de redirigir, para poder inyectar la nueva opción en el <select> sin recargar.
+    public function storeAjax(Request $request)
+    {
+        $request->validate([
+            'tipo'  => 'required|string|max:100',
+            'valor' => 'required|string|max:255',
+        ]);
+
+        $tipo  = strtolower($this->normalizarValor($request->tipo));
+        $valor = strtoupper($this->normalizarValor($request->valor));
+
+        $existente = Parametro::where('tipo', $tipo)->whereRaw('UPPER(valor) = ?', [$valor])->first();
+        if ($existente) {
+            return response()->json([
+                'ok'        => false,
+                'message'   => "\"{$valor}\" ya está registrado. Selecciónelo de la lista en vez de crearlo de nuevo.",
+                'existente' => ['id' => $existente->id, 'valor' => $existente->valor],
+            ], 409);
+        }
+
+        $parametro = Parametro::create([
+            'tipo'       => $tipo,
+            'valor'      => $valor,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        return response()->json([
+            'ok'   => true,
+            'item' => ['id' => $parametro->id, 'valor' => $parametro->valor],
+        ]);
     }
 
     public function update(Request $request, string $uuid)
@@ -58,8 +108,8 @@ class ParametroController extends Controller
         ]);
 
         $parametro->update([
-            'tipo'        => strtolower(trim($request->tipo)),
-            'valor'       => strtoupper(trim($request->valor)),
+            'tipo'        => strtolower($this->normalizarValor($request->tipo)),
+            'valor'       => strtoupper($this->normalizarValor($request->valor)),
             'descripcion' => $request->descripcion ? trim($request->descripcion) : null,
             'updated_by'  => auth()->id(),
         ]);

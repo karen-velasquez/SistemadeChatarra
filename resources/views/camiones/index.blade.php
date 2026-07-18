@@ -426,8 +426,8 @@
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
                     <div class="row g-3">
 
-                        {{-- Fila 1: País placa / Placa / Tipo / Estado --}}
-                        <div class="col-md-3">
+                        {{-- Fila 1: País placa / Placa / Tipo (Estado solo se muestra al editar) --}}
+                        <div class="col-md-4">
                             <label class="form-label">País de la Placa <span class="text-danger">(*)</span></label>
                             <select class="form-select @error('placa_pais_id') is-invalid @enderror"
                                 name="placa_pais_id" id="cam_placa_pais_id"
@@ -439,7 +439,7 @@
                             </select>
                             @error('placa_pais_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label">Placa <span class="text-danger">(*)</span></label>
                             <input type="text"
                                 class="form-control @error('placa') is-invalid @enderror"
@@ -453,17 +453,25 @@
                             @error('placa')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             <div id="cam_placa_existente" class="d-none mt-2"></div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label class="form-label">Tipo Vehículo <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('tipo_vehiculo_id') is-invalid @enderror" name="tipo_vehiculo_id" id="cam_tipo_vehiculo_id" required>
-                                <option value="">-- SELECCIONE UN TIPO --</option>
-                                @foreach($tiposVehiculo as $tipo)
-                                    <option value="{{ $tipo->id }}">{{ $tipo->valor }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select class="form-select @error('tipo_vehiculo_id') is-invalid @enderror" name="tipo_vehiculo_id" id="cam_tipo_vehiculo_id" required>
+                                    <option value="">-- SELECCIONE UN TIPO --</option>
+                                    @foreach($tiposVehiculo as $tipo)
+                                        <option value="{{ $tipo->id }}">{{ $tipo->valor }}</option>
+                                    @endforeach
+                                </select>
+                                @can('parametros.create')
+                                <button type="button" class="btn btn-outline-secondary" title="Agregar nuevo tipo de vehículo"
+                                        onclick="abrirModalParametroRapido('camion_tipo', 'cam_tipo_vehiculo_id', 'Nuevo Tipo de Vehículo')">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                @endcan
+                            </div>
                             @error('tipo_vehiculo_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4 d-none" id="cam_estado_wrapper">
                             <label class="form-label">Estado <span class="text-danger">(*)</span></label>
                             <select class="form-select @error('estado') is-invalid @enderror" name="estado" id="cam_estado" required>
                                 @foreach(['Activo','Inactivo','En mantenimiento'] as $est)
@@ -476,12 +484,20 @@
                         {{-- Fila 2: Marca / Modelo / Año --}}
                         <div class="col-md-4">
                             <label class="form-label">Marca <span class="text-danger">(*)</span></label>
-                            <select class="form-select @error('marca_id') is-invalid @enderror" name="marca_id" id="cam_marca_id" required>
-                                <option value="">-- SELECCIONE UNA MARCA --</option>
-                                @foreach($marcas as $marca)
-                                    <option value="{{ $marca->id }}">{{ $marca->valor }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select class="form-select @error('marca_id') is-invalid @enderror" name="marca_id" id="cam_marca_id" required>
+                                    <option value="">-- SELECCIONE UNA MARCA --</option>
+                                    @foreach($marcas as $marca)
+                                        <option value="{{ $marca->id }}">{{ $marca->valor }}</option>
+                                    @endforeach
+                                </select>
+                                @can('parametros.create')
+                                <button type="button" class="btn btn-outline-secondary" title="Agregar nueva marca"
+                                        onclick="abrirModalParametroRapido('camion_marca', 'cam_marca_id', 'Nueva Marca de Camión')">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                @endcan
+                            </div>
                             @error('marca_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
@@ -595,6 +611,33 @@
         </div>
     </div>
 </div>
+
+{{-- ===== MODAL PARÁMETRO RÁPIDO (Nuevo Tipo Vehículo / Nueva Marca) ===== --}}
+@can('parametros.create')
+<div class="modal fade" id="modalParametroRapido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloParametroRapido"><i class="bi bi-plus-circle"></i> Nuevo Parámetro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Valor <span class="text-danger">(*)</span></label>
+                <input type="text" class="form-control" id="pr_valor" maxlength="255"
+                       placeholder="Ej: VOLVO" autocomplete="off" style="text-transform:uppercase"
+                       oninput="this.value=this.value.toUpperCase()">
+                <div id="pr_feedback" class="small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="pr_btn_guardar" onclick="guardarParametroRapido()">
+                    <i class="bi bi-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endcan
 
 {{-- ===== MODAL GALERÍA DE FOTOS ===== --}}
 <div class="modal fade" id="modalGaleria" tabindex="-1" aria-hidden="true">
@@ -1512,6 +1555,9 @@
         document.getElementById('cam_placa_existente').className = 'd-none mt-2';
         document.getElementById('cam_placa_existente').innerHTML = '';
         window._camionEncontrado = null;
+        // Camión nuevo: siempre Activo, sin mostrar el campo
+        document.getElementById('cam_estado_wrapper').classList.add('d-none');
+        document.getElementById('cam_estado').value = 'Activo';
         document.getElementById('ruatActualInfo').classList.add('d-none');
         document.getElementById('galeriaFotos').classList.add('d-none');
         document.getElementById('galeriaFotosContenido').innerHTML = '';
@@ -1549,6 +1595,8 @@
         document.getElementById('cam_anio').value         = camion.anio;
         _capCargar(camion.capacidad_kg / 1000);
         document.getElementById('cam_color').value        = camion.color ?? '';
+        // Al editar sí se puede cambiar el estado (Activo / Inactivo / En mantenimiento)
+        document.getElementById('cam_estado_wrapper').classList.remove('d-none');
         document.getElementById('cam_estado').value       = camion.estado;
         document.getElementById('cam_propietario').value  = camion.propietario_id ?? '';
         document.getElementById('cam_ruat').value         = '';
@@ -1634,6 +1682,103 @@
                 }
                 _actualizarContador();
             }
+        });
+    }
+
+    // ===================== PARÁMETRO RÁPIDO (Tipo Vehículo / Marca) =====================
+    let _prTipo = null;
+    let _prSelectId = null;
+
+    function abrirModalParametroRapido(tipo, selectId, titulo) {
+        _prTipo = tipo;
+        _prSelectId = selectId;
+        document.getElementById('tituloParametroRapido').innerHTML = '<i class="bi bi-plus-circle"></i> ' + titulo;
+        const input = document.getElementById('pr_valor');
+        input.value = '';
+        document.getElementById('pr_feedback').innerHTML = '';
+        document.getElementById('pr_btn_guardar').disabled = false;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParametroRapido')).show();
+        setTimeout(() => input.focus(), 300);
+    }
+
+    // Quita espacios de los extremos y colapsa espacios múltiples internos a uno solo,
+    // igual que el backend, para avisar de duplicados sin necesidad de golpear el servidor.
+    function _normalizarValorParametro(valor) {
+        return valor.trim().replace(/\s+/g, ' ');
+    }
+
+    document.getElementById('pr_valor')?.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); guardarParametroRapido(); }
+    });
+
+    function guardarParametroRapido() {
+        const input = document.getElementById('pr_valor');
+        const feedback = document.getElementById('pr_feedback');
+        const btn = document.getElementById('pr_btn_guardar');
+        const valor = _normalizarValorParametro(input.value);
+
+        feedback.innerHTML = '';
+        if (!valor) {
+            feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Ingrese un valor.</span>';
+            return;
+        }
+
+        // Aviso local inmediato si ya existe una opción igual (case-insensitive) en el propio select
+        const select = document.getElementById(_prSelectId);
+        const yaExisteLocal = Array.from(select.options).some(
+            opt => opt.value && opt.textContent.trim().toUpperCase() === valor.toUpperCase()
+        );
+        if (yaExisteLocal) {
+            feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> "' + valor + '" ya está en la lista. Selecciónelo directamente.</span>';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+        fetch('{{ route("parametros.store.ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            },
+            body: JSON.stringify({ tipo: _prTipo, valor: valor }),
+        })
+        .then(async r => ({ status: r.status, data: await r.json() }))
+        .then(({ status, data }) => {
+            if (status === 409) {
+                feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> ' + data.message + '</span>';
+                // Si ya existe en BD pero no estaba en el select (recién creado por otro usuario), lo agrega y selecciona
+                if (data.existente && !Array.from(select.options).some(o => o.value == data.existente.id)) {
+                    const op = document.createElement('option');
+                    op.value = data.existente.id;
+                    op.textContent = data.existente.valor;
+                    select.appendChild(op);
+                }
+                if (data.existente) select.value = data.existente.id;
+                return;
+            }
+            if (!data.ok) {
+                feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ' + (data.message || 'No se pudo guardar.') + '</span>';
+                return;
+            }
+
+            const op = document.createElement('option');
+            op.value = data.item.id;
+            op.textContent = data.item.valor;
+            select.appendChild(op);
+            select.value = data.item.id;
+            select.dispatchEvent(new Event('change'));
+
+            bootstrap.Modal.getInstance(document.getElementById('modalParametroRapido')).hide();
+        })
+        .catch(() => {
+            feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Error de conexión. Intente de nuevo.</span>';
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save"></i> Guardar';
         });
     }
 
