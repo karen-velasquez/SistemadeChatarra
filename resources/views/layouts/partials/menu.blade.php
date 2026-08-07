@@ -254,8 +254,8 @@
       </li>
       @endcan
 
-        {{-- REPORTES --}}
-      @php $enReportes = request()->routeIs(['reportes.index','reportes.capital_utilidad']); @endphp
+       {{-- REPORTES --}}
+      @php $enReportes = request()->routeIs(['newReports.index','reportes.index','reportes.capital_utilidad']); @endphp
       @if(auth()->user()->can('reportes.index'))
       <li class="nav-item">
         <a class="nav-link {{ $enReportes ? '' : 'collapsed' }}"
@@ -264,8 +264,17 @@
           <span>Reportes</span>
           <i class="bi bi-chevron-down ms-auto"></i>
         </a>
-        <ul id="menu-reportes"
-            class="nav-content sidebar-submenu {{ $enReportes ? 'submenu-open' : '' }}">
+        <ul id="menu-reportes" class="nav-content sidebar-submenu {{ $enReportes ? 'submenu-open' : '' }}">
+          
+          @can('reportes.index')
+          <li>
+            <a href="{{ route('newReports.index') }}"
+               class="{{ isActiveRoute(['newReports.index']) ? 'active' : '' }}">
+              <i class="bi bi-person-lines-fill"></i><span>Reportes</span>
+            </a>
+          </li>
+          @endcan
+          <!--  
           @can('reportes.index')
           <li>
             <a href="{{ route('reportes.index') }}"
@@ -273,7 +282,7 @@
               <i class="bi bi-person-lines-fill"></i><span>Reportes Generales</span>
             </a>
           </li>
-          @endcan
+          @endcan 
           @can('reportes_capital.index')
           <li>
             <a href="{{ route('reportes.capital_utilidad') }}"
@@ -281,7 +290,7 @@
               <i class="bi bi-receipt"></i><span>Reportes de Capital y Utilidad</span>
             </a>
           </li>
-          @endcan
+          @endcan -->
         </ul>
       </li>
       @endif

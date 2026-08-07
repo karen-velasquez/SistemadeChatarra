@@ -129,7 +129,7 @@
                     </div>
                     <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Seleccione un contrato para visualizar todos sus gastos extras</p>
                     <div class="table-responsive">
-                        <table class="table table-hover table-bordered table-sm">
+                        <table id="datos" registros="10" class="table table-hover table-bordered table-sm">
                             <thead>
                                 <tr>
                                     <th>Contrato</th>
@@ -168,9 +168,9 @@
                             <small id="tituloDetalle" class="text-muted">Seleccione un contrato</small>
                         </div>
                     </div>
-
+    |
                     <div class="table-responsive mt-3">
-                        <table class="table table-hover table-bordered table-sm">
+                        <table id="datos" class="table table-hover table-bordered table-sm">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
@@ -196,8 +196,8 @@
 @endsection
 
 @section('scripts')
-<script src="{{ asset('assets/js/tablas/basica.js') }}"></script>
 
+<script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script>window.gastosExtrasConfig = {updateBaseUrl: "{{ url('/gastos_extras') }}"};</script>
 <script src="{{ asset('assets/js/forms/validacionGastos.js') }}"></script>
 <script>
@@ -209,11 +209,7 @@ function verDetalles(gastos, contrato) {
     let html = '';
     document.getElementById('tituloDetalle').innerText = 'Contrato: ' + contrato;
     if (!gastos || gastos.length === 0) {
-        html = `
-            <tr>
-                <td colspan="8" class="text-center text-muted">Sin gastos registrados</td>
-            </tr>
-        `;
+        html = `<tr><td colspan="8" class="text-center text-muted">Sin gastos registrados</td></tr>`;
     } else {
         gastos.forEach(g => {
             const key = guardarGastoEnCache(g);
@@ -221,21 +217,14 @@ function verDetalles(gastos, contrato) {
             let comprobante = '';
             if (g.estado === 'PAGADO') {
                 if (g.comprobante_pago) {
-                    comprobante = `
-                        <li>
-                            <a class="dropdown-item" href="#" onclick="window.open('{{ asset('storage/comprobantes_pago') }}/${escapeHtml(g.comprobante_pago)}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>
-                    `;
+                    comprobante = `<li><a class="dropdown-item" href="#" onclick="window.open('{{ asset('storage/comprobantes_pago') }}/${escapeHtml(g.comprobante_pago)}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>`;
                 } else {
-                    comprobante = `
-                        <li><a class="dropdown-item text-muted"><i class="bi bi-receipt"></i>Sin Comprobante</a></li>
-                    `;
+                    comprobante = `<li><a class="dropdown-item text-muted"><i class="bi bi-receipt"></i>Sin Comprobante</a></li>`;
                 }
             }
             let btnMarcarPagado = '';
             if (g.estado === 'PENDIENTE') {
-                btnMarcarPagado = `
-                    <li><a class="dropdown-item" href="#" onclick="marcarPagadoPorKey('${keySeguro}'); return false;"><i class="bi bi-cash"></i>Marcar PAGADO</a></li>
-                `;
+                btnMarcarPagado = `<li><a class="dropdown-item" href="#" onclick="marcarPagadoPorKey('${keySeguro}'); return false;"><i class="bi bi-cash"></i>Marcar PAGADO</a></li>`;
             }
             html += `
                 <tr>
@@ -243,38 +232,17 @@ function verDetalles(gastos, contrato) {
                     <td><span class="badge bg-primary">${escapeHtml(valorSeguro(g.categoria))}</span></td>
                     <td>${escapeHtml(valorSeguro(g.concepto))}</td>
                     <td>
-
-    <div class="fw-bold">
-        ${escapeHtml(valorSeguro(g.moneda))}
-        ${_fmtG(g.monto)}
-    </div>
-
+    <div class="fw-bold">${escapeHtml(valorSeguro(g.moneda))} ${_fmtG(g.monto)}</div>
     ${
-        g.moneda !== 'BOB'
-        ? `
-            <div class="small text-muted mt-1">
-                TC:
-                <strong>${_fmtG(g.tipo_cambio)}</strong>
-                <br>
-                BOB:
-                <strong class="text-success">${_fmtG(g.monto_bolivianos)}</strong>
-            </div>
-        `
-        : `
-            <div class="small text-success mt-1">
-                BOB:
-                <strong>${_fmtG(g.monto_bolivianos || g.monto)}</strong>
-            </div>
-        `
+        g.moneda !== 'BOB' ? `
+            <div class="small text-muted mt-1">TC: <strong>${_fmtG(g.tipo_cambio)}</strong> <br>BOB: <strong class="text-success">${_fmtG(g.monto_bolivianos)}</strong>
+            </div>` : ` <div class="small text-success mt-1"> BOB: <strong>${_fmtG(g.monto_bolivianos || g.monto)}</strong></div>`
     }
-
-</td>
-            
+</td>  
                    <td>${g.estado === 'PAGADO'? `<div>
                 <span class="badge bg-success">PAGADO</span>
                 <div class="small text-muted mt-1">${escapeHtml(valorSeguro(g.metodo_pago))}</div>
-            </div>` : ` <span class="badge bg-warning text-dark">PENDIENTE</span>`}</td>
-                    
+            </div>` : ` <span class="badge bg-warning text-dark">PENDIENTE</span>`}</td>               
                     <td class="text-center">
                         <div class="btn-group">
                             <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Opciones</button>
@@ -283,28 +251,22 @@ function verDetalles(gastos, contrato) {
                                     g.estado === 'PENDIENTE' ? `
                                     @can('gastos_extras.edit')
                                     <li><a class="dropdown-item" href="#" onclick="editarGastoPorKey('${keySeguro}'); return false;"><i class="bi bi-pencil"></i> Modificar</a></li>
-                                    @endcan
-                                    `
+                                    @endcan`
                                     : `
-                                    <li><a class="dropdown-item text-muted"><i class="bi bi-lock"></i>Gasto Pagado</a></li>
-                                    `
+                                    <li><a class="dropdown-item text-muted"><i class="bi bi-lock"></i>Gasto Pagado</a></li>`
                                 }
                                 ${comprobante}
                                 ${btnMarcarPagado}
                                 ${
-                                    g.estado === 'PENDIENTE'
-                                    ? `
+                                    g.estado === 'PENDIENTE' ? `
                                     @can('gastos_extras.destroy')
                                     <li><a class="dropdown-item text-danger" href="{{ url('/gastos_extras') }}/${escapeHtml(g.uuid)}/destroy" onclick="return confirm('¿Eliminar este gasto extra?')"><i class="bi bi-trash"></i>Eliminar</a></li>
-                                    @endcan
-                                    `
-                                    : ''
+                                    @endcan` : ''
                                 }
                             </ul>
                         </div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         });
     }
     document.getElementById('detalleGastos').innerHTML = html;

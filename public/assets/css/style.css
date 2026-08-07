@@ -9,7 +9,7 @@
 /*--------------------------------------------------------------
 # General
 --------------------------------------------------------------*/
-:root {
+/*:root {
     scroll-behavior: smooth;
     --first: #BB2C2D;
     --second: #3A6157;
@@ -18,6 +18,16 @@
     --success_hover:#CA6F1E;
     --success_second:#D68910;
     --nav_active:#0d6efd;
+}*/
+:root {
+    scroll-behavior: smooth;
+    --first: #2563EB;
+    --second: #1E3A5F;
+    --second_hover: #2B6CB0;
+    --success: #0EA5E9;
+    --success_hover: #0284C7;
+    --success_second: #38BDF8;
+    --nav_active: #3B82F6;
 }
 
 p {

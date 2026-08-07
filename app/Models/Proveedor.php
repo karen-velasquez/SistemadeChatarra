@@ -27,6 +27,10 @@ class Proveedor extends Model implements Auditable
     {
         return $this->belongsTo(Parametro::class, 'pais_id');
     }
+    public function contratos()
+    {
+        return $this->hasMany(Contrato::class, 'proveedor_id');
+    }
 
     public function contacts()
     {

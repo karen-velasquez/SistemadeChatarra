@@ -17,17 +17,11 @@
     </div>
 
     <div class="section-card p-4 mb-4">
-
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
             <div>
-                <h5 class="panel-title mb-1">
-                    <i class="bi bi-funnel me-2"></i>Filtros de Reporte
-                </h5>
-                <p class="text-muted small mb-0">
-                    Selecciona el periodo, proveedor, cliente y tipo de contrato para generar el reporte.
-                </p>
+                <h5 class="panel-title mb-1"><i class="bi bi-funnel me-2"></i>Filtros de Reporte</h5>
+                <p class="text-muted small mb-0">Selecciona el periodo, proveedor, cliente y tipo de contrato para generar el reporte.</p>
             </div>
-
             <button type="button" id="btnGuiaReportes" class="btn btn-outline-primary btn-iniciar-tour"
                 data-steps='[
                     {"intro":"Bienvenido al módulo de Reportes Generales. Aquí puedes analizar contratos, proveedores, clientes, pagos, cobros, gastos, utilidad y movimientos operativos."},

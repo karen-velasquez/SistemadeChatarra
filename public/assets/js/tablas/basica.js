@@ -23,6 +23,6 @@
         orderCellsTop: true,
         fixedHeader: true,
         ordering: false,
-        pageLength: 50
+        pageLength: 20
     });
     

@@ -233,7 +233,10 @@ use Illuminate\Support\Facades\Route;
     Route::get('gastos_extras/{uuid}/destroy', [App\Http\Controllers\GastoExtraController::class, 'destroy'])->name('gastos_extras.destroy')->middleware('permission:gastos_extras.destroy');
     
     //Cuentas Bancarias (gestionadas desde el módulo de Bancos);
-
+    
+    //Report
+    Route::get('Reports',[App\Http\Controllers\NewReportController::class, 'index'])->name('newReports.index')->middleware('permission:reportes.index');
+    Route::get('/reportes/export', [App\Http\Controllers\NewReportController::class, 'export'])->name('newReports.export')->middleware('can:reportes.export');
     //Reportes
     Route::get('/reportes', [App\Http\Controllers\ReporteController::class, 'index'])->name('reportes.index')->middleware('permission:reportes.index');
     Route::get('/reportes/exportar-excel', [App\Http\Controllers\ReporteController::class,'exportarExcel'])->name('reportes.exportar.excel')->middleware('permission:reportes.export');
