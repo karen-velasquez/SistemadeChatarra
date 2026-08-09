@@ -2,6 +2,7 @@
 @section('titulo', 'Cobros a Clientes')
 @section('content')
 
+
 <div class="pagetitle">
     <div class="d-flex flex-row align-items-center justify-content-between">
         <div>
@@ -291,7 +292,10 @@
                         <div class="text-muted small" id="precio_contrato"></div>
                     </div>
                     <div class="row g-3">
-                        <div class="col-md-5">
+                        {{-- Los cobros a clientes se registran en Bolivia: se fija BOB.
+                             El selector queda oculto (no eliminado) por si más adelante
+                             se cobra en otra moneda: basta quitar el d-none. --}}
+                        <div class="col-md-5 d-none">
                             <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
                             <select class="form-select" name="moneda_venta" required>
                                 @php
@@ -301,14 +305,18 @@
                                         'COP' => '🇨🇴', 'UYU' => '🇺🇾'
                                     ];
                                 @endphp
+                                <option value="BOB" selected>🇧🇴 BOB</option>
                                 @foreach($monedas as $moneda)
-                                    <option value="{{ $moneda->valor }}">{{ $flags[$moneda->valor] ?? '' }} {{ $moneda->valor }}</option>
+                                    @if($moneda->valor !== 'BOB')
+                                        <option value="{{ $moneda->valor }}">{{ $flags[$moneda->valor] ?? '' }} {{ $moneda->valor }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-7">
+                        <div class="col-12">
                             <label class="form-label fw-semibold">Precio por tonelada <span class="text-danger">*</span></label>
                             <div class="input-group">
+                                <span class="input-group-text fw-bold">BOB</span>
                                 <input type="text" inputmode="numeric" class="form-control"
                                     id="precio_display" placeholder="0,00" autocomplete="off">
                                 <input type="hidden" name="precio_por_tonelada" id="precio_hidden" value="">
@@ -753,6 +761,7 @@
 const canEditCobro = {{ auth()->user()->can('pagos_clientes.edit') ? 'true' : 'false' }};
 const canDeleteCobro = {{ auth()->user()->can('pagos_clientes.destroy') ? 'true' : 'false' }};
 
+
 let _clienteActual = null;
 
 // ===== Filtros de la tabla (integrados con la paginación de DataTables) =====
@@ -991,7 +1000,7 @@ function verDetalle(tramoId) {
                 <div class="col-6 col-md-3">
                     <div class="border rounded p-2 text-center">
                         <div class="text-muted small">Precio / t</div>
-                        <strong>${mon} ${_fmtC4(d.precio_por_tonelada||0)}</strong>
+                        <strong>${mon} ${_fmtC(d.precio_por_tonelada||0)}</strong>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">

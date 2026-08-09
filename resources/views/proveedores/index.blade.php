@@ -8,8 +8,8 @@
             <h1>REGISTRO proveedores</h1>
              <nav>
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                    <li class="breadcrumb-item active">Proveedores</li>
+                    <li class="breadcrumb-item">Proveedores</li>
+                    <li class="breadcrumb-item active">Listado de Proveedores</li>
                 </ol>
             </nav>
         </div>

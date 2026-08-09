@@ -2,14 +2,19 @@
 @section('titulo', 'Pago Masivo a Proveedores')
 @section('content')
 
+<style>
+    /* chevron: apunta arriba cuando el grupo está abierto */
+    [data-bs-toggle="collapse"] .bi-chevron-down { transition: transform .2s; }
+    [data-bs-toggle="collapse"]:not(.collapsed) .bi-chevron-down { transform: rotate(180deg); }
+</style>
+
 <div class="pagetitle">
     <div class="d-flex flex-row align-items-center justify-content-between">
         <div>
             <h1>PAGO MASIVO A PROVEEDORES</h1>
             <nav>
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('pagos.proveedores.index') }}">Pagos Proveedores</a></li>
+                    <li class="breadcrumb-item">Proveedores</a></li>
                     <li class="breadcrumb-item active">Pago Masivo</li>
                 </ol>
             </nav>
@@ -26,8 +31,8 @@
                     {"element":"#cuenta_origen_id","intro":"🏦 <b>Cuenta de origen</b>: de qué cuenta de la empresa saldrá el dinero. Al elegirla se muestra su <b>saldo disponible</b> y te avisa si no alcanza.","position":"bottom"},
                     {"element":"#fecha_pago","intro":"📅 <b>Fecha de pago</b> que tendrán todos los pagos de este lote.","position":"bottom"},
                     {"element":"#metodo_pago","intro":"💳 <b>Método de pago</b> (transferencia o QR) para todo el lote.","position":"bottom"},
-                    {"element":"#zona-proveedores","intro":"📦 Aquí están los contratos <b>agrupados por proveedor</b>. Marca la casilla del proveedor para seleccionar todos sus contratos, o marca contratos sueltos.","position":"top"},
-                    {"element":"#col-pct","intro":"🔢 Para cada contrato marcado, escribe el <b>% del saldo</b> que vas a pagar. El sistema calcula el <b>monto</b> automáticamente en la columna de al lado.","position":"bottom"},
+                    {"element":"#zona-proveedores","intro":"📦 Aquí están los contratos <b>agrupados por proveedor</b>. Cada grupo viene cerrado: usa el botón <b>▾</b> para desplegar sus contratos. Marca la casilla del proveedor para seleccionar todos, o marca contratos sueltos.","position":"top"},
+                    {"element":"#zona-proveedores","intro":"🔢 Con el grupo abierto, escribe para cada contrato el <b>% del saldo</b> a pagar y el sistema calcula el <b>monto</b> (o escribe el monto y calcula el %).","position":"top"},
                     {"element":"#zona-totales","intro":"🧮 Abajo ves cuántos contratos seleccionaste y el <b>total a pagar</b>.","position":"top"},
                     {"element":"#btn_paso2","intro":"➡️ Cuando todo esté listo, el botón <b>Siguiente</b> te lleva al Paso 2 para asignar las cuentas destino y confirmar.","position":"bottom"}
                 ]'
@@ -125,7 +130,16 @@
           <i class="bi bi-box-seam me-1"></i>{{ $prov->nombre ?? 'Proveedor #'.$provId }}
         </label>
         <span class="ms-auto text-muted small">{{ $ctrs->count() }} contrato(s)</span>
+        {{-- Contador de seleccionados, visible con el grupo cerrado --}}
+        <span class="badge bg-primary d-none" id="badge_sel_{{ $provId }}"></span>
+        <button class="btn btn-sm btn-outline-secondary border-0 collapsed" type="button"
+                data-bs-toggle="collapse" data-bs-target="#prov_body_{{ $provId }}"
+                aria-expanded="false" aria-controls="prov_body_{{ $provId }}"
+                title="Mostrar/ocultar contratos">
+          <i class="bi bi-chevron-down"></i>
+        </button>
       </div>
+      <div class="collapse" id="prov_body_{{ $provId }}">
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0">
           <thead class="table-light">
@@ -181,10 +195,10 @@
               <td class="text-end">
                 <div class="input-group input-group-sm justify-content-end">
                   <span class="input-group-text text-muted" style="font-size:.75rem">{{ $moneda }}</span>
-                  <input type="number" class="form-control monto_input" id="monto_{{ $c->id }}"
-                         min="0.01" step="0.01" placeholder="0.00"
-                         disabled
-                         oninput="calcularPct({{ $c->id }})">
+                  <input type="text" inputmode="numeric" class="form-control monto_input text-end" id="monto_{{ $c->id }}"
+                         placeholder="0,00"
+                         disabled autocomplete="off"
+                         oninput="formatearMontoInput(this); calcularPct({{ $c->id }})">
                 </div>
               </td>
               <td class="text-center">
@@ -203,6 +217,7 @@
           </tbody>
         </table>
       </div>
+      </div>{{-- /collapse --}}
     </div>
     @endforeach
     </div>{{-- /zona-proveedores --}}
@@ -448,6 +463,26 @@ function _fmtM(n) {
     return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
 }
 
+// "1.234,56" -> 1234.56  (formato de dinero del sistema)
+function _txt2numM(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+// Formatea mientras se escribe: miles con ".", 2 decimales con ","
+function formatearMontoInput(inp) {
+    var raw    = inp.value.replace(/[^0-9,]/g, '');
+    var partes = raw.split(',');
+    if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+    partes = raw.split(',');
+    if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+    var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+    var diff  = nuevo.length - inp.value.length;
+    var pos   = (inp.selectionStart || 0) + diff;
+    inp.value = nuevo;
+    try { inp.setSelectionRange(pos, pos); } catch (_) {}
+}
+
 function clampPct(input) {
     let v = parseFloat(input.value);
     if (isNaN(v)) return;
@@ -506,6 +541,11 @@ function toggleProveedor(provId, checked) {
         chk.checked = checked;
         onCheckContrato(parseInt(chk.id.replace('chk_c_', '')), checked);
     });
+    // Al marcar el proveedor, abrir su grupo: hay que escribir los porcentajes
+    const body = document.getElementById(`prov_body_${provId}`);
+    if (checked && body && !body.classList.contains('show')) {
+        bootstrap.Collapse.getOrCreateInstance(body).show();
+    }
 }
 
 function onCheckContrato(contratoId, checked) {
@@ -557,7 +597,7 @@ function calcularMonto(contratoId) {
     entry.pct     = pctReal;
     entry.monto   = monto;
 
-    montoInput.value = (pctReal > 0 && !invalido) ? monto.toFixed(2) : '';
+    montoInput.value = (pctReal > 0 && !invalido) ? _fmtM(monto) : '';
     actualizarTotales();
     actualizarBtnPaso2();
 }
@@ -569,7 +609,7 @@ function calcularPct(contratoId) {
     const entry      = _seleccionados[contratoId];
     if (!entry) return;
 
-    const monto = parseFloat(montoInput.value) || 0;
+    const monto = _txt2numM(montoInput.value);
     const pct   = entry.saldo > 0 ? Math.round(monto / entry.saldo * 10000) / 100 : 0;
 
     const invalido = monto < 0 || monto > entry.saldo;
@@ -595,7 +635,32 @@ function actualizarTotales() {
     });
     const txt = Object.entries(totPorMoneda).map(([m, v]) => `${m} ${_fmtM(v)}`).join(' + ');
     document.getElementById('lbl_total').textContent = txt || '—';
+    actualizarBadgesProveedor();
     verificarSaldo();
+}
+
+// Con los grupos colapsados hay que poder ver cuántos contratos se eligieron
+// de cada proveedor sin tener que abrirlos.
+function actualizarBadgesProveedor() {
+    const conteo = {};
+    Object.values(_seleccionados).forEach(e => {
+        conteo[e.proveedorId] = (conteo[e.proveedorId] || 0) + 1;
+    });
+    document.querySelectorAll('[id^="badge_sel_"]').forEach(badge => {
+        const provId = badge.id.replace('badge_sel_', '');
+        const n = conteo[provId] || 0;
+        badge.textContent = n + ' sel.';
+        badge.classList.toggle('d-none', n === 0);
+
+        // Si un contrato inválido quedó oculto, avisar en la cabecera del grupo
+        const body   = document.getElementById('prov_body_' + provId);
+        const header = badge.closest('.card-header');
+        if (body && header) {
+            const hayError = body.querySelectorAll('.is-invalid').length > 0;
+            header.classList.toggle('bg-danger-subtle', hayError);
+            header.classList.toggle('bg-light', !hayError);
+        }
+    });
 }
 
 function actualizarBtnPaso2() {

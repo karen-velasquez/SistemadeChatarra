@@ -8,7 +8,7 @@
             <h1>PAGOS A PROVEEDORES</h1>
             <nav>
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
+                    <li class="breadcrumb-item"><a>Proveedores</a></li>
                     <li class="breadcrumb-item active">Pagos Proveedores</li>
                 </ol>
             </nav>
@@ -40,6 +40,17 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Pagos por Contrato</h5>
+
+                @if($errors->any())
+                <div class="alert alert-danger py-2">
+                    <ul class="mb-0 ps-3">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
+
                 <p class="text-muted small mb-3">
                     <i class="bi bi-info-circle me-1"></i>
                     Registra y controla los pagos realizados a los proveedores por cada contrato.
@@ -48,17 +59,35 @@
 
                 {{-- ===== SELECTOR DE PROVEEDOR ===== --}}
                 <div class="row g-2 align-items-end mb-3">
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <label class="form-label fw-semibold mb-1"><i class="bi bi-box-seam"></i> Filtrar por proveedor</label>
-                        <select class="form-select" id="filtro_proveedor" onchange="filtrarPorProveedor(this.value)">
+                        <select class="form-select" id="filtro_proveedor" onchange="aplicarFiltrosPP()">
                             <option value="">— Todos los proveedores —</option>
                             @foreach($proveedores as $prov)
                                 <option value="{{ $prov->id }}">{{ $prov->nombre }}</option>
                             @endforeach
                         </select>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-calendar-event"></i> Desde</label>
+                        <input type="date" class="form-control" id="filtro_desde" onchange="aplicarFiltrosPP()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1">Hasta</label>
+                        {{-- min/max se sincronizan en JS para que no se pueda elegir un rango invertido --}}
+                        <input type="date" class="form-control" id="filtro_hasta" onchange="aplicarFiltrosPP()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-sort-down"></i> Ordenar</label>
+                        <select class="form-select" id="filtro_orden" onchange="aplicarFiltrosPP()">
+                            <option value="fecha_desc">Fecha (recientes)</option>
+                            <option value="fecha_asc">Fecha (antiguos)</option>
+                            <option value="saldo_desc">Mayor saldo</option>
+                            <option value="saldo_asc">Menor saldo</option>
+                        </select>
+                    </div>
                     <div class="col-auto">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="filtrarPorProveedor('')">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosPP()">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </button>
                     </div>
@@ -79,6 +108,7 @@
                                 <th style="white-space:nowrap; width:1%;">Contrato</th>
                                 <th>Proveedor</th>
                                 <th>Tipo</th>
+                                <th>Registrado por</th>
                                 <th class="text-end">Total acordado</th>
                                 <th class="text-end">Pagado</th>
                                 <th class="text-end">Saldo</th>
@@ -96,7 +126,9 @@
                                 $pct     = $total > 0 ? min(100, round($pagado / $total * 100)) : 0;
                                 $rowClass = $saldo <= 0 ? 'table-success' : '';
                             @endphp
-                            <tr class="{{ $rowClass }}" data-proveedor-id="{{ $c->proveedor_id }}">
+                            <tr class="{{ $rowClass }}" data-proveedor-id="{{ $c->proveedor_id }}"
+                                data-fecha="{{ $c->fecha_inicio?->format('Y-m-d') }}"
+                                data-saldo="{{ $saldo }}">
                                 <td style="white-space:nowrap;">
                                     <a href="{{ route('contratos.camiones', $c->uuid) }}" class="text-decoration-none fw-semibold">
                                         {{ $c->numero_contrato }}
@@ -108,6 +140,9 @@
                                     <span class="badge bg-{{ $c->tipo_contrato === 'Internacional' ? 'info text-dark' : 'secondary' }}">
                                         {{ $c->tipo_contrato }}
                                     </span>
+                                </td>
+                                <td>
+                                    <small>{{ $c->usuarioCreador->name ?? '—' }}</small>
                                 </td>
                                 <td class="text-end">{{ $mon }} {{ number_format($total, 2, ',', '.') }}</td>
                                 <td class="text-end text-success">{{ $mon }} {{ number_format($pagado, 2, ',', '.') }}</td>
@@ -182,6 +217,13 @@
                                 </td>
                             </tr>
                             @endforeach
+                            {{-- Visible solo cuando los filtros no dejan ninguna fila --}}
+                            <tr id="fila_sin_resultados" style="display:none;">
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="bi bi-search" style="font-size:1.6rem;opacity:.35"></i>
+                                    <div class="mt-2" id="txt_sin_resultados">No hay contratos que coincidan con el filtro.</div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -198,9 +240,12 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="bi bi-cash-coin"></i> Registrar Pago a Proveedor</h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
-                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            class="btn btn-sm btn-iniciar-tour text-white rounded-circle d-flex align-items-center justify-content-center p-0"
+                            style="width:28px;height:28px;background:#0a58ca"
+                            title="Ayuda"
+                            aria-label="Ayuda"
                             data-tour-modal="#modalPago"
                             data-steps='[
                                 {"intro":"💳 Este formulario registra un <b>pago a un proveedor</b> por un contrato. Te explico cada parte. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
@@ -209,13 +254,13 @@
                                 {"element":"#moneda_pago","intro":"💱 <b>Moneda</b> del pago. Si eliges una distinta de BOB, aparecerá el campo de <b>tipo de cambio</b> para convertir a bolivianos.","position":"bottom"},
                                 {"element":"#inp_monto","intro":"🔢 <b>Monto</b> que se paga. Si la moneda no es BOB, abajo verás el equivalente en bolivianos calculado automáticamente.","position":"bottom"},
                                 {"element":"[name=\"fecha_pago\"]","intro":"📅 <b>Fecha del pago</b>. Por defecto es hoy.","position":"top"},
-                                {"element":"#metodo_pago","intro":"🏦 <b>Método de Pago</b>: transferencia, QR o cheque. Si es transferencia, se habilita un campo para el código/N° de referencia.","position":"top"},
+                                {"element":"#metodo_pago","intro":"🏦 <b>Método de Pago</b>: transferencia bancaria o QR. Si es transferencia, se habilita un campo para el código/N° de referencia.","position":"top"},
                                 {"element":"[name=\"cuenta_origen_id\"]","intro":"📤 <b>Cuenta Origen</b> (obligatoria): de qué cuenta de la empresa (tesorería) sale el dinero.","position":"top"},
                                 {"element":"#sel_cuenta_destino","intro":"📥 <b>Cuenta Destino</b>: a qué cuenta del proveedor se le pagó. Se cargan según el proveedor del contrato.","position":"top"},
                                 {"element":"[name=\"observaciones\"]","intro":"📝 <b>Observaciones</b> (opcional): cualquier nota sobre el pago.","position":"top"},
                                 {"element":"[name=\"voucher\"]","intro":"📎 <b>Voucher / Comprobante</b> (opcional): sube una foto o PDF del comprobante del pago realizado.","position":"top"}
                             ]'>
-                        <i class="bi bi-question-circle"></i> Ayuda
+                        <i class="bi bi-question-circle"></i>
                     </button>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -271,7 +316,8 @@
                             <div class="border rounded-3 p-3 bg-light">
                                 <div class="row g-2 align-items-end">
 
-                                    <div class="col-md-3">
+                                    {{-- Si el contrato está en BOB el pago también: se oculta y se fija en BOB --}}
+                                    <div class="col-md-3" id="sec_moneda_pago">
                                         <label class="form-label fw-semibold mb-1">Moneda <span class="text-danger">*</span></label>
                                         <select class="form-select form-select-sm" name="moneda_pago" id="moneda_pago" required onchange="toggleTipoCambio(this.value); actualizarBtnPagoProveedor()">
                                             <option value="BOB">🇧🇴 BOB</option>
@@ -334,12 +380,11 @@
                                 <option value="">-- Seleccione --</option>
                                 <option value="transferencia">Transferencia Bancaria</option>
                                 <option value="qr">QR</option>
-                                <option value="cheque">Cheque</option>
                             </select>
                         </div>
 
                         <div class="col-md-6" id="sec_codigo" style="display:none;">
-                            <label class="form-label">Código / N° Cheque</label>
+                            <label class="form-label">Código de transferencia <span class="text-danger">(*)</span></label>
                             <input type="text" class="form-control" name="codigo_seguimiento" id="codigo_seguimiento" maxlength="100"
                                 placeholder="Ej: TRX-20260512-001" oninput="actualizarBtnPagoProveedor()">
                         </div>
@@ -374,9 +419,13 @@
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label">Observaciones</label>
-                            <textarea class="form-control" name="observaciones" rows="2" maxlength="500"
-                                placeholder="Notas del pago..."></textarea>
+                            <label class="form-label">Observaciones <small class="text-muted">(opcional)</small></label>
+                            <textarea class="form-control" name="observaciones" id="pp_observaciones" rows="2" maxlength="500"
+                                placeholder="Notas del pago..."
+                                oninput="document.getElementById('pp_obs_contador').textContent = this.value.length"></textarea>
+                            <div class="form-text text-end">
+                                <span id="pp_obs_contador">0</span>/500 caracteres
+                            </div>
                         </div>
 
                         <div class="col-12">
@@ -437,6 +486,10 @@
                         if (onChangeCb) onChangeCb();
                     });
                 }
+                // Mismo formateo de dinero para el modal de editar pago
+                window._initCajero = _initCajero;
+                window._fmt2       = _fmt2;
+
                 _initCajero('inp_monto_display',      'inp_monto',         2, function() {
                     if (typeof calcEquivalente === 'function') calcEquivalente();
                     if (typeof actualizarBtnPagoProveedor === 'function') actualizarBtnPagoProveedor();
@@ -452,6 +505,11 @@
 </div>
 
 {{-- ===== MODAL EDITAR PAGO ===== --}}
+{{-- Se abre sobre el modal de detalle: Bootstrap no eleva el z-index del segundo modal --}}
+<style>
+    #modalEditarPagoProveedor { z-index: 1060; }
+    .modal-backdrop.editar-pago-backdrop { z-index: 1055; }
+</style>
 <div class="modal fade" id="modalEditarPagoProveedor" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -459,57 +517,51 @@
                 <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Pago a Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="formEditarPagoProveedor">
+            <form method="POST" id="formEditarPagoProveedor" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Tipo de Pago <span class="text-danger">*</span></label>
-                            <select class="form-select" name="tipo_pago" id="edit_pp_tipo" required>
-                                <option value="adelanto">Adelanto</option>
-                                <option value="pago_final">Pago Final</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" name="fecha_pago" id="edit_pp_fecha" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
-                            <select class="form-select" name="moneda_pago" id="edit_pp_moneda" required onchange="editPpToggleTc(this.value)">
-                                <option value="BOB">🇧🇴 BOB</option>
-                                <option value="USD">🇺🇸 USD</option>
-                                <option value="BRL">🇧🇷 BRL</option>
-                                <option value="ARS">🇦🇷 ARS</option>
-                                <option value="EUR">🇪🇺 EUR</option>
-                                <option value="PEN">🇵🇪 PEN</option>
-                                <option value="CLP">🇨🇱 CLP</option>
-                                <option value="PYG">🇵🇾 PYG</option>
-                                <option value="COP">🇨🇴 COP</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Monto <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" min="0.01" class="form-control" name="monto" id="edit_pp_monto" required>
-                        </div>
-                        <div class="col-md-4" id="edit_pp_sec_tc">
-                            <label class="form-label fw-semibold">Tipo de cambio <span class="text-danger">*</span></label>
-                            <input type="number" step="0.0001" min="0.0001" class="form-control" name="tipo_cambio" id="edit_pp_tc">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Método de Pago <span class="text-danger">*</span></label>
-                            <select class="form-select" name="metodo_pago" id="edit_pp_metodo" required>
-                                <option value="transferencia">Transferencia Bancaria</option>
-                                <option value="qr">QR</option>
-                                <option value="cheque">Cheque</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Código / N° referencia</label>
-                            <input type="text" class="form-control" name="codigo_seguimiento" id="edit_pp_codigo" maxlength="100">
+                    {{-- Contexto del pago (solo lectura): lo único editable es el monto --}}
+                    <div class="alert alert-light border py-2 mb-3 small">
+                        <div class="d-flex flex-wrap gap-3">
+                            <div><span class="text-muted">Tipo:</span> <strong id="edit_pp_info_tipo">—</strong></div>
+                            <div><span class="text-muted">Fecha:</span> <strong id="edit_pp_info_fecha">—</strong></div>
+                            <div><span class="text-muted">Método:</span> <strong id="edit_pp_info_metodo">—</strong></div>
+                            <div><span class="text-muted">Moneda:</span> <strong id="edit_pp_info_moneda">—</strong></div>
                         </div>
                     </div>
+                    <label class="form-label fw-semibold">Monto <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text fw-bold" id="edit_pp_monto_moneda">BOB</span>
+                        <input type="text" inputmode="numeric" class="form-control"
+                               id="edit_pp_monto_display" placeholder="0,00" autocomplete="off" required>
+                        <input type="hidden" name="monto" id="edit_pp_monto">
+                    </div>
+                    <div class="form-text">
+                        Al guardar se actualiza también el movimiento en tesorería y el saldo de la cuenta.
+                    </div>
+
+                    {{-- Voucher: opcional, para adjuntarlo si faltaba o reemplazar uno incorrecto --}}
+                    <hr class="my-3">
+                    <label class="form-label fw-semibold">
+                        Voucher / comprobante <span class="text-muted fw-normal">(opcional)</span>
+                    </label>
+                    <div id="edit_pp_voucher_actual" class="alert alert-light border py-2 small d-none">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span>
+                                <i class="bi bi-paperclip me-1"></i>
+                                Este pago ya tiene un comprobante adjunto.
+                            </span>
+                            <a href="#" id="edit_pp_voucher_link" target="_blank"
+                               class="btn btn-sm btn-primary flex-shrink-0">
+                                <i class="bi bi-eye me-1"></i>Ver actual
+                            </a>
+                        </div>
+                        <div class="text-muted mt-1">Si subes uno nuevo, reemplazará al anterior.</div>
+                    </div>
+                    <input type="file" class="form-control" name="voucher" id="edit_pp_voucher"
+                           accept=".jpg,.jpeg,.png,.pdf">
+                    <div class="form-text">JPG, PNG o PDF. Máximo 5 MB.</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -544,23 +596,103 @@
 const canEditPago = {{ auth()->user()->can('pagos_proveedores.edit') ? 'true' : 'false' }};
 const canDeletePago = {{ auth()->user()->can('pagos_proveedores.destroy') ? 'true' : 'false' }};
 
+// Se mantiene por compatibilidad: otras vistas entran aquí con un proveedor ya elegido
 function filtrarPorProveedor(proveedorId) {
-    const filas = document.querySelectorAll('#tabla_pagos_prov tbody tr');
+    const sel = document.getElementById('filtro_proveedor');
+    if (sel) sel.value = proveedorId;
+    aplicarFiltrosPP();
+}
+
+function limpiarFiltrosPP() {
+    document.getElementById('filtro_proveedor').value = '';
+    document.getElementById('filtro_desde').value     = '';
+    document.getElementById('filtro_hasta').value     = '';
+    document.getElementById('filtro_orden').value     = 'fecha_desc';
+    // Soltar los límites, si no quedan pegados del rango anterior
+    document.getElementById('filtro_desde').max = '';
+    document.getElementById('filtro_hasta').min = '';
+    aplicarFiltrosPP();
+}
+
+function aplicarFiltrosPP() {
+    const tbody = document.querySelector('#tabla_pagos_prov tbody');
+    if (!tbody) return;
+
+    const provId = document.getElementById('filtro_proveedor').value;
+    const inpDesde = document.getElementById('filtro_desde');
+    const inpHasta = document.getElementById('filtro_hasta');
+    const orden  = document.getElementById('filtro_orden').value;
+
+    // El rango no puede quedar invertido: el calendario bloquea las fechas imposibles
+    inpHasta.min = inpDesde.value || '';
+    inpDesde.max = inpHasta.value || '';
+
+    // Red de seguridad si el valor se escribió a mano en vez de elegirlo
+    if (inpDesde.value && inpHasta.value && inpHasta.value < inpDesde.value) {
+        inpHasta.value = inpDesde.value;
+    }
+
+    const desde = inpDesde.value;
+    const hasta = inpHasta.value;
+
+    const filaVacia = document.getElementById('fila_sin_resultados');
+    const filas = Array.from(tbody.querySelectorAll('tr')).filter(f => f !== filaVacia);
+
     let visibles = 0;
-    filas.forEach(function(fila) {
-        const mostrar = !proveedorId || fila.dataset.proveedorId == proveedorId;
+    filas.forEach(fila => {
+        const fecha = fila.dataset.fecha || '';
+        // Las fechas vienen como YYYY-MM-DD: se comparan como texto sin parsear
+        const okProv  = !provId || fila.dataset.proveedorId == provId;
+        const okDesde = !desde  || (fecha && fecha >= desde);
+        const okHasta = !hasta  || (fecha && fecha <= hasta);
+
+        const mostrar = okProv && okDesde && okHasta;
         fila.style.display = mostrar ? '' : 'none';
         if (mostrar) visibles++;
     });
+
+    // Ordenar solo las visibles, reinsertándolas en el tbody
+    const visiblesArr = filas.filter(f => f.style.display !== 'none');
+    visiblesArr.sort((a, b) => {
+        switch (orden) {
+            case 'fecha_asc':  return (a.dataset.fecha || '').localeCompare(b.dataset.fecha || '');
+            case 'saldo_desc': return parseFloat(b.dataset.saldo || 0) - parseFloat(a.dataset.saldo || 0);
+            case 'saldo_asc':  return parseFloat(a.dataset.saldo || 0) - parseFloat(b.dataset.saldo || 0);
+            default:           return (b.dataset.fecha || '').localeCompare(a.dataset.fecha || '');
+        }
+    });
+    visiblesArr.forEach(f => tbody.appendChild(f));
+    if (filaVacia) tbody.appendChild(filaVacia);
+
     document.getElementById('lbl_count_prov').textContent = visibles;
-    const sel = document.getElementById('filtro_proveedor');
-    if (sel) sel.value = proveedorId;
+
+    // Mensaje explícito en vez de una tabla vacía
+    if (filaVacia) {
+        filaVacia.style.display = visibles === 0 ? '' : 'none';
+        if (visibles === 0) {
+            const nombreProv = provId
+                ? document.querySelector(`#filtro_proveedor option[value="${provId}"]`)?.textContent?.trim()
+                : null;
+            const hayFechas = desde || hasta;
+            let msg;
+            if (nombreProv && hayFechas) {
+                msg = `${nombreProv} no tiene contratos con pagos pendientes en el rango de fechas seleccionado.`;
+            } else if (nombreProv) {
+                msg = `${nombreProv} no tiene contratos con pagos por realizar.`;
+            } else {
+                msg = 'No hay contratos en el rango de fechas seleccionado.';
+            }
+            document.getElementById('txt_sin_resultados').textContent = msg;
+        }
+    }
 }
 
 let _proveedorActual = null;
 let _monedaPendiente = null;
 
 document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('filtro_orden')) aplicarFiltrosPP();
+
     const modalPago = document.getElementById('modalPago');
     modalPago.addEventListener('shown.bs.modal', function () {
         if (_monedaPendiente) {
@@ -572,6 +704,7 @@ document.addEventListener('DOMContentLoaded', function () {
     modalPago.addEventListener('hidden.bs.modal', function () {
         document.getElementById('sec_seleccionar_contrato').style.display = 'block';
         document.getElementById('pago_info_contrato').style.display = 'none';
+        document.getElementById('sec_moneda_pago').style.display = '';
     });
 });
 
@@ -680,7 +813,12 @@ function abrirModalPago(contratoId, label, saldo, moneda, proveedorId) {
     document.getElementById('pago_info_contrato').style.display = 'block';
     document.getElementById('sec_seleccionar_contrato').style.display = 'none';
 
-    _monedaPendiente  = moneda || 'BOB';
+    const mon = moneda || 'BOB';
+    document.getElementById('moneda_pago').value = mon;
+    // Contrato en BOB: el pago va en BOB, no hay moneda que elegir
+    document.getElementById('sec_moneda_pago').style.display = mon === 'BOB' ? 'none' : '';
+
+    _monedaPendiente  = mon;
     _proveedorActual  = proveedorId;
 
     cargarCuentasProveedor(proveedorId);
@@ -699,6 +837,9 @@ function cambiarContrato(contratoId) {
     document.getElementById('pago_info_contrato').style.display = 'block';
 
     document.getElementById('moneda_pago').value = mon;
+    // Contrato en BOB: el pago va en BOB, no hay nada que elegir.
+    // Se oculta el contenedor (no se deshabilita: el select debe seguir enviándose).
+    document.getElementById('sec_moneda_pago').style.display = mon === 'BOB' ? 'none' : '';
     toggleTipoCambio(mon);
 
     _proveedorActual = opt.dataset.proveedorId || null;
@@ -733,31 +874,102 @@ function toggleCodigo(metodo) {
         metodo === 'transferencia' ? 'block' : 'none';
 }
 
-function abrirEditarPagoProveedor(uuid, tipo, monto, moneda, tc, fecha, metodo, codigo) {
+function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoLabel, tieneVoucher) {
     document.getElementById('formEditarPagoProveedor').action = url_global + '/pagos/proveedores/' + uuid;
-    document.getElementById('edit_pp_tipo').value    = tipo;
-    document.getElementById('edit_pp_fecha').value   = fecha;
-    document.getElementById('edit_pp_moneda').value  = moneda;
-    document.getElementById('edit_pp_monto').value   = monto;
-    document.getElementById('edit_pp_tc').value      = tc;
-    document.getElementById('edit_pp_metodo').value  = metodo;
-    document.getElementById('edit_pp_codigo').value  = codigo || '';
-    editPpToggleTc(moneda);
+
+    // Voucher: limpiar la selección previa y mostrar el actual si lo hay
+    document.getElementById('edit_pp_voucher').value = '';
+    const avisoVoucher = document.getElementById('edit_pp_voucher_actual');
+    avisoVoucher.classList.toggle('d-none', !tieneVoucher);
+    if (tieneVoucher) {
+        document.getElementById('edit_pp_voucher_link').href =
+            url_global + '/pagos/proveedores/' + uuid + '/voucher';
+    }
+
+    // Mismo formato de dinero del sistema: display con miles/decimales, hidden con el valor crudo
+    document.getElementById('edit_pp_monto').value         = monto;
+    document.getElementById('edit_pp_monto_display').value = _fmt2(parseFloat(monto) || 0);
+    document.getElementById('edit_pp_monto_moneda').textContent = moneda;
+
+    // Contexto solo lectura: no se edita, el backend conserva estos valores
+    document.getElementById('edit_pp_info_tipo').textContent   = tipoLabel;
+    document.getElementById('edit_pp_info_fecha').textContent  = fecha;
+    document.getElementById('edit_pp_info_metodo').textContent = metodoLabel;
+    document.getElementById('edit_pp_info_moneda').textContent = moneda;
+
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarPagoProveedor')).show();
 }
 
-function editPpToggleTc(moneda) {
-    const sec = document.getElementById('edit_pp_sec_tc');
-    const inp = document.getElementById('edit_pp_tc');
-    if (moneda === 'BOB') {
-        sec.style.display = 'none';
-        inp.disabled = true;
-        inp.value = '1';
-    } else {
-        sec.style.display = 'block';
-        inp.disabled = false;
-    }
-}
+// Modal anidado sobre el de detalle: marcar su backdrop para elevarlo y
+// devolver el scroll al modal de detalle cuando este se cierra encima.
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEditar = document.getElementById('modalEditarPagoProveedor');
+    if (!modalEditar) return;
+
+    // Formateo de dinero del sistema (miles con ".", 2 decimales con ",")
+    _initCajero('edit_pp_monto_display', 'edit_pp_monto', 2);
+
+    modalEditar.addEventListener('shown.bs.modal', function () {
+        const backdrops = document.querySelectorAll('.modal-backdrop:not(.editar-pago-backdrop)');
+        if (backdrops.length > 1) {
+            backdrops[backdrops.length - 1].classList.add('editar-pago-backdrop');
+        }
+    });
+
+    modalEditar.addEventListener('hidden.bs.modal', function () {
+        if (document.querySelector('.modal.show')) {
+            document.body.classList.add('modal-open');
+        }
+    });
+
+    // Guardar por AJAX: cierra solo el modal de edición y refresca el detalle
+    // en su sitio, sin recargar ni perder el contrato que se estaba mirando.
+    document.getElementById('formEditarPagoProveedor').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const form = this;
+
+        // Lo que se envía es el hidden: validar sobre él, no sobre el display formateado
+        if (!(parseFloat(document.getElementById('edit_pp_monto').value) > 0)) {
+            alert('El monto debe ser mayor a cero.');
+            document.getElementById('edit_pp_monto_display').focus();
+            return;
+        }
+
+        const btn  = form.querySelector('button[type="submit"]');
+        const btnHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        })
+        .then(async r => {
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) {
+                // 422: Laravel manda los mensajes por campo en data.errors
+                const detalle = data.errors ? Object.values(data.errors).flat().join('\n') : null;
+                throw new Error(detalle || data.message || 'No se pudo actualizar el pago.');
+            }
+            return data;
+        })
+        .then(() => {
+            bootstrap.Modal.getInstance(modalEditar).hide();
+            if (contratoDetalleActual) verDetalle(contratoDetalleActual);
+            // La fila de la tabla (pagado, saldo, progreso) se rearma en Blade:
+            // se recarga al cerrar el detalle en vez de duplicar ese cálculo en JS.
+            hayPagoEditado = true;
+        })
+        .catch(err => {
+            alert(err.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = btnHtml;
+        });
+    });
+});
 
 function _fmtP(n) {
     return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
@@ -765,8 +977,26 @@ function _fmtP(n) {
 function _fmtPtc(n) {
     return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(parseFloat(n) || 0);
 }
+// Escapa texto libre del usuario antes de insertarlo como HTML
+function _escP(s) {
+    const d = document.createElement('div');
+    d.textContent = s ?? '';
+    return d.innerHTML;
+}
+
+// Contrato que se está viendo, para poder refrescar el detalle tras editar un pago
+let contratoDetalleActual = null;
+let hayPagoEditado = false;
+
+// Al cerrar el detalle, refrescar la tabla si algún pago cambió
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('modalDetalle')?.addEventListener('hidden.bs.modal', function () {
+        if (hayPagoEditado) location.reload();
+    });
+});
 
 function verDetalle(contratoId) {
+    contratoDetalleActual = contratoId;
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle'));
     document.getElementById('det_body').innerHTML =
         '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
@@ -830,6 +1060,13 @@ function verDetalle(contratoId) {
                         origLine = `<span class="text-muted ms-2" style="font-size:.75rem">· Pagó: ${p.cuenta_origen.titular}${alias}</span>`;
                     }
 
+                    // Observaciones del pago (texto del usuario: se escapa antes de insertarlo)
+                    const obsLine = p.observaciones
+                        ? `<div class="mt-2 pt-2 border-top small">
+                               <i class="bi bi-sticky text-muted me-1"></i>${_escP(p.observaciones)}
+                           </div>`
+                        : '';
+
                     html += `
                     <div class="rounded-2 border px-3 py-2 bg-white">
                         <div class="d-flex align-items-start gap-3">
@@ -845,7 +1082,7 @@ function verDetalle(contratoId) {
                                     <i class="bi bi-paperclip"></i>
                                 </a>` : ''}
                                 ${canEditPago ? `<button class="btn btn-sm btn-outline-primary border-0"
-                                    onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo_raw}',${p.monto},'${p.moneda_pago}',${p.tipo_cambio},'${p.fecha_raw}','${p.metodo_raw}','${p.codigo||''}')"
+                                    onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo}',${p.monto},'${p.moneda_pago}','${p.fecha}','${p.metodo}',${p.tiene_voucher})"
                                     title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>` : ''}
@@ -856,6 +1093,7 @@ function verDetalle(contratoId) {
                                 </a>` : ''}
                             </div>
                         </div>
+                        ${obsLine}
                     </div>`;
                 });
                 html += '</div>';

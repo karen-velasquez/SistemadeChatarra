@@ -7,9 +7,12 @@
                         <i class="bi bi-person"></i> Nuevo Cliente
                     </span>
                 </h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
-                            class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                            class="btn btn-sm btn-iniciar-tour text-white rounded-circle d-flex align-items-center justify-content-center p-0"
+                            style="width:28px;height:28px;background:#0d6efd"
+                            title="Ayuda"
+                            aria-label="Ayuda"
                             data-tour-modal="#modalCliente"
                             data-steps='[
                                 {"intro":"📝 Este es el formulario para registrar un <b>cliente</b>. Te explico cada campo. Los marcados con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},

@@ -26,7 +26,7 @@ class PagoProveedorController extends Controller
 
     public function index()
     {
-        $contratos = Contrato::with(['proveedor', 'pagosProveedor', 'contratoCamiones.tramos'])
+        $contratos = Contrato::with(['proveedor', 'pagosProveedor', 'contratoCamiones.tramos', 'usuarioCreador'])
             ->whereNotNull('proveedor_id')
             ->whereNotNull('monto_total')
             ->orderByDesc('created_at')
@@ -48,12 +48,12 @@ class PagoProveedorController extends Controller
         }
         $request->validate([
             'contrato_id'        => 'required|exists:contratos,id',
-            'tipo_pago'          => 'required|in:adelanto,parcial,pago_final',
+            'tipo_pago'          => 'required|in:adelanto,pago_final',
             'monto'              => 'required|numeric|min:0.01',
             'moneda_pago'        => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
             'tipo_cambio'        => 'required|numeric|min:0.0001',
             'fecha_pago'         => 'required|date',
-            'metodo_pago'        => 'required|in:efectivo,transferencia,qr,cheque',
+            'metodo_pago'        => 'required|in:transferencia,qr',
             'codigo_seguimiento' => 'nullable|string|max:100',
             'cuenta_origen_id'   => 'required|exists:cuentas_empresa,id',
             'cuenta_destino_id'  => 'required|exists:cuentas_bancarias,id',
@@ -73,7 +73,13 @@ class PagoProveedorController extends Controller
             'metodo_pago.required' => 'Debe indicar el método de pago.',
         ]);
 
-        DB::transaction(function () use ($request) {
+        // En QR no se captura código: se genera uno para poder rastrear el pago.
+        $codigoSeguimiento = $request->codigo_seguimiento ?: null;
+        if (!$codigoSeguimiento && $request->metodo_pago === 'qr') {
+            $codigoSeguimiento = 'QR-' . strtoupper(\Illuminate\Support\Str::random(8));
+        }
+
+        DB::transaction(function () use ($request, $codigoSeguimiento) {
             $pago = PagoProveedor::create([
                 'contrato_id'        => $request->contrato_id,
                 'tipo_pago'          => $request->tipo_pago,
@@ -82,7 +88,7 @@ class PagoProveedorController extends Controller
                 'tipo_cambio'        => $request->tipo_cambio,
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
-                'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
+                'codigo_seguimiento' => $codigoSeguimiento,
                 'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
                 'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
                 'observaciones'      => $request->observaciones ?: null,
@@ -111,28 +117,59 @@ class PagoProveedorController extends Controller
     {
         $pago = PagoProveedor::where('uuid', $uuid)->firstOrFail();
 
+        // Editable: el monto y, opcionalmente, el voucher. Moneda, tipo de cambio,
+        // fecha y método se conservan tal como se registró el pago.
         $request->validate([
-            'tipo_pago'          => 'required|in:adelanto,pago_final',
-            'monto'              => 'required|numeric|min:0.01',
-            'moneda_pago'        => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
-            'tipo_cambio'        => 'required|numeric|min:0.0001',
-            'fecha_pago'         => 'required|date',
-            'metodo_pago'        => 'required|in:transferencia,qr,cheque',
-            'codigo_seguimiento' => 'nullable|string|max:100',
+            'monto'   => 'required|numeric|min:0.01',
+            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'monto.required' => 'El monto es obligatorio.',
+            'monto.min'      => 'El monto debe ser mayor a cero.',
+            'voucher.mimes'  => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'    => 'El comprobante no debe superar los 5 MB.',
         ]);
 
-        $pago->update([
-            'tipo_pago'          => $request->tipo_pago,
-            'monto'              => $request->monto,
-            'moneda_pago'        => $request->moneda_pago,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
-            'updated_by'         => auth()->id(),
-        ]);
+        DB::transaction(function () use ($request, $pago) {
+            $datos = [
+                'monto'      => $request->monto,
+                'updated_by' => auth()->id(),
+            ];
 
-        Alert::success('Éxito', 'Pago actualizado correctamente.');
+            // Voucher nuevo: reemplaza al anterior y borra el archivo viejo
+            if ($request->hasFile('voucher')) {
+                $anterior = $pago->voucher;
+                $datos['voucher'] = $request->file('voucher')->store('vouchers_pago_proveedor', 'public');
+                if ($anterior) {
+                    Storage::disk('public')->delete($anterior);
+                }
+            }
+
+            $pago->update($datos);
+
+            // El movimiento de tesorería debe reflejar el monto editado.
+            // El hook updated() de Movimiento recalcula monto_bolivianos y ajusta el saldo.
+            Movimiento::where('origen_type', PagoProveedor::class)
+                ->where('origen_id', $pago->id)
+                ->each(fn($m) => $m->update([
+                    'monto'      => $pago->monto,
+                    'updated_by' => auth()->id(),
+                ]));
+        });
+
+        if ($request->expectsJson()) {
+            $contrato = $pago->contrato()->first();
+
+            return response()->json([
+                'ok'              => true,
+                'message'         => 'Pago actualizado y movimiento en tesorería sincronizado.',
+                'tiene_voucher'   => (bool) $pago->voucher,
+                'contrato_id'     => $pago->contrato_id,
+                'total_pagado'    => $contrato?->total_pagado_proveedor,
+                'saldo_pendiente' => $contrato?->saldo_pendiente_proveedor,
+            ]);
+        }
+
+        Alert::success('Éxito', 'Pago actualizado y movimiento en tesorería sincronizado.');
         return redirect()->route('pagos.proveedores.index');
     }
 
@@ -182,6 +219,7 @@ class PagoProveedorController extends Controller
                 'tipo_raw'       => $p->tipo_pago,
                 'monto_bob'      => $p->monto_en_moneda_contrato,
                 'codigo'         => $p->codigo_seguimiento,
+                'observaciones'  => $p->observaciones,
                 'tiene_voucher'  => (bool) $p->voucher,
                 'cuenta_destino' => $p->cuentaDestino ? [
                     'banco'          => $p->cuentaDestino->banco->nombre ?? '—',
@@ -319,16 +357,26 @@ class PagoProveedorController extends Controller
                 $monto = round($saldo * $pct / 100, 2);
                 if ($monto <= 0) continue;
 
+                // Si el pago cubre el saldo pendiente liquida el contrato; si no, es un adelanto
+                $tipoPago = $monto >= round($saldo, 2) ? 'pago_final' : 'adelanto';
+
                 $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
                 if (!$ctaDest) continue;
 
                 $voucherFile = $request->file("vouchers.$contratoId");
                 $voucherPath = $voucherFile ? $voucherFile->store('vouchers_pago_proveedor', 'public') : null;
 
+                // Dejar constancia de que el pago vino de un lote masivo, se hayan
+                // escrito observaciones o no.
+                $notaMasivo    = 'Pago realizado mediante pago masivo (lote ' . $codigoLote . ').';
+                $observaciones = trim($request->observaciones ?: '') !== ''
+                    ? trim($request->observaciones) . ' — ' . $notaMasivo
+                    : $notaMasivo;
+
                 $pago = PagoProveedor::create([
                     'lote_pago_id'       => $lote->id,
                     'contrato_id'        => $contratoId,
-                    'tipo_pago'          => 'parcial',
+                    'tipo_pago'          => $tipoPago,
                     'monto'              => $monto,
                     'moneda_pago'        => $monedaPago,
                     'tipo_cambio'        => $tipoCambio,
@@ -338,7 +386,7 @@ class PagoProveedorController extends Controller
                     'cuenta_origen_id'   => $request->cuenta_origen_id,
                     'cuenta_destino_id'  => $ctaDest->id,
                     'voucher'            => $voucherPath,
-                    'observaciones'      => $request->observaciones ?: null,
+                    'observaciones'      => $observaciones,
                     'created_by'         => auth()->id(),
                     'updated_by'         => auth()->id(),
                 ]);
@@ -348,7 +396,7 @@ class PagoProveedorController extends Controller
                     $conceptoDetalle .= ' - Contrato ' . $contrato->numero_contrato;
                 }
 
-                Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago masivo proveedor: ' . $conceptoDetalle, $request->observaciones);
+                Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago masivo proveedor: ' . $conceptoDetalle, $observaciones);
 
                 $resumen[] = [
                     'proveedor'      => $contrato->proveedor->nombre ?? '—',
@@ -369,11 +417,51 @@ class PagoProveedorController extends Controller
         }
 
         $total = collect($resumen)->sum('monto');
-        $lineas = collect($resumen)->map(fn($r) =>
-            "{$r['proveedor']} ({$r['contrato']}): {$r['moneda']} " . number_format($r['monto'], 2) . " ({$r['porcentaje']}%) → {$r['cuenta_destino']}"
-        )->implode(' | ');
 
-        Alert::success('Pagos registrados', count($resumen) . ' pago(s) por ' . $monedaPago . ' ' . number_format($total, 2) . '. ' . $lineas);
+        // Resumen como tabla: en una sola línea separada por "|" era ilegible
+        $filas = collect($resumen)->map(function ($r) {
+            $prov = e($r['proveedor']);
+            $ctr  = e($r['contrato']);
+            $cta  = e($r['cuenta_destino']);
+            $mto  = $r['moneda'] . ' ' . number_format($r['monto'], 2, ',', '.');
+            $pct  = rtrim(rtrim(number_format($r['porcentaje'], 2, ',', '.'), '0'), ',');
+
+            return "<tr>
+                <td style='padding:6px 8px;border-bottom:1px solid #eee'>
+                    <strong>{$prov}</strong><br>
+                    <span style='color:#6c757d;font-size:.85em'>{$ctr}</span>
+                </td>
+                <td style='padding:6px 8px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap'>
+                    <strong>{$mto}</strong><br>
+                    <span style='color:#6c757d;font-size:.85em'>{$pct}% del saldo</span>
+                </td>
+                <td style='padding:6px 8px;border-bottom:1px solid #eee;font-size:.85em;color:#495057'>{$cta}</td>
+            </tr>";
+        })->implode('');
+
+        $totalFmt = $monedaPago . ' ' . number_format($total, 2, ',', '.');
+        $cantidad = count($resumen);
+
+        $html = "
+            <div style='text-align:left'>
+                <div style='background:#f8f9fa;border-radius:6px;padding:10px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px'>
+                    <span>{$cantidad} pago(s) registrado(s)</span>
+                    <strong style='color:#198754'>Total: {$totalFmt}</strong>
+                </div>
+                <table style='width:100%;border-collapse:collapse;font-size:.9rem'>
+                    <thead>
+                        <tr style='background:#e9ecef'>
+                            <th style='padding:6px 8px;text-align:left'>Proveedor / Contrato</th>
+                            <th style='padding:6px 8px;text-align:right'>Monto</th>
+                            <th style='padding:6px 8px;text-align:left'>Cuenta destino</th>
+                        </tr>
+                    </thead>
+                    <tbody>{$filas}</tbody>
+                </table>
+            </div>";
+
+        Alert::success('Pagos registrados', $html)->toHtml()->width('46rem');
+
         return redirect()->route('pagos.proveedores.index');
     }
 

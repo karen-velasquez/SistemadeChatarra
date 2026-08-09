@@ -106,6 +106,8 @@ class ContratoController extends Controller
 
         return response()->json([
             'numero_contrato'     => $contrato->numero_contrato,
+            'fecha_inicio'        => $contrato->fecha_inicio?->format('d/m/Y'),
+            'fecha_fin'           => $contrato->fecha_fin?->format('d/m/Y'),
             'toneladas_contrato'  => (float) $contrato->toneladas_contrato,
             'toneladas_entregadas'=> $contrato->toneladas_entregadas,
             'toneladas_en_transito' => $contrato->toneladas_en_transito,

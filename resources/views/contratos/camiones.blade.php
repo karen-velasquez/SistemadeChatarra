@@ -403,7 +403,27 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Registrar Llegada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <button type="button"
+                            class="btn btn-sm btn-iniciar-tour text-white rounded-circle d-flex align-items-center justify-content-center p-0"
+                            style="width:28px;height:28px;background:#146c43"
+                            title="Ayuda"
+                            aria-label="Ayuda"
+                            data-tour-modal="#modalLlegada"
+                            data-steps='[
+                                {"intro":"📍 Aquí registras qué pasó cuando el camión <b>llegó</b> a su destino. Es el paso clave del seguimiento. Te explico los campos."},
+                                {"element":"#inp_peso_llegada_display","intro":"⚖️ <b>Peso al llegar</b>: las toneladas reales pesadas al llegar. Puede diferir del peso de salida (merma).","position":"bottom"},
+                                {"element":"#inp_fecha_llegada","intro":"📅 <b>Fecha de llegada</b>. No puede ser anterior a la fecha de salida.","position":"bottom"},
+                                {"element":"#accion_entregado","intro":"✅ <b>Entregado al cliente</b>: la carga llegó a su destino final. Pedirá el cliente, empresa y precio de venta.","position":"right"},
+                                {"element":"#accion_div_carga","intro":"🥧 <b>Div. Carga</b>: entregas una parte a un cliente y el resto continúa en otro camión. Se crean 2 tramos automáticamente.","position":"right"},
+                                {"element":"#accion_transbordo","intro":"🔄 <b>Transbordo</b>: la carga cambia de camión y continúa (típico en frontera o cambio de unidad).","position":"right"},
+                                {"element":"#chk_descuento","intro":"➖ Opcional: aplica un <b>descuento</b> al pago del camionero (ej. por chatarra en mal estado o faltante).","position":"top"},
+                                {"element":"#btn_confirmar_llegada","intro":"💾 El botón <b>Confirmar</b> se activa cuando completas todos los campos obligatorios según la acción elegida.","position":"top"}
+                            ]'>
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
             </div>
             <form method="POST" id="formLlegada" action="" enctype="multipart/form-data">
                 @csrf
@@ -424,30 +444,44 @@
                         $tn_en_ruta    = $contrato->toneladas_en_transito;
                         $tn_pendientes = max(0, $tn_pactadas - $tn_entregadas - $tn_en_ruta);
                     @endphp
-                    <div class="alert alert-primary border-0 mb-2 py-2 d-flex flex-wrap gap-3 align-items-center">
-                        <div>
-                            <small class="text-primary-emphasis opacity-75">Contrato</small><br>
-                            <span class="fw-bold">{{ $contrato->numero_contrato }}</span>
+                    <div class="alert alert-primary border-0 mb-2 py-2 text-center">
+                        {{-- Fila 1: identificación del contrato --}}
+                        <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                            <div>
+                                <small class="text-primary-emphasis opacity-75">Contrato</small><br>
+                                <span class="fw-bold">{{ $contrato->numero_contrato }}</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-primary-emphasis opacity-75">Vigencia</small><br>
+                                <span class="fw-bold">
+                                    {{ $contrato->fecha_inicio?->format('d/m/Y') ?? '—' }}
+                                    al {{ $contrato->fecha_fin?->format('d/m/Y') ?? 'sin fin' }}
+                                </span>
+                            </div>
                         </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-primary-emphasis opacity-75">Estipuladas</small><br>
-                            <span class="fw-bold">{{ $tn_pactadas ? number_format($tn_pactadas, 2, ',', '.') . ' t' : '—' }}</span>
-                        </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-success opacity-75">Entregadas</small><br>
-                            <span class="fw-bold text-success">{{ number_format($tn_entregadas, 2, ',', '.') }} t</span>
-                        </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-info opacity-75">En ruta</small><br>
-                            <span class="fw-bold text-info">{{ number_format($tn_en_ruta, 2, ',', '.') }} t</span>
-                        </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-secondary opacity-75">Pendientes</small><br>
-                            <span class="fw-bold text-secondary">{{ number_format($tn_pendientes, 2, ',', '.') }} t</span>
+                        <hr class="my-2 opacity-25">
+                        {{-- Fila 2: toneladas --}}
+                        <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                            <div>
+                                <small class="text-primary-emphasis opacity-75">Estipuladas</small><br>
+                                <span class="fw-bold">{{ $tn_pactadas ? number_format($tn_pactadas, 2, ',', '.') . ' t' : '—' }}</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-success opacity-75">Entregadas</small><br>
+                                <span class="fw-bold text-success">{{ number_format($tn_entregadas, 2, ',', '.') }} t</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-info opacity-75">En ruta</small><br>
+                                <span class="fw-bold text-info">{{ number_format($tn_en_ruta, 2, ',', '.') }} t</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-secondary opacity-75">Pendientes</small><br>
+                                <span class="fw-bold text-secondary">{{ number_format($tn_pendientes, 2, ',', '.') }} t</span>
+                            </div>
                         </div>
                     </div>
                     <div class="alert alert-light border mb-3 py-2">
@@ -523,10 +557,13 @@
                                         <div class="border rounded-3 p-3 bg-light">
                                             <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente</div>
                                             <div class="row g-2 align-items-end">
-                                                <div class="col-md-4">
+                                                {{-- Las entregas son en Bolivia: se fija BOB.
+                                                     El selector queda oculto (no eliminado) por si más adelante
+                                                     se vende en otra moneda: basta quitar el d-none. --}}
+                                                <div class="col-md-4 d-none">
                                                     <label class="form-label mb-1">Moneda</label>
                                                     <select class="form-select form-select-sm" name="moneda_venta" id="sel_moneda_venta">
-                                                        <option value="BOB">BOB</option>
+                                                        <option value="BOB" selected>BOB</option>
                                                         <option value="USD">USD</option>
                                                         <option value="BRL">BRL</option>
                                                         <option value="ARS">ARS</option>
@@ -540,6 +577,7 @@
                                                 <div class="col-md-4">
                                                     <label class="form-label mb-1">Precio por tonelada</label>
                                                     <div class="input-group input-group-sm">
+                                                        <span class="input-group-text fw-bold">BOB</span>
                                                         <input type="text" inputmode="numeric" class="form-control"
                                                             id="inp_precio_ton_display"
                                                             placeholder="0,00" autocomplete="off">
@@ -621,10 +659,11 @@
                                                     <div class="border rounded-3 p-3 bg-white">
                                                         <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente (esta entrega)</div>
                                                         <div class="row g-2 align-items-end">
-                                                            <div class="col-md-4">
+                                                            {{-- Ver nota en la sección de entrega: BOB fijo, selector oculto --}}
+                                                            <div class="col-md-4 d-none">
                                                                 <label class="form-label mb-1">Moneda</label>
                                                                 <select class="form-select form-select-sm" name="moneda_venta" id="sel_moneda_venta_div">
-                                                                    <option value="BOB">BOB</option>
+                                                                    <option value="BOB" selected>BOB</option>
                                                                     <option value="USD">USD</option>
                                                                     <option value="BRL">BRL</option>
                                                                     <option value="ARS">ARS</option>
@@ -638,6 +677,7 @@
                                                             <div class="col-md-4">
                                                                 <label class="form-label mb-1">Precio por tonelada</label>
                                                                 <div class="input-group input-group-sm">
+                                                                    <span class="input-group-text fw-bold">BOB</span>
                                                                     <input type="text" inputmode="numeric" class="form-control"
                                                                         id="inp_precio_ton_div_display"
                                                                         placeholder="0,00" autocomplete="off">
@@ -1219,6 +1259,9 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     const inpDoc = document.getElementById('inp_documento_entrega');
     if (inpDoc) inpDoc.value = '';
 
+    // Todas las secciones arrancan ocultas: deshabilitar sus campos
+    sincronizarCamposLlegada();
+
     // Cargar lotes de entrega del proveedor de este contrato
     const selLote = document.getElementById('sel_lote_entrega');
     selLote.innerHTML = '<option value="">Cargando lotes...</option>';
@@ -1372,7 +1415,28 @@ function accionCamionCambiada(accion) {
         secParcial.classList.remove('d-none');
         calcTotalVenta();
     }
+
+    sincronizarCamposLlegada();
     validarFormLlegada();
+}
+
+// "Entregado" y "Div. Carga" tienen campos con el mismo name (precio_por_tonelada,
+// cliente_id, etc.). Si ambos se envían, el último del DOM pisa al otro y el valor
+// llega vacío: se deshabilitan los de la sección oculta para que no viajen.
+function sincronizarCamposLlegada() {
+    [
+        ['sec_cliente',        false],
+        ['sec_empresa_factura', false],
+        ['sec_precio_venta',   false],
+        ['sec_parcial_cam',    false],
+    ].forEach(([id]) => {
+        const sec = document.getElementById(id);
+        if (!sec) return;
+        const oculta = sec.classList.contains('d-none');
+        sec.querySelectorAll('input[name], select[name], textarea[name]').forEach(campo => {
+            campo.disabled = oculta;
+        });
+    });
 }
 
 function calcRestanteCam() {
@@ -1481,18 +1545,19 @@ function calcTotalVenta() {
     const accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
     const fmt    = v => new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
+    // La moneda va en el texto porque su selector está oculto (siempre BOB)
     if (accion === 'div_carga') {
         const precio    = parseFloat(document.getElementById('inp_precio_ton_div').value) || 0;
         const toneladas = parseFloat(document.getElementById('cam_inp_tn_parcial').value) || 0;
         const lbl       = document.getElementById('lbl_total_venta_div');
-        if (lbl) lbl.textContent = (toneladas > 0 && precio > 0) ? fmt(toneladas * precio) : '—';
+        if (lbl) lbl.textContent = (toneladas > 0 && precio > 0) ? 'BOB ' + fmt(toneladas * precio) : '—';
     } else {
         const precio    = parseFloat(document.getElementById('inp_precio_ton').value) || 0;
         const toneladas = parseFloat(document.getElementById('inp_peso_llegada').value) || 0;
         const lbl       = document.getElementById('lbl_total_venta');
         const msg       = document.getElementById('precio_venta_base_msg');
         if (msg) msg.textContent = 'Basado en el peso de llegada ingresado arriba.';
-        if (lbl) lbl.textContent = (toneladas > 0 && precio > 0) ? fmt(toneladas * precio) : '—';
+        if (lbl) lbl.textContent = (toneladas > 0 && precio > 0) ? 'BOB ' + fmt(toneladas * precio) : '—';
     }
 }
 

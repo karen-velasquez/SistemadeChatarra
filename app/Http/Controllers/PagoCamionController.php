@@ -197,7 +197,7 @@ class PagoCamionController extends Controller
     public function detalle($id)
     {
         $cc = ContratoCamion::with([
-            'contrato',
+            'contrato.proveedor',
             'camion.marca',
             'camion.tipoVehiculo',
             'camion.placaPais',
@@ -208,10 +208,33 @@ class PagoCamionController extends Controller
             'tramos',
         ])->findOrFail($id);
 
+        // Ruta encadenada de los tramos (un contrato-camión puede tener transbordos).
+        // A→B, B→C se muestra como A → B → C. Los tramos con el mismo par
+        // origen-destino no se repiten: describen el mismo trayecto.
+        $puntos = [];
+        $vistos = [];
+        foreach ($cc->tramos->sortBy('id') as $tramo) {
+            $par = $tramo->origen . '|' . $tramo->destino;
+            if (isset($vistos[$par])) {
+                continue;
+            }
+            $vistos[$par] = true;
+
+            foreach ([$tramo->origen, $tramo->destino] as $punto) {
+                if ($punto && end($puntos) !== $punto) {
+                    $puntos[] = $punto;
+                }
+            }
+        }
+
         return response()->json([
             'id'               => $cc->id,
+            'ruta'             => $puntos ? implode(' → ', $puntos) : null,
             'camion'           => $cc->camion->placa . ' ' . $cc->camion->marca,
             'contrato'         => $cc->contrato->numero_contrato ?? '—',
+            'proveedor'        => $cc->contrato->proveedor->nombre ?? '—',
+            'placa'            => $cc->camion->placa,
+            'tipo_camion'      => $cc->camion->tipoVehiculo->valor ?? '—',
             'conductor'        => $cc->conductor?->nombre_completo ?? '—',
             'propietario'      => $cc->camion->propietario?->nombre_completo ?? '—',
             'monto_acordado'   => $cc->monto_acordado,

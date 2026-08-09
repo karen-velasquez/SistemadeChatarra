@@ -716,13 +716,37 @@
                 <input type="hidden" name="contrato_camion_id" id="seg_pago_cc_id">
                 <div class="modal-body">
 
-                    {{-- Info del camión --}}
+                    {{-- Contexto: contrato y proveedor arriba, camión abajo --}}
                     <div class="alert alert-light border mb-3 py-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <strong id="seg_pago_camion_label"></strong>
-                            <span>
-                                <small class="text-muted" id="seg_pago_saldo_lbl_texto">Saldo pendiente:</small>
-                                <span class="badge bg-danger ms-1" id="seg_pago_saldo_label"></span>
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div>
+                                    <span class="text-muted small">Contrato:</span>
+                                    <strong id="seg_pago_contrato_label">—</strong>
+                                </div>
+                                <div>
+                                    <span class="text-muted small">Proveedor:</span>
+                                    <strong id="seg_pago_proveedor_label">—</strong>
+                                </div>
+                                <div class="mt-1 pt-1 border-top">
+                                    <i class="bi bi-truck text-muted me-1"></i>
+                                    <strong id="seg_pago_camion_label"></strong>
+                                    <span class="text-muted small ms-1" id="seg_pago_tipo_camion"></span>
+                                </div>
+                                <div>
+                                    <i class="bi bi-person text-muted me-1"></i>
+                                    <span class="text-muted small">Conductor:</span>
+                                    <strong id="seg_pago_conductor_label">—</strong>
+                                </div>
+                                <div>
+                                    <i class="bi bi-signpost-split text-muted me-1"></i>
+                                    <span class="text-muted small">Ruta:</span>
+                                    <strong id="seg_pago_ruta_label">—</strong>
+                                </div>
+                            </div>
+                            <span class="text-end flex-shrink-0">
+                                <small class="text-muted d-block" id="seg_pago_saldo_lbl_texto">Saldo pendiente del flete:</small>
+                                <span class="badge bg-danger" id="seg_pago_saldo_label"></span>
                             </span>
                         </div>
                     </div>
@@ -791,7 +815,7 @@
                         </div>
 
                         <div class="col-md-6" id="seg_sec_codigo" style="display:none;">
-                            <label class="form-label">Código de Seguimiento / N° Cheque</label>
+                            <label class="form-label">Código de transferencia</label>
                             <input type="text" class="form-control" name="codigo_seguimiento" maxlength="100" placeholder="Ej: TRX-001">
                         </div>
 
@@ -813,20 +837,24 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Cuenta Origen (Tesorería)</label>
-                            <select class="form-select" name="cuenta_origen_id">
+                            <select class="form-select" name="cuenta_origen_id" id="seg_cuenta_origen"
+                                    onchange="segMostrarSaldoCuenta()">
                                 <option value="">-- Efectivo / Sin cuenta --</option>
                                 @foreach($empresas as $empresa)
                                     <optgroup label="{{ $empresa->nombre }}">
                                         @foreach($empresa->cuentas as $cta)
-                                            <option value="{{ $cta->id }}">
-                                                {{ $cta->nombre_cuenta }}
-                                                @if($cta->banco) — {{ $cta->banco }} @endif
-                                                [{{ $cta->moneda }}]
+                                            <option value="{{ $cta->id }}"
+                                                    data-moneda="{{ $cta->moneda }}"
+                                                    data-saldo="{{ $cta->saldo_actual }}">
+                                                {{ $cta->nombre_cuenta }}@if($cta->banco) — {{ $cta->banco->nombre }}@endif @if($cta->numero_cuenta) {{ $cta->numero_cuenta }} @endif[{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
                                             </option>
                                         @endforeach
                                     </optgroup>
                                 @endforeach
                             </select>
+                            <div class="form-text" id="seg_saldo_cuenta_info" style="display:none"></div>
+                            <div class="alert alert-danger py-1 px-2 mt-1 small mb-0"
+                                 id="seg_aviso_saldo_insuficiente" style="display:none"></div>
                         </div>
 
                         <div class="col-md-6">
@@ -848,21 +876,17 @@
                     <button type="submit" class="btn btn-warning text-dark"><i class="bi bi-save"></i> Registrar Pago</button>
                 </div>
             </form>
-
-            {{-- Historial de pagos anteriores --}}
-            <div class="border-top px-4 py-3" id="seg_historial_wrap">
-                <h6 class="text-muted mb-2 d-flex align-items-center gap-2">
-                    <i class="bi bi-clock-history"></i> Historial de pagos
-                </h6>
-                <div id="seg_historial_body">
-                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-secondary"></div></div>
-                </div>
-            </div>
+            {{-- El historial vive en Acciones → Ver historial de pagos, no se duplica aquí --}}
         </div>
     </div>
 </div>
 
 {{-- ===== MODAL EDITAR PAGO CAMIÓN ===== --}}
+{{-- Se abre sobre el historial: Bootstrap no eleva el z-index del segundo modal --}}
+<style>
+    #modalEditarPago { z-index: 1060; }
+    .modal-backdrop.editar-pago-cam-backdrop { z-index: 1055; }
+</style>
 <div class="modal fade" id="modalEditarPago" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -911,8 +935,6 @@
                             <select class="form-select" name="metodo_pago" id="edit_metodo_pago" required>
                                 <option value="transferencia">Transferencia Bancaria</option>
                                 <option value="qr">QR</option>
-                                <option value="efectivo">Efectivo</option>
-                                <option value="cheque">Cheque</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -977,9 +999,12 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Registrar Llegada</h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
-                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            class="btn btn-sm btn-iniciar-tour text-white rounded-circle d-flex align-items-center justify-content-center p-0"
+                            style="width:28px;height:28px;background:#146c43"
+                            title="Ayuda"
+                            aria-label="Ayuda"
                             data-tour-modal="#modalLlegada"
                             data-steps='[
                                 {"intro":"📍 Aquí registras qué pasó cuando el camión <b>llegó</b> a su destino. Es el paso clave del seguimiento. Te explico los campos."},
@@ -991,7 +1016,7 @@
                                 {"element":"#seg_chk_descuento","intro":"➖ Opcional: aplica un <b>descuento</b> al pago del camionero (ej. por chatarra en mal estado o faltante).","position":"top"},
                                 {"element":"#btn_confirmar_llegada_seg","intro":"💾 El botón <b>Confirmar</b> se activa cuando completas todos los campos obligatorios según la acción elegida.","position":"top"}
                             ]'>
-                        <i class="bi bi-question-circle"></i> Ayuda
+                        <i class="bi bi-question-circle"></i>
                     </button>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -1009,30 +1034,41 @@
                         </ul>
                     </div>
                     @endif
-                    <div class="alert alert-primary border-0 mb-2 py-2 d-flex flex-wrap gap-3 align-items-center" id="seg_llegada_resumen_contrato" style="display:none;">
-                        <div>
-                            <small class="text-primary-emphasis opacity-75">Contrato</small><br>
-                            <span class="fw-bold" id="seg_llegada_numero_contrato">—</span>
+                    <div class="alert alert-primary border-0 mb-2 py-2 text-center" id="seg_llegada_resumen_contrato" style="display:none;">
+                        {{-- Fila 1: identificación del contrato --}}
+                        <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                            <div>
+                                <small class="text-primary-emphasis opacity-75">Contrato</small><br>
+                                <span class="fw-bold" id="seg_llegada_numero_contrato">—</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-primary-emphasis opacity-75">Vigencia</small><br>
+                                <span class="fw-bold" id="seg_llegada_fechas">—</span>
+                            </div>
                         </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-primary-emphasis opacity-75">Estipuladas</small><br>
-                            <span class="fw-bold" id="seg_llegada_tn_pactadas">—</span>
-                        </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-success opacity-75">Entregadas</small><br>
-                            <span class="fw-bold text-success" id="seg_llegada_tn_entregadas">—</span>
-                        </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-info opacity-75">En ruta</small><br>
-                            <span class="fw-bold text-info" id="seg_llegada_tn_en_ruta">—</span>
-                        </div>
-                        <div class="vr d-none d-sm-block"></div>
-                        <div>
-                            <small class="text-secondary opacity-75">Pendientes</small><br>
-                            <span class="fw-bold text-secondary" id="seg_llegada_tn_pendientes">—</span>
+                        <hr class="my-2 opacity-25">
+                        {{-- Fila 2: toneladas --}}
+                        <div class="d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                            <div>
+                                <small class="text-primary-emphasis opacity-75">Estipuladas</small><br>
+                                <span class="fw-bold" id="seg_llegada_tn_pactadas">—</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-success opacity-75">Entregadas</small><br>
+                                <span class="fw-bold text-success" id="seg_llegada_tn_entregadas">—</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-info opacity-75">En ruta</small><br>
+                                <span class="fw-bold text-info" id="seg_llegada_tn_en_ruta">—</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <small class="text-secondary opacity-75">Pendientes</small><br>
+                                <span class="fw-bold text-secondary" id="seg_llegada_tn_pendientes">—</span>
+                            </div>
                         </div>
                     </div>
                     <div class="alert alert-light border mb-3 py-2">
@@ -1108,17 +1144,24 @@
                                         <div class="border rounded-3 p-3 bg-light">
                                             <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente</div>
                                             <div class="row g-2 align-items-end">
-                                                <div class="col-md-4">
+                                                {{-- Las entregas son en Bolivia: se fija BOB.
+                                                     El selector queda oculto (no eliminado) por si más adelante
+                                                     se vende en otra moneda: basta quitar el d-none. --}}
+                                                <div class="col-md-4 d-none">
                                                     <label class="form-label mb-1">Moneda</label>
                                                     <select class="form-select form-select-sm" name="moneda_venta" id="seg_sel_moneda_venta">
+                                                        <option value="BOB" selected>BOB</option>
                                                         @foreach($monedas as $moneda)
-                                                            <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                                            @if($moneda->valor !== 'BOB')
+                                                                <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                                            @endif
                                                         @endforeach
                                                     </select>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <label class="form-label mb-1">Precio por tonelada</label>
                                                     <div class="input-group input-group-sm">
+                                                        <span class="input-group-text fw-bold">BOB</span>
                                                         <input type="text" inputmode="numeric" class="form-control"
                                                             id="seg_inp_precio_ton_display" placeholder="0,00" autocomplete="off">
                                                         <input type="hidden" name="precio_por_tonelada" id="seg_inp_precio_ton">
@@ -1197,17 +1240,22 @@
                                                     <div class="border rounded-3 p-3 bg-white">
                                                         <div class="fw-semibold mb-2"><i class="bi bi-tag text-success"></i> Precio de venta al cliente (esta entrega)</div>
                                                         <div class="row g-2 align-items-end">
-                                                            <div class="col-md-4">
+                                                            {{-- Ver nota en la sección de entrega: BOB fijo, selector oculto --}}
+                                                            <div class="col-md-4 d-none">
                                                                 <label class="form-label mb-1">Moneda</label>
                                                                 <select class="form-select form-select-sm" name="moneda_venta" id="seg_sel_moneda_venta_div">
+                                                                    <option value="BOB" selected>BOB</option>
                                                                     @foreach($monedas as $moneda)
-                                                                        <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                                                        @if($moneda->valor !== 'BOB')
+                                                                            <option value="{{ $moneda->valor }}">{{ $moneda->valor }}</option>
+                                                                        @endif
                                                                     @endforeach
                                                                 </select>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <label class="form-label mb-1">Precio por tonelada</label>
                                                                 <div class="input-group input-group-sm">
+                                                                    <span class="input-group-text fw-bold">BOB</span>
                                                                     <input type="text" inputmode="numeric" class="form-control"
                                                                         id="seg_inp_precio_ton_div_display" placeholder="0,00" autocomplete="off">
                                                                     <input type="hidden" name="precio_por_tonelada" id="seg_inp_precio_ton_div">
@@ -1457,6 +1505,10 @@
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script>
+// Permisos para las acciones del historial de pagos
+const segCanEditPago   = {{ auth()->user()->can('pagos_camiones.edit') ? 'true' : 'false' }};
+const segCanDeletePago = {{ auth()->user()->can('pagos_camiones.destroy') ? 'true' : 'false' }};
+
 function _fmtS(n) {
     return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(n) || 0);
 }
@@ -1514,7 +1566,16 @@ function abrirModalPagoSeg(ccId, label, saldo, moneda, conductorId, conductorNom
     document.getElementById('seg_pago_cc_id').value              = ccId;
     document.getElementById('seg_pago_camion_label').textContent = label;
     document.getElementById('seg_pago_saldo_label').textContent     = _fmtS(saldo) + ' ' + (moneda || 'BOB');
-    document.getElementById('seg_pago_saldo_lbl_texto').textContent = 'Saldo pendiente:';
+    document.getElementById('seg_pago_saldo_lbl_texto').textContent = 'Saldo pendiente del flete:';
+
+    // El conductor llega como parámetro, no hace falta esperar al detalle
+    document.getElementById('seg_pago_conductor_label').textContent = conductorNombre || '—';
+
+    // Se llenan al cargar el detalle: limpiar para no mostrar los del camión anterior
+    document.getElementById('seg_pago_contrato_label').textContent  = '—';
+    document.getElementById('seg_pago_proveedor_label').textContent = '—';
+    document.getElementById('seg_pago_tipo_camion').textContent     = '';
+    document.getElementById('seg_pago_ruta_label').textContent      = '—';
 
     segReceptorActual = {
         conductor_id:   conductorId    || null,
@@ -1534,105 +1595,70 @@ function abrirModalPagoSeg(ccId, label, saldo, moneda, conductorId, conductorNom
     document.getElementById('seg_inp_tc_display').value    = '';
     document.getElementById('seg_inp_tc').value            = '';
 
+    // Resetear cuenta origen y su saldo
+    document.getElementById('seg_cuenta_origen').value = '';
+    segMostrarSaldoCuenta();
+
     // Guardar moneda para aplicarla cuando el modal esté visible (Bootstrap no permite cambiar el DOM antes)
     _segMonedaPendiente = moneda || 'BOB';
 
-    segCargarHistorial(ccId);
+    segCargarContexto(ccId);
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPagoSeg')).show();
 }
 
-function segCargarHistorial(ccId) {
-    const wrap = document.getElementById('seg_historial_body');
-    wrap.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-secondary"></div></div>';
+// Muestra el saldo disponible de la cuenta origen y avisa si no alcanza para el monto
+function segMostrarSaldoCuenta() {
+    const sel   = document.getElementById('seg_cuenta_origen');
+    const info  = document.getElementById('seg_saldo_cuenta_info');
+    const aviso = document.getElementById('seg_aviso_saldo_insuficiente');
+    if (!sel) return;
 
+    const opt = sel.options[sel.selectedIndex];
+    const saldo  = opt ? parseFloat(opt.dataset.saldo) : NaN;
+    const moneda = opt ? (opt.dataset.moneda || '') : '';
+
+    if (!sel.value || isNaN(saldo)) {
+        info.style.display  = 'none';
+        aviso.style.display = 'none';
+        return;
+    }
+
+    info.style.display = '';
+    info.innerHTML = `<i class="bi bi-wallet2 me-1"></i>Disponible en la cuenta: <strong>${moneda} ${_fmtS(saldo)}</strong>`;
+
+    // El saldo de la cuenta está en su propia moneda: solo se compara si coincide
+    // con la del pago, para no contrastar importes de monedas distintas.
+    const monto       = parseFloat(document.getElementById('seg_inp_monto').value) || 0;
+    const monedaPago  = document.getElementById('seg_moneda_pago')?.value || '';
+    const comparable  = monedaPago && moneda && monedaPago === moneda;
+
+    if (comparable && monto > saldo) {
+        aviso.style.display = '';
+        aviso.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>Saldo insuficiente: disponible ${moneda} ${_fmtS(saldo)}, se intenta pagar ${moneda} ${_fmtS(monto)}.`;
+    } else {
+        aviso.style.display = 'none';
+    }
+}
+
+// Carga el contexto de la cabecera del modal (contrato, proveedor, tipo de camión).
+// El historial de pagos no se muestra aquí: está en Acciones → Ver historial de pagos.
+function segCargarContexto(ccId) {
     fetch(`${url_global}/api/pagos/camiones/${ccId}/detalle`)
         .then(r => r.json())
         .then(d => {
-            if (!d.pagos || d.pagos.length === 0) {
-                wrap.innerHTML = '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>No hay pagos registrados aún.</p>';
-                return;
+            document.getElementById('seg_pago_contrato_label').textContent  = d.contrato || '—';
+            document.getElementById('seg_pago_proveedor_label').textContent = d.proveedor || '—';
+            document.getElementById('seg_pago_tipo_camion').textContent     = d.tipo_camion ? '· ' + d.tipo_camion : '';
+            document.getElementById('seg_pago_ruta_label').textContent      = d.ruta || '—';
+
+            // Respaldo: no todas las vías de apertura traen el nombre del conductor
+            const lblConductor = document.getElementById('seg_pago_conductor_label');
+            if (lblConductor.textContent === '—' && d.conductor) {
+                lblConductor.textContent = d.conductor;
             }
-
-            const monedaFlag = { BOB: '🇧🇴', USD: '🇺🇸', BRL: '🇧🇷', ARS: '🇦🇷', EUR: '🇪🇺' };
-            const badgeTipo  = { 'Adelanto': 'bg-warning text-dark', 'Flete': 'bg-info text-dark', 'Pago Final': 'bg-success' };
-
-            // Resumen compacto
-            const mon = d.moneda_flete || 'BOB';
-            let html = `
-            <div class="d-flex gap-2 flex-wrap mb-3">
-                <div class="rounded-2 px-3 py-1 border text-center" style="min-width:90px">
-                    <div class="text-muted" style="font-size:.7rem">ACORDADO</div>
-                    <div class="fw-semibold small">${mon} ${_fmtS(d.monto_neto||0)}</div>
-                </div>
-                <div class="rounded-2 px-3 py-1 border text-center" style="min-width:90px">
-                    <div class="text-muted" style="font-size:.7rem">PAGADO</div>
-                    <div class="fw-semibold small text-success">${mon} ${_fmtS(d.total_pagado||0)}</div>
-                </div>
-                <div class="rounded-2 px-3 py-1 border text-center ${parseFloat(d.saldo_pendiente)<=0?'bg-success bg-opacity-10':'bg-danger bg-opacity-10'}" style="min-width:90px">
-                    <div class="text-muted" style="font-size:.7rem">SALDO</div>
-                    <div class="fw-semibold small ${parseFloat(d.saldo_pendiente)<=0?'text-success':'text-danger'}">${mon} ${_fmtS(d.saldo_pendiente||0)}</div>
-                </div>
-            </div>`;
-
-            // Lista de pagos
-            html += '<div class="d-flex flex-column gap-2">';
-            d.pagos.forEach(p => {
-                const esBob   = p.moneda_pago === 'BOB';
-                const flag    = monedaFlag[p.moneda_pago] || '';
-                const badge   = badgeTipo[p.tipo] || 'bg-secondary';
-                const tcLine  = esBob ? '' : `<span class="text-muted ms-1" style="font-size:.7rem">TC: 1 ${p.moneda_pago} = ${_fmtS4(p.tipo_cambio)} Bs</span>`;
-                const bobLine = esBob ? '' : `<span class="text-primary ms-2 small">= Bs ${_fmtS(p.monto_bob)}</span>`;
-
-                // Cuenta destino
-                let cuentaDestLine = '';
-                if (p.cuenta_destino) {
-                    const relacion = p.cuenta_destino.tipo_relacion
-                        ? ` <span class="badge bg-secondary" style="font-size:.65rem">${p.cuenta_destino.tipo_relacion}</span>`
-                        : '';
-                    const titular = p.cuenta_destino.titular_cuenta
-                        ? `<span class="fw-semibold text-warning-emphasis">👤 ${p.cuenta_destino.titular_cuenta}</span>${relacion} — `
-                        : '';
-                    cuentaDestLine = `<div class="small mt-1">🏦 ${titular}${p.cuenta_destino.banco} <code>${p.cuenta_destino.numero}</code> [${p.cuenta_destino.moneda}]${p.cuenta_destino.alias ? ' <span class="text-muted">(' + p.cuenta_destino.alias + ')</span>' : ''}</div>`;
-                }
-
-                // Cuenta origen (quién pagó)
-                let cuentaOrigLine = '';
-                if (p.cuenta_origen) {
-                    const alias = p.cuenta_origen.alias ? ` (${p.cuenta_origen.alias})` : '';
-                    cuentaOrigLine = `<span class="text-muted ms-2" style="font-size:.75rem">· Pagó: ${p.cuenta_origen.titular}${alias}</span>`;
-                }
-
-                html += `
-                <div class="rounded-2 border px-3 py-2 bg-white">
-                    <div class="d-flex align-items-start gap-3">
-                        <div class="pt-1"><span class="badge ${badge}">${p.tipo}</span></div>
-                        <div class="flex-grow-1">
-                            <div class="fw-semibold">${flag} ${p.moneda_pago} ${_fmtS(p.monto)}${tcLine}${bobLine}</div>
-                            <div class="text-muted small">${p.fecha} &nbsp;·&nbsp; ${p.metodo}${p.receptor ? ' &nbsp;·&nbsp; <span class="text-dark">' + p.receptor + '</span>' : ''}${cuentaOrigLine}</div>
-                            ${cuentaDestLine}
-                        </div>
-                        <div class="d-flex flex-column gap-1 mt-1">
-                            <button class="btn btn-sm btn-outline-secondary border-0"
-                                onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo||''}')"
-                                title="Editar">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <a href="/pagos/camiones/${p.uuid}/destroy"
-                               class="btn btn-sm btn-outline-danger border-0"
-                               onclick="return confirm('¿Eliminar este pago?')" title="Eliminar">
-                               <i class="bi bi-trash"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>`;
-            });
-            html += '</div>';
-            wrap.innerHTML = html;
         })
-        .catch(() => {
-            wrap.innerHTML = '<p class="text-danger small mb-0"><i class="bi bi-exclamation-circle me-1"></i>No se pudo cargar el historial.</p>';
-        });
+        .catch(() => {});
 }
 
 function segToggleTC(moneda) {
@@ -1703,7 +1729,10 @@ function segCalcEquiv() {
             if (onChangeCb) onChangeCb();
         });
     }
-    _initCajero('seg_inp_monto_display', 'seg_inp_monto', 2, segCalcEquiv);
+    // El aviso de saldo insuficiente debe reevaluarse al cambiar el monto.
+    // Va aquí y no dentro de segCalcEquiv porque esa función corta antes si la moneda es BOB.
+    const alCambiarMonto = () => { segCalcEquiv(); segMostrarSaldoCuenta(); };
+    _initCajero('seg_inp_monto_display', 'seg_inp_monto', 2, alCambiarMonto);
     _initCajero('seg_inp_tc_display',    'seg_inp_tc',    4, segCalcEquiv);
 })();
 
@@ -1782,6 +1811,26 @@ function editToggleTc(moneda) {
     document.getElementById('edit_sec_tc').style.display = moneda === 'BOB' ? 'none' : 'block';
     if (moneda === 'BOB') document.getElementById('edit_tipo_cambio').value = 1;
 }
+
+// Editar se abre desde el historial: marcar su backdrop para que quede encima
+// y devolver el scroll al historial cuando este se cierra.
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEditar = document.getElementById('modalEditarPago');
+    if (!modalEditar) return;
+
+    modalEditar.addEventListener('shown.bs.modal', function () {
+        const backdrops = document.querySelectorAll('.modal-backdrop:not(.editar-pago-cam-backdrop)');
+        if (backdrops.length > 1) {
+            backdrops[backdrops.length - 1].classList.add('editar-pago-cam-backdrop');
+        }
+    });
+
+    modalEditar.addEventListener('hidden.bs.modal', function () {
+        if (document.querySelector('.modal.show')) {
+            document.body.classList.add('modal-open');
+        }
+    });
+});
 
 function abrirModalFlete(ccUuid, label) {
     document.getElementById('flete_label').textContent    = label;
@@ -1874,12 +1923,13 @@ function abrirModalFlete(ccUuid, label) {
     }
 
     function segCalcTotalVenta() {
+        // La moneda va en el texto porque su selector está oculto (siempre BOB)
         var accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
         if (accion === 'entregado') {
             var tn    = textoANum(document.getElementById('seg_inp_peso_llegada').value);
             var precio = textoANum(document.getElementById('seg_inp_precio_ton').value);
             var lbl    = document.getElementById('seg_lbl_total_venta');
-            if (lbl) lbl.textContent = (tn > 0 && precio > 0) ? formatear(tn * precio) : '—';
+            if (lbl) lbl.textContent = (tn > 0 && precio > 0) ? 'BOB ' + formatear(tn * precio) : '—';
         } else if (accion === 'div_carga') {
             var tn2    = textoANum(document.getElementById('seg_inp_tn_parcial').value);
             var precio2= textoANum(document.getElementById('seg_inp_precio_ton_div').value);
@@ -1887,7 +1937,7 @@ function abrirModalFlete(ccUuid, label) {
             var restLbl= document.getElementById('seg_lbl_tn_restante');
             var total  = textoANum(document.getElementById('seg_inp_peso_llegada').value);
             var rest   = Math.max(0, total - tn2);
-            if (lbl2)   lbl2.textContent  = (tn2 > 0 && precio2 > 0) ? formatear(tn2 * precio2) : '—';
+            if (lbl2)   lbl2.textContent  = (tn2 > 0 && precio2 > 0) ? 'BOB ' + formatear(tn2 * precio2) : '—';
             if (restLbl) restLbl.textContent = rest > 0 ? formatear(rest) + ' t' : '—';
         }
     }
@@ -1955,7 +2005,24 @@ function abrirModalFlete(ccUuid, label) {
         } else if (accion === 'div_carga') {
             secParcial.classList.remove('d-none');
         }
+
+        window.segSincronizarCamposLlegada();
         validarFormLlegadaSeg();
+    };
+
+    // "Entregado" y "Div. Carga" comparten los mismos name (precio_por_tonelada,
+    // cliente_id, etc.). Si ambos se envían, el último del DOM pisa al otro y el
+    // valor llega vacío: se deshabilitan los de la sección oculta para que no viajen.
+    window.segSincronizarCamposLlegada = function () {
+        ['seg_sec_cliente', 'seg_sec_empresa_factura', 'seg_sec_precio_venta', 'seg_sec_parcial']
+            .forEach(function (id) {
+                var sec = document.getElementById(id);
+                if (!sec) return;
+                var oculta = sec.classList.contains('d-none');
+                sec.querySelectorAll('input[name], select[name], textarea[name]').forEach(function (campo) {
+                    campo.disabled = oculta;
+                });
+            });
     };
 })();
 
@@ -1980,6 +2047,7 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     if (contratoId) {
         secResumen.style.display = '';
         document.getElementById('seg_llegada_numero_contrato').textContent = '—';
+        document.getElementById('seg_llegada_fechas').textContent          = '—';
         document.getElementById('seg_llegada_tn_pactadas').textContent     = '—';
         document.getElementById('seg_llegada_tn_entregadas').textContent  = '—';
         document.getElementById('seg_llegada_tn_en_ruta').textContent     = '—';
@@ -1995,6 +2063,9 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
                 const pendientes = Math.max(0, pactadas - entregadas - enRuta);
 
                 document.getElementById('seg_llegada_numero_contrato').textContent = d.numero_contrato || '—';
+                document.getElementById('seg_llegada_fechas').textContent = d.fecha_inicio
+                    ? d.fecha_inicio + ' al ' + (d.fecha_fin || 'sin fin')
+                    : '—';
                 document.getElementById('seg_llegada_tn_pactadas').textContent     = pactadas ? fmt(pactadas) + ' t' : '—';
                 document.getElementById('seg_llegada_tn_entregadas').textContent   = fmt(entregadas) + ' t';
                 document.getElementById('seg_llegada_tn_en_ruta').textContent      = fmt(enRuta) + ' t';
@@ -2338,11 +2409,29 @@ function abrirHistorialPagos(ccId, camionLabel) {
                             <th>Receptor</th>
                             <th>Cuenta origen</th>
                             <th>Código</th>
+                            ${(segCanEditPago || segCanDeletePago) ? '<th class="text-center">Acciones</th>' : ''}
                         </tr>
                     </thead>
                     <tbody>`;
             d.pagos.forEach(p => {
                 const origen = p.cuenta_origen ? p.cuenta_origen.titular : '—';
+
+                let acciones = '';
+                if (segCanEditPago || segCanDeletePago) {
+                    const editar = segCanEditPago
+                        ? `<button class="btn btn-sm btn-outline-secondary border-0"
+                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}')"
+                                   title="Editar"><i class="bi bi-pencil"></i></button>`
+                        : '';
+                    const eliminar = segCanDeletePago
+                        ? `<a href="${url_global}/pagos/camiones/${p.uuid}/destroy"
+                              class="btn btn-sm btn-outline-danger border-0"
+                              onclick="return confirm('¿Eliminar este pago?')"
+                              title="Eliminar"><i class="bi bi-trash"></i></a>`
+                        : '';
+                    acciones = `<td class="text-center" style="white-space:nowrap">${editar}${eliminar}</td>`;
+                }
+
                 html += `<tr>
                     <td class="small">${p.fecha}</td>
                     <td><span class="badge bg-secondary">${p.tipo}</span></td>
@@ -2351,6 +2440,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                     <td class="small">${p.receptor ?? '—'}</td>
                     <td class="small">${origen}</td>
                     <td class="small text-muted">${p.codigo ?? '—'}</td>
+                    ${acciones}
                 </tr>`;
             });
             html += `</tbody></table></div>`;

@@ -104,4 +104,64 @@
   }
   /* Bootstrap bloquea el scroll del body con .modal-open; lo reactivamos */
   body.tour-en-modal.modal-open{ overflow: auto !important; }
+
+  /* ===== Tablas: arrastre con el mouse, cabecera fija y scroll discreto =====
+     Aplica a las tablas de página. Las que están dentro de un modal quedan
+     fuera: el modal ya maneja su propio scroll. */
+  .table-responsive {
+    max-height: 65vh;
+    /* Bootstrap declara overflow-x:auto en .table-responsive. Un `overflow`
+       abreviado no lo vence (misma especificidad, longhand gana), y sin scroll
+       vertical propio el sticky del thead no tiene contra qué fijarse:
+       se declaran ambos ejes por separado. */
+    overflow-x: auto;
+    overflow-y: auto;
+    cursor: grab;
+  }
+  /* Dentro de un modal el scroll lo maneja el propio modal: sin alto tope,
+     el contenedor no llega a desbordar y no aparece scroll vertical propio. */
+  .modal .table-responsive {
+    max-height: none;
+    cursor: auto;
+  }
+  .table-responsive.arrastrando {
+    cursor: grabbing;
+    user-select: none;      /* al arrastrar no se selecciona el texto de las celdas */
+    scroll-behavior: auto;  /* el scroll suave pelearía con el arrastre */
+  }
+  /* Sobre controles se mantiene el cursor normal: ahí se hace clic, no se arrastra */
+  .table-responsive a,
+  .table-responsive button,
+  .table-responsive input,
+  .table-responsive select,
+  .table-responsive textarea { cursor: auto; }
+
+  /* Cabecera pegada al hacer scroll vertical */
+  .table-responsive thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    /* Opaco: si no, las filas se ven por debajo al scrollear.
+       Bootstrap pinta el th vía --bs-table-bg, que gana a un background propio. */
+    --bs-table-bg: #f8f9fa;
+    --bs-table-accent-bg: #f8f9fa;
+    background-color: #f8f9fa;
+    /* sticky deja atrás los bordes de table-bordered: se reponen como sombra */
+    box-shadow: inset 0 1px 0 #dee2e6, inset 0 -1px 0 #dee2e6;
+  }
+  /* Theads con color propio: se respeta su fondo, solo debe ser opaco */
+  .table-responsive thead.table-success th {
+    --bs-table-bg: #d1e7dd;
+    --bs-table-accent-bg: #d1e7dd;
+    background-color: #d1e7dd;
+  }
+  .modal .table-responsive thead th { position: static; box-shadow: none; }
+
+  /* Barras de scroll discretas: el desplazamiento normal es arrastrando */
+  .table-responsive { scrollbar-width: thin; scrollbar-color: #c9ced4 transparent; }
+  .table-responsive::-webkit-scrollbar { width: 6px; height: 6px; }
+  .table-responsive::-webkit-scrollbar-track { background: transparent; }
+  .table-responsive::-webkit-scrollbar-thumb { background: #c9ced4; border-radius: 3px; }
+  .table-responsive::-webkit-scrollbar-thumb:hover { background: #a8b0b8; }
+  .table-responsive::-webkit-scrollbar-corner { background: transparent; }
 </style>

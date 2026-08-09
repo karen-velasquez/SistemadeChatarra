@@ -42,7 +42,7 @@ class SeguimientoCargasController extends Controller
 
         $proveedores = Proveedor::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
 
-        $empresas = Empresa::with('cuentas')->whereNull('deleted_at')->get();
+        $empresas = Empresa::with('cuentas.banco')->whereNull('deleted_at')->get();
 
         $camionesDisponibles = Camion::with(['conductorActual.conductor'])
             ->whereNull('deleted_at')

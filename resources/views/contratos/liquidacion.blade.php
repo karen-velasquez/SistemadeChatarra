@@ -2,6 +2,12 @@
 @section('titulo', 'Liquidación de Envíos')
 @section('content')
 
+<style>
+    /* chevron: apunta arriba cuando está abierto, abajo cuando está cerrado */
+    [data-bs-toggle="collapse"] .bi-chevron-down { transition: transform .2s; }
+    [data-bs-toggle="collapse"]:not(.collapsed) .bi-chevron-down { transform: rotate(180deg); }
+</style>
+
 <div class="pagetitle">
     <div class="d-flex flex-row align-items-center justify-content-between">
         <div>
@@ -77,6 +83,15 @@
                         <h5 class="mb-0 text-white fw-bold">{{ $prov->nombre ?? 'Proveedor #'.$provId }}</h5>
                         <small class="text-white opacity-75">{{ $ctrs->count() }} contrato(s) con envíos cerrados</small>
                     </div>
+                    {{-- Desplegar / contraer el detalle del proveedor --}}
+                    <button class="btn btn-sm btn-outline-light border-0 {{ $loop->first ? '' : 'collapsed' }}"
+                            type="button" data-bs-toggle="collapse"
+                            data-bs-target="#liq-prov-{{ $provId }}"
+                            aria-expanded="{{ $loop->first ? 'true' : 'false' }}"
+                            aria-controls="liq-prov-{{ $provId }}"
+                            title="Mostrar/ocultar detalle">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
                     {{-- Balance neto del proveedor --}}
                     <div class="text-end">
                         <div class="text-white opacity-75" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px">Balance neto</div>
@@ -96,6 +111,7 @@
                     </div>
                 </div>
 
+                <div class="collapse {{ $loop->first ? 'show' : '' }}" id="liq-prov-{{ $provId }}">
                 {{-- Resumen del proveedor --}}
                 <div class="d-flex border-bottom" @if($loop->first) id="liq-resumen" @endif style="background:#f8f9fa">
                     <div class="flex-fill text-center py-2 px-3 border-end">
@@ -203,6 +219,7 @@
                             </tr>
                         </tfoot>
                     </table>
+                </div>
                 </div>
             </div>
             @endforeach

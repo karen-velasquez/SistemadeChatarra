@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\CuentaEmpresa;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -44,6 +45,40 @@ class Movimiento extends Model
                 } else {
                     $cuenta->decrement('saldo_actual', $model->monto_bolivianos);
                 }
+            }
+        });
+
+        // Al editar un movimiento el saldo debe seguir el cambio: se revierte el
+        // importe anterior y se aplica el nuevo (pueden variar monto, TC o cuenta).
+        static::updating(function ($model) {
+            if ($model->isDirty(['monto', 'tipo_cambio'])) {
+                $model->monto_bolivianos = $model->monto * ($model->tipo_cambio ?? 1);
+            }
+        });
+
+        static::updated(function ($model) {
+            $montoAnterior  = $model->getOriginal('monto_bolivianos');
+            $tipoAnterior   = $model->getOriginal('tipo');
+            $cuentaAnterior = $model->getOriginal('cuenta_empresa_id');
+
+            if ($montoAnterior == $model->monto_bolivianos
+                && $tipoAnterior === $model->tipo
+                && $cuentaAnterior == $model->cuenta_empresa_id) {
+                return;
+            }
+
+            // Revertir el efecto anterior sobre la cuenta que lo recibió
+            if ($cuentaAnterior && ($cuenta = CuentaEmpresa::find($cuentaAnterior))) {
+                $tipoAnterior === 'ingreso'
+                    ? $cuenta->decrement('saldo_actual', $montoAnterior)
+                    : $cuenta->increment('saldo_actual', $montoAnterior);
+            }
+
+            // Aplicar el efecto nuevo
+            if ($cuenta = $model->cuentaEmpresa()->first()) {
+                $model->tipo === 'ingreso'
+                    ? $cuenta->increment('saldo_actual', $model->monto_bolivianos)
+                    : $cuenta->decrement('saldo_actual', $model->monto_bolivianos);
             }
         });
 

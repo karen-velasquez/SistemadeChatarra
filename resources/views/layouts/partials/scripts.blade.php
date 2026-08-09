@@ -187,3 +187,77 @@
     });
 }());
 </script>
+
+{{-- ===== Tablas: arrastrar con el mouse en horizontal y vertical ===== --}}
+<script>
+(function () {
+    // El fixedHeader de DataTables ancla la cabecera al scroll de la página.
+    // Aquí cada tabla tiene su propio scroll y la cabecera se fija con CSS sticky:
+    // se desactiva para que no aparezca duplicada.
+    function desactivarFixedHeader() {
+        if (!window.jQuery || !jQuery.fn.dataTable) return;
+        document.querySelectorAll('table').forEach(function (tabla) {
+            if (!jQuery.fn.dataTable.isDataTable(tabla)) return;
+            var dt = jQuery(tabla).DataTable();
+            if (dt.fixedHeader) dt.fixedHeader.disable();
+        });
+    }
+
+    function activarArrastre(cont) {
+        if (cont.dataset.arrastreListo) return;   // no duplicar handlers
+        cont.dataset.arrastreListo = '1';
+
+        var arrastrando = false, seMovio = false;
+        var xIni = 0, yIni = 0, sxIni = 0, syIni = 0;
+
+        cont.addEventListener('mousedown', function (e) {
+            if (e.button !== 0) return;               // solo botón izquierdo
+            if (e.target.closest('a, button, input, select, textarea, label, .dropdown-menu')) return;
+
+            var hayH = cont.scrollWidth  > cont.clientWidth;
+            var hayV = cont.scrollHeight > cont.clientHeight;
+            if (!hayH && !hayV) return;               // no hay nada que desplazar
+
+            arrastrando = true;
+            seMovio     = false;
+            xIni  = e.pageX;         yIni  = e.pageY;
+            sxIni = cont.scrollLeft; syIni = cont.scrollTop;
+            cont.classList.add('arrastrando');
+        });
+
+        // En document y no en el contenedor: si el mouse se sale, el arrastre sigue
+        document.addEventListener('mousemove', function (e) {
+            if (!arrastrando) return;
+            var dx = e.pageX - xIni, dy = e.pageY - yIni;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) seMovio = true;
+            cont.scrollLeft = sxIni - dx;
+            cont.scrollTop  = syIni - dy;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (!arrastrando) return;
+            arrastrando = false;
+            cont.classList.remove('arrastrando');
+        });
+
+        // Tras arrastrar, evitar que el gesto termine disparando un clic en la fila
+        cont.addEventListener('click', function (e) {
+            if (seMovio) {
+                e.stopPropagation();
+                e.preventDefault();
+                seMovio = false;
+            }
+        }, true);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        desactivarFixedHeader();
+        // Las tablas dentro de un modal usan el scroll del propio modal
+        document.querySelectorAll('.table-responsive').forEach(function (cont) {
+            if (cont.closest('.modal')) return;
+            activarArrastre(cont);
+        });
+    });
+}());
+</script>
