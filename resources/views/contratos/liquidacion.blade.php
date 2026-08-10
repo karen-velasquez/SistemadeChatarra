@@ -30,7 +30,7 @@
                 data-steps='[
                     {"intro":"🧮 Esta es la <b>Liquidación de Envíos</b>. Solo aparecen los contratos con <b>envíos cerrados</b>. Sirve para saber si el proveedor entregó lo acordado o hubo diferencias de peso."},
                     {"element":"#liq-explicacion","intro":"📖 Lee esto primero: se comparan <b>3 pesos</b> — lo <b>pactado</b>, lo <b>declarado</b> por el proveedor y lo que realmente <b>llegó</b> al cliente.","position":"bottom"},
-                    {"element":"#liq-proveedor-cabecera","intro":"📦 Los contratos se agrupan por <b>proveedor</b>. A la derecha ves su <b>balance neto</b>: cuánto debe o se le debe en total.","position":"bottom"},
+                    {"element":"#liq-proveedor-cabecera","intro":"📦 Los contratos se agrupan por <b>proveedor</b>. A la derecha ves su <b>balance neto</b>: cuánto debe o se le debe en total. Con el botón <b>▾</b> despliegas o cierras su detalle — así, con muchos proveedores, ves solo los balances y abres el que te interese.","position":"bottom"},
                     {"element":"#liq-resumen","intro":"📊 Este resumen suma todo del proveedor: total pactado, declarado, llegado y la diferencia neta.","position":"bottom"},
                     {"element":"#liq-tabla","intro":"📋 El detalle contrato por contrato. Cada fila compara los pesos y muestra la diferencia.","position":"top"},
                     {"element":"#liq-resultado","intro":"🏷️ La columna <b>Resultado</b>: <span style=\"color:#dc3545\"><b>Merma</b></span> = faltó respecto a lo pactado; <span style=\"color:#198754\"><b>Excedente</b></span> = llegó más de lo pactado.","position":"left"}

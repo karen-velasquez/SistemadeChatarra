@@ -13,12 +13,34 @@
                 </ol>
             </nav>
         </div>
-        @can('adquisiciones.create')
-        <button type="button" class="btn btn-primary btn-sm"
-                onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAdquisicion')).show()">
-            <i class="bi bi-plus-lg"></i> Nueva Adquisición
-        </button>
-        @endcan
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    @if($adquisiciones->isEmpty())
+                    data-steps='[
+                        {"intro":"💳 Este es el módulo de <b>Créditos y Adquisiciones</b>. Aquí registras los bienes que compra la empresa —camiones, maquinaria, equipos— ya sea con <b>crédito bancario</b> o con <b>capital propio</b>, y llevas el control de sus cuotas.<br><br>📭 Todavía no hay adquisiciones registradas. Usa <b>Nueva Adquisición</b> para cargar la primera."}
+                    ]'
+                    @else
+                    data-steps='[
+                        {"intro":"💳 Este es el módulo de <b>Créditos y Adquisiciones</b>: los bienes que compró la empresa y el estado de sus pagos. Te muestro cómo leerlo."},
+                        {"element":"#tabla_adquisiciones","intro":"📋 Cada fila es un bien adquirido. Verás cómo se financió, cuánto costó, cuánto falta pagar y en qué estado está.","position":"top"},
+                        {"element":"#tabla_adquisiciones thead th:nth-child(2)","intro":"🏦 <b>Financiamiento</b>: <span style=\"color:#0dcaf0\"><b>CRÉDITO</b></span> si se compró con préstamo bancario (muestra la entidad y la tasa), o <b>CAPITAL</b> si se pagó con fondos propios.","position":"bottom"},
+                        {"element":"#tabla_adquisiciones thead th:nth-child(5)","intro":"💰 El <b>Saldo pendiente</b> es lo que aún se debe. Si el bien se compró en el exterior, cada cuota se registra en bolivianos al tipo de cambio del día del pago.","position":"bottom"},
+                        {"element":"#tabla_adquisiciones thead th:nth-child(6)","intro":"🔢 <b>Cuotas</b> muestra cuántas se pagaron sobre el total del plan (por ejemplo 3/12).","position":"bottom"},
+                        {"element":"#tabla_adquisiciones thead th:nth-child(7)","intro":"🚦 El <b>Estado</b>: <span style=\"color:#198754\"><b>Pagado</b></span> si se saldó, <span style=\"color:#0d6efd\"><b>En curso</b></span> si se está pagando, <span style=\"color:#dc3545\"><b>Atrasado</b></span> si hay cuotas vencidas, y <b>Sin plan</b> si todavía no se cargaron las cuotas.","position":"bottom"},
+                        {"element":"#tabla_adquisiciones tbody tr:first-child td:last-child","intro":"📂 El botón <b>Ficha</b> abre el detalle del bien: su plan de pagos completo, donde registras cada cuota pagada.","position":"left"},
+                        {"element":"#btnNuevaAdquisicion","intro":"➕ Con <b>Nueva Adquisición</b> registras un bien nuevo: su descripción, cómo se financia y el plan de cuotas.","position":"left"}
+                    ]'
+                    @endif>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('adquisiciones.create')
+            <button type="button" id="btnNuevaAdquisicion" class="btn btn-primary btn-sm"
+                    onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAdquisicion')).show()">
+                <i class="bi bi-plus-lg"></i> Nueva Adquisición
+            </button>
+            @endcan
+        </div>
     </div>
 </div>
 
@@ -32,7 +54,7 @@
                 Cada adquisición tiene su plan de pagos con control de cuotas pagadas, pendientes y atrasadas.
             </p>
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle" id="tabla_adquisiciones">
                     <thead>
                         <tr>
                             <th>Bien</th>

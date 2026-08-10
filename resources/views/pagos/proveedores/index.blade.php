@@ -22,10 +22,13 @@
                 @else
                 data-steps='[
                     {"intro":"💵 Esta es la pantalla de <b>Pagos a Proveedores</b>. Controla, contrato por contrato, cuánto se le ha pagado a cada proveedor y cuánto falta. Te muestro cómo se usa."},
-                    {"element":"#filtro_proveedor","intro":"🔎 Usa este filtro para ver solo los contratos de <b>un proveedor</b>. El contador de la derecha te dice cuántos se muestran.","position":"bottom"},
+                    {"element":"#filtro_proveedor","intro":"🔎 Filtra los contratos de <b>un proveedor</b>. Si el proveedor no tiene contratos por pagar, la tabla te lo dice en lugar de quedar vacía.","position":"bottom"},
+                    {"element":"#filtro_desde","intro":"📅 Acota por <b>rango de fechas</b> según la fecha de inicio del contrato. La fecha <i>Hasta</i> no puede ser anterior a <i>Desde</i>.","position":"bottom"},
+                    {"element":"#filtro_orden","intro":"↕️ Ordena la lista por <b>fecha</b> (recientes o antiguos) o por <b>saldo</b> (mayor o menor), para atacar primero lo que más urge.","position":"bottom"},
                     {"element":"#tabla_pagos_prov","intro":"📋 Cada fila es un contrato. Las filas en <b>verde</b> ya están totalmente pagadas (saldo 0).","position":"top"},
-                    {"element":"#tabla_pagos_prov thead th:nth-child(6)","intro":"💰 Fíjate en estas columnas: <b>Total acordado</b>, <b>Pagado</b> y <b>Saldo</b>. El saldo en rojo es lo que aún se le debe al proveedor.","position":"bottom"},
-                    {"element":"#tabla_pagos_prov thead th:nth-child(7)","intro":"📊 Esta columna muestra dos barras: el avance de <b>toneladas</b> (entregado/en ruta) y el avance del <b>pago</b> (% pagado).","position":"bottom"},
+                    {"element":"#tabla_pagos_prov thead th:nth-child(4)","intro":"👤 <b>Registrado por</b>: el usuario que creó el contrato, útil para saber a quién consultar por sus condiciones.","position":"bottom"},
+                    {"element":"#tabla_pagos_prov thead th:nth-child(5)","intro":"💰 Fíjate en estas columnas: <b>Total acordado</b>, <b>Pagado</b> y <b>Saldo</b>. El saldo en rojo es lo que aún se le debe al proveedor.","position":"bottom"},
+                    {"element":"#tabla_pagos_prov thead th:nth-child(8)","intro":"📊 Esta columna muestra dos barras: el avance de <b>toneladas</b> (entregado/en ruta) y el avance del <b>pago</b> (% pagado).","position":"bottom"},
                     {"element":"#col-acciones-pp","intro":"⚙️ En <b>Acciones</b>: el botón 👁 muestra el <b>detalle de pagos</b> del contrato, y el botón ➕ (verde) abre el formulario para <b>registrar un pago</b> nuevo.","position":"left"}
                 ]'
                 @endif>

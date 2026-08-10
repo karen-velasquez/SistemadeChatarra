@@ -14,8 +14,27 @@
             </nav>
         </div>
         <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    @if($unidades->isEmpty())
+                    data-steps='[
+                        {"intro":"🚛 Este es el módulo de <b>Unidades Propias</b>: los camiones de la empresa. Aquí controlas su <b>documentación</b> (RUAT, seguros, SOAT, impuestos) y su <b>mantenimiento</b> por kilometraje.<br><br>📭 Todavía no hay unidades propias. Primero registra el camión en el módulo <b>Camiones</b> y luego agrégalo aquí con <b>Agregar Unidad Propia</b>."}
+                    ]'
+                    @else
+                    data-steps='[
+                        {"intro":"🚛 Este es el módulo de <b>Unidades Propias</b>: los camiones que son de la empresa. A diferencia de los camiones alquilados, de estos se controla la documentación y el mantenimiento. Te muestro cómo."},
+                        {"element":"#tabla_unidades","intro":"📋 Cada fila es un camión propio, con su conductor asignado y el kilometraje actual.","position":"top"},
+                        {"element":"#tabla_unidades thead th:nth-child(5)","intro":"📄 <b>Documentos</b>: avisa si hay papeles <span style=\"color:#dc3545\"><b>vencidos</b></span> o <span style=\"color:#ffc107\"><b>por vencer</b></span> (RUAT, seguros, SOAT, impuestos). Si dice <span style=\"color:#198754\"><b>Al día</b></span>, está todo en regla.","position":"bottom"},
+                        {"element":"#tabla_unidades thead th:nth-child(6)","intro":"🔧 <b>Mantenimiento</b>: según el plan por kilometraje, avisa qué servicios ya tocan o están próximos.","position":"bottom"},
+                        {"element":"#tabla_unidades tbody tr:first-child td:last-child","intro":"📂 La <b>Ficha</b> abre el detalle del camión: ahí cargas documentos, registras mantenimientos y actualizas el kilometraje. La ✕ lo quita de unidades propias sin borrar el camión.","position":"left"},
+                        {"element":"#seccion_talleres","intro":"🔧 Abajo están los <b>Talleres de Confianza</b>: los talleres donde se atienden las unidades, con su especialidad y contacto.","position":"top"},
+                        {"element":"#btnAgregarUnidad","intro":"➕ <b>Agregar Unidad Propia</b> marca un camión ya registrado como propio de la empresa.","position":"left"}
+                    ]'
+                    @endif>
+                <i class="bi bi-question-circle"></i>
+            </button>
             @can('unidades.create')
-            <button type="button" class="btn btn-primary btn-sm"
+            <button type="button" id="btnAgregarUnidad" class="btn btn-primary btn-sm"
                     onclick="bootstrap.Modal.getOrCreateInstance(document.getElementById('modalMarcar')).show()">
                 <i class="bi bi-plus-lg"></i> Agregar Unidad Propia
             </button>
@@ -36,7 +55,7 @@
                 asignarse a contratos y viajar llevando carga como cualquier otro camión del sistema.
             </p>
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle" id="tabla_unidades">
                     <thead>
                         <tr>
                             <th>Placa</th>
@@ -99,7 +118,7 @@
     </div>
 
     {{-- TALLERES --}}
-    <div class="card">
+    <div class="card" id="seccion_talleres">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="card-title"><i class="bi bi-tools me-1"></i> Talleres de Confianza</h5>

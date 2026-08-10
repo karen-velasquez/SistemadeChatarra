@@ -2,6 +2,11 @@
 @section('titulo', 'Lotes de Entrega Semanal')
 @section('content')
 
+@php
+    // Se calcula aquí porque el tour de la cabecera necesita saber si hay lotes
+    $lotesPorProveedorTour = $lotes->getCollection()->groupBy(fn($l) => $l->proveedor_id);
+@endphp
+
 <div class="pagetitle">
     <div class="d-flex flex-row align-items-center justify-content-between">
         <div>
@@ -13,22 +18,37 @@
                 </ol>
             </nav>
         </div>
-        @can('lotes_entrega.index')
-        @if($proveedores->where('tipo_proveedor', 'INTERNACIONAL')->isNotEmpty())
-        <div>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoLote">
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary btn-sm btn-iniciar-tour"
+                    data-steps='[
+                        {"intro":"📦 Este módulo agrupa las entregas en <b>lotes semanales</b> por proveedor. Cada camión que llega se asigna a un lote, y al cerrarlo queda como corte de esa semana para liquidar. Te muestro cómo se usa."},
+                        {"element":"#filtros_lotes","intro":"🔎 Filtra los lotes por <b>proveedor</b> y por <b>estado</b>: Abiertos (aún reciben camiones), Cerrados (ya liquidados) o Todos.","position":"bottom"},
+                        {"element":"#tabsTipo","intro":"🌎 Las pestañas separan los lotes de proveedores <b>Nacionales</b> e <b>Internacionales</b>. Los internacionales se crean a mano; los nacionales se generan solos por semana.","position":"bottom"}
+                        @if(!$lotesPorProveedorTour->isEmpty())
+                        ,{"element":"#accordionProveedores","intro":"🏢 Los lotes se agrupan por <b>proveedor</b>. Haz clic en la cabecera para desplegar sus lotes y ver cuántos tiene abiertos. Dentro de cada lote están los camiones entregados esa semana.","position":"top"}
+                        @endif
+                        @if($proveedores->where('tipo_proveedor', 'INTERNACIONAL')->isNotEmpty())
+                        ,{"element":"#btnNuevoLoteInt","intro":"➕ <b>Nuevo Lote Internacional</b>: para proveedores del exterior, donde los lotes no siguen el corte semanal automático.","position":"left"}
+                        @endif
+                    ]'>
+                <i class="bi bi-question-circle"></i>
+            </button>
+            @can('lotes_entrega.index')
+            @if($proveedores->where('tipo_proveedor', 'INTERNACIONAL')->isNotEmpty())
+            <button type="button" id="btnNuevoLoteInt" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoLote">
                 <i class="bi bi-plus-lg"></i> Nuevo Lote Internacional
             </button>
+            @endif
+            @endcan
         </div>
-        @endif
-        @endcan
     </div>
 </div>
 
 <section class="section">
 
     {{-- Filtros --}}
-    <div class="card mb-3">
+    <div class="card mb-3" id="filtros_lotes">
         <div class="card-body py-2">
             <form method="GET" action="{{ route('lotes_entrega.index') }}" class="row g-2 align-items-end">
                 <div class="col-md-4">
@@ -81,7 +101,7 @@
     </ul>
 
     @php
-        $lotesPorProveedor = $lotes->getCollection()->groupBy(fn($l) => $l->proveedor_id);
+        $lotesPorProveedor = $lotesPorProveedorTour;
     @endphp
 
     @if($lotesPorProveedor->isEmpty())
