@@ -190,7 +190,7 @@
                         <a href="{{ route('camiones.index') }}">Camiones</a>.
                     </p>
                     <label class="form-label">Camión <span class="text-danger">*</span></label>
-                    <select name="camion_id" class="form-select" required>
+                    <select name="camion_id" id="marcar_camion_id" class="form-select" required>
                         <option value="">-- Seleccione un camión --</option>
                         @foreach($disponibles as $c)
                             <option value="{{ $c->id }}">{{ $c->placa }} — {{ $c->modelo }} ({{ $c->anio }})</option>
@@ -262,6 +262,31 @@
 
 @section('scripts')
 <script>
+// Buscador en el select de camión: la lista crece y buscar a mano se vuelve lento.
+// Se inicializa al abrir el modal porque Select2 necesita el elemento visible,
+// y con dropdownParent para que el desplegable no quede detrás del modal.
+$('#modalMarcar').on('shown.bs.modal', function () {
+    if (!$('#marcar_camion_id').data('select2')) {
+        $('#marcar_camion_id').select2({
+            placeholder: 'Busque por placa o modelo...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#modalMarcar'),
+            language: {
+                noResults:  () => 'No se encontró ningún camión disponible.',
+                searching:  () => 'Buscando...'
+            }
+        });
+    }
+});
+
+// Al cerrar sin guardar, dejar el select limpio para la próxima vez
+$('#modalMarcar').on('hidden.bs.modal', function () {
+    const sel = $('#marcar_camion_id');
+    sel.val('');
+    if (sel.data('select2')) sel.trigger('change.select2');
+});
+
 function nuevoTaller() {
     const f = document.getElementById('formTaller');
     f.reset();

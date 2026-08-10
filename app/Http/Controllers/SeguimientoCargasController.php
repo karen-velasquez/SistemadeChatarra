@@ -11,6 +11,9 @@ use App\Models\Parametro;
 
 class SeguimientoCargasController extends Controller
 {
+    // Desde esta vista se registran pagos a camiones, que exigen token de idempotencia
+    use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -59,6 +62,11 @@ class SeguimientoCargasController extends Controller
                 ->first();
         }
 
-        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada'));
+        // Los modales de esta vista postean a otros controladores que validan
+        // un token de idempotencia para evitar registros dobles.
+        $idempotencyToken   = $this->generarToken('pago_camion_store_token');
+        $tokenTransbordo    = $this->generarToken('tramo_transbordo_store_token');
+
+        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada', 'idempotencyToken', 'tokenTransbordo'));
     }
 }

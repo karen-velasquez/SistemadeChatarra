@@ -53,7 +53,7 @@
                         <select class="form-select" id="filtro_camion" onchange="filtrarPagos()">
                             <option value="">— Todos los camiones —</option>
                             @foreach($pagos->pluck('contratoCamion.camion')->unique('id')->filter()->sortBy('placa') as $cam)
-                                <option value="{{ $cam->id }}">{{ $cam->placa }} — {{ $cam->marca }}</option>
+                                <option value="{{ $cam->id }}">{{ $cam->placa }}@if($cam->marca) — {{ $cam->marca->valor }}@endif</option>
                             @endforeach
                         </select>
                     </div>
@@ -62,7 +62,6 @@
                         <select class="form-select" id="filtro_tipo" onchange="filtrarPagos()">
                             <option value="">— Todos —</option>
                             <option value="adelanto">Adelanto</option>
-                            <option value="flete">Flete</option>
                             <option value="pago_final">Pago Final</option>
                         </select>
                     </div>

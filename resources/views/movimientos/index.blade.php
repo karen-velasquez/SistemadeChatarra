@@ -245,44 +245,9 @@
 
 @section('scripts')
 <script>
-// Plugin para ordenar fechas en formato dd/mm/yyyy
-$.fn.dataTable.ext.type.order['date-eu-pre'] = function (d) {
-    if (!d || d === '') return 0;
-    var parts = d.split('/');
-    return (parts[2] * 10000) + (parts[1] * 100) + (parts[0] * 1);
-};
-
-$(document).ready(function() {
-    // Solo inicializar DataTables si hay datos
-    var tabla = $('#tabla_movimientos');
-    var tieneFilas = tabla.find('tbody tr').length > 0 && !tabla.find('tbody tr td[colspan]').length;
-
-    if (tieneFilas) {
-        tabla.DataTable({
-            language: {
-                processing:  "Procesando...",
-                lengthMenu:  'Mostrar <select><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="-1">Todos</option></select> registros',
-                search:      "Buscar:",
-                zeroRecords: "No se encontraron resultados",
-                info:        "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                infoEmpty:   "Mostrando 0 registros",
-                infoFiltered: "(filtrado de _MAX_ registros totales)",
-                paginate: {
-                    first:    "Primero",
-                    last:     "Último",
-                    next:     "Siguiente",
-                    previous: "Anterior"
-                }
-            },
-            columnDefs: [
-                { type: 'date-eu', targets: 0 }
-            ],
-            order: [[0, 'desc']],
-            pageLength: 10,
-            responsive: true,
-            autoWidth: false
-        });
-    }
-});
+// La tabla ya llega ordenada por fecha desde el backend (orderByDesc en el controlador).
+// DataTables se quitó: su envoltorio rompía el sticky de la cabecera al hacer scroll,
+// igual que en Seguimiento de Cargas. Sin filtro propio que lo reemplace, se pierde la
+// búsqueda y el reordenar por columna, pero se gana la cabecera fija.
 </script>
 @endsection

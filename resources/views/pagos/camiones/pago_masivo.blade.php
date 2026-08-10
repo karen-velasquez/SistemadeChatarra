@@ -28,7 +28,9 @@
                         {"element":"#pm_fecha","intro":"📅 <b>Fecha de pago</b> de todo el lote.","position":"bottom"},
                         {"element":"#pm_metodo","intro":"💳 <b>Método de pago</b> (transferencia o QR). El código de seguimiento se genera automáticamente.","position":"bottom"},
                         {"element":"#zona-fletes","intro":"🚚 Los fletes pendientes <b>agrupados por proveedor</b>. Marca la casilla del proveedor para seleccionar todos sus fletes, o márcalos uno por uno.","position":"top"},
-                        {"element":"#zona-totales-flete","intro":"🧮 Abajo ves cuántos fletes seleccionaste y el <b>total a pagar</b>. Cuando esté listo, el botón <b>Siguiente</b> te lleva al Paso 2.","position":"top"}
+                        {"element":"#col-pct-flete","intro":"🔢 Al marcar un flete puedes dejarlo así para pagar el <b>saldo completo</b>, o indicar un <b>% del saldo</b> (o un monto) para registrar solo un <b>adelanto</b>. Ambos campos se calculan entre sí.","position":"bottom"},
+                        {"element":"#zona-totales-flete","intro":"🧮 Aquí ves cuántos fletes seleccionaste y el <b>total a pagar</b>, que suma lo indicado en cada uno.","position":"top"},
+                        {"element":"#btn_continuar","intro":"➡️ Cuando todo esté listo, el botón <b>Siguiente</b> (arriba) te lleva al Paso 2 para asignar las cuentas destino.","position":"left"}
                     ]'
                     @endif>
                 <i class="bi bi-question-circle"></i>
@@ -94,10 +96,17 @@
 
 <div class="card">
 <div class="card-body">
-    <h5 class="card-title">Paso 1 — Seleccionar fletes y datos del pago</h5>
+    {{-- El botón de avanzar va arriba, como en el pago masivo a proveedores --}}
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="card-title mb-0">Paso 1 — Seleccionar fletes y datos del pago</h5>
+        <button type="button" id="btn_continuar" class="btn btn-primary" disabled onclick="irAPaso2()">
+            Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+    </div>
     <p class="text-muted small mb-3">
         <i class="bi bi-info-circle me-1"></i>
-        Seleccione los fletes a pagar y complete los datos del pago. Luego haga clic en <strong>Continuar</strong> para asignar la cuenta destino de cada flete.
+        Seleccione los fletes a pagar e indique cuánto abonar a cada uno: el <strong>saldo completo</strong>
+        o un <strong>adelanto</strong> (un % del saldo o un monto). Luego asigne la cuenta destino de cada flete.
     </p>
 
     {{-- Datos globales del pago --}}
@@ -133,10 +142,6 @@
                 <option value="transferencia">Transferencia</option>
                 <option value="qr">QR</option>
             </select>
-        </div>
-        <div class="col-md-2">
-            <label class="form-label fw-semibold"><i class="bi bi-chat-left-text"></i> Observaciones</label>
-            <input type="text" id="pm_obs" class="form-control" maxlength="500" placeholder="Notas del pago...">
         </div>
     </div>
 
@@ -177,6 +182,8 @@
                         <th class="text-end">Monto total</th>
                         <th class="text-end text-warning">Total adelantado</th>
                         <th class="text-end text-danger">Saldo pendiente</th>
+                        <th style="width:120px" @if($loop->first) id="col-pct-flete" @endif>% a pagar</th>
+                        <th class="text-end" style="width:150px">Monto a pagar</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -193,18 +200,31 @@
                         <td class="text-center ps-3">
                             <input type="checkbox"
                                    class="form-check-input chk-camion"
+                                   value="{{ $cc->id }}"
                                    data-cc-id="{{ $cc->id }}"
                                    data-proveedor="{{ $grupo['proveedor']->id }}"
                                    data-saldo="{{ round($cc->saldo_pendiente, 2) }}"
                                    data-moneda="{{ $cc->moneda_flete ?? 'BOB' }}"
                                    data-label="{{ $cc->camion->placa ?? '—' }} — {{ $cc->contrato->numero_contrato ?? '—' }}"
                                    data-total-cuentas="{{ $totalCuentas }}"
-                                   onchange="actualizarResumen()">
+                                   onchange="onCheckFlete(this)">
                         </td>
                         <td><span class="fw-semibold small">{{ $cc->contrato->numero_contrato ?? '—' }}</span></td>
                         <td>
                             <span class="small fw-semibold">{{ $cc->camion->placa ?? '—' }}</span>
                             <div class="text-muted" style="font-size:.72rem">{{ $cc->camion->marca->valor ?? '' }}</div>
+                            {{-- Se listan también los fletes en ruta (para adelantos): se distinguen aquí --}}
+                            @php $entregado = $cc->tramos->contains('estado', 'Entregado'); @endphp
+                            @if($entregado)
+                                <span class="badge bg-success" style="font-size:.62rem">
+                                    <i class="bi bi-check-circle me-1"></i>Entregado
+                                </span>
+                            @else
+                                <span class="badge bg-info text-dark" style="font-size:.62rem"
+                                      title="Aún no entrega: solo conviene pagarle un adelanto">
+                                    <i class="bi bi-truck me-1"></i>En ruta
+                                </span>
+                            @endif
                         </td>
                         <td>
                             @if($cc->conductor)
@@ -228,6 +248,26 @@
                         <td class="text-end fw-bold text-danger small">
                             {{ $cc->moneda_flete ?? 'BOB' }} {{ number_format($cc->saldo_pendiente, 2, ',', '.') }}
                         </td>
+                        {{-- % y monto: por defecto 100% (saldo completo); menos = adelanto --}}
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control pct_input_flete" id="pct_f_{{ $cc->id }}"
+                                       min="0" max="100" step="0.01" placeholder="100" disabled
+                                       oninput="clampPctFlete(this); calcularMontoFlete({{ $cc->id }})">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="invalid-feedback d-block small" id="err_pct_f_{{ $cc->id }}" style="display:none!important">
+                                <i class="bi bi-exclamation-circle me-1"></i>Máximo 100%
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <div class="input-group input-group-sm justify-content-end">
+                                <span class="input-group-text text-muted" style="font-size:.75rem">{{ $cc->moneda_flete ?? 'BOB' }}</span>
+                                <input type="text" inputmode="numeric" class="form-control monto_input_flete text-end"
+                                       id="monto_f_{{ $cc->id }}" placeholder="0,00" disabled autocomplete="off"
+                                       oninput="formatearMontoFlete(this); calcularPctFlete({{ $cc->id }})">
+                            </div>
+                        </td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -242,9 +282,6 @@
             Fletes seleccionados: <strong id="res_cant">0</strong>
             &nbsp;|&nbsp; Total a pagar: <strong id="res_total" class="text-danger">BOB 0,00</strong>
         </div>
-        <button type="button" id="btn_continuar" class="btn btn-primary" disabled onclick="irAPaso2()">
-            Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
-        </button>
     </div>
 
 </div>
@@ -432,14 +469,14 @@ function _fmtMonto(n) {
 // ===== Paso 1 =====
 
 function seleccionarTodos(estado) {
-    document.querySelectorAll('.chk-camion').forEach(cb => cb.checked = estado);
+    document.querySelectorAll('.chk-camion').forEach(cb => { cb.checked = estado; onCheckFlete(cb); });
     document.querySelectorAll('.chk-proveedor').forEach(cb => cb.checked = estado);
     actualizarResumen();
 }
 
 function seleccionarProveedor(chkAll, proveedorId) {
     document.querySelectorAll(`.chk-camion[data-proveedor="${proveedorId}"]`)
-        .forEach(cb => cb.checked = chkAll.checked);
+        .forEach(cb => { cb.checked = chkAll.checked; onCheckFlete(cb); });
     actualizarResumen();
 }
 
@@ -451,7 +488,8 @@ function actualizarResumen() {
     const saldoCuenta = optSel?.dataset.saldo ? parseFloat(optSel.dataset.saldo) : null;
     let total = 0;
 
-    checks.forEach(cb => { total += parseFloat(cb.dataset.saldo ?? 0); });
+    // Suma lo que se va a pagar de cada flete (el saldo completo o el adelanto indicado)
+    checks.forEach(cb => { total += montoAPagarFlete(cb.value); });
 
     document.getElementById('res_cant').textContent  = checks.length;
     document.getElementById('res_total').textContent = moneda + ' ' + _fmtMonto(total);
@@ -482,8 +520,108 @@ function actualizarResumen() {
 
     const metodo   = document.getElementById('pm_metodo').value;
     const fecha    = document.getElementById('pm_fecha').value;
-    const ok       = checks.length > 0 && cuentaSel.value !== '' && metodo !== '' && fecha !== '' && !saldoInsuf;
+    // Ningún flete puede quedar en 0 ni exceder su saldo
+    const montosOk = Array.from(checks).every(cb => {
+        const m = montoAPagarFlete(cb.value);
+        return m > 0 && m <= parseFloat(cb.dataset.saldo ?? 0) + 0.005;
+    });
+    const sinErrores = document.querySelectorAll('.monto_input_flete.is-invalid, .pct_input_flete.is-invalid').length === 0;
+
+    const ok = checks.length > 0 && cuentaSel.value !== '' && metodo !== '' && fecha !== ''
+               && !saldoInsuf && montosOk && sinErrores;
     document.getElementById('btn_continuar').disabled = !ok;
+}
+
+// Los campos de % y monto solo se editan si el flete está marcado
+function onCheckFlete(chk) {
+    const ccId = chk.value;
+    const pctIn = document.getElementById('pct_f_' + ccId);
+    const monIn = document.getElementById('monto_f_' + ccId);
+    if (pctIn) pctIn.disabled = !chk.checked;
+    if (monIn) monIn.disabled = !chk.checked;
+    if (!chk.checked) {
+        // Al desmarcar se limpia para no arrastrar un adelanto de antes
+        if (pctIn) { pctIn.value = ''; pctIn.classList.remove('is-invalid'); }
+        if (monIn) { monIn.value = ''; monIn.classList.remove('is-invalid'); }
+        const errEl = document.getElementById('err_pct_f_' + ccId);
+        if (errEl) errEl.style.display = 'none';
+    }
+    actualizarResumen();
+}
+
+// ── Monto a pagar por flete: lo escrito, o el saldo completo si no se indicó nada ──
+function montoAPagarFlete(ccId) {
+    const chk = document.querySelector(`.chk-camion[value="${ccId}"]`);
+    if (!chk) return 0;
+    const saldo = parseFloat(chk.dataset.saldo ?? 0);
+    const inp   = document.getElementById('monto_f_' + ccId);
+    if (!inp || inp.value.trim() === '') return saldo;
+    return _txt2numFlete(inp.value);
+}
+
+function _txt2numFlete(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+// Formatea mientras se escribe: miles con ".", 2 decimales con ","
+function formatearMontoFlete(inp) {
+    let raw = inp.value.replace(/[^0-9,]/g, '');
+    let partes = raw.split(',');
+    if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+    partes = raw.split(',');
+    if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+    const entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+    const diff  = nuevo.length - inp.value.length;
+    const pos   = (inp.selectionStart || 0) + diff;
+    inp.value = nuevo;
+    try { inp.setSelectionRange(pos, pos); } catch (_) {}
+}
+
+function clampPctFlete(input) {
+    const v = parseFloat(input.value);
+    if (!isNaN(v) && v < 0) input.value = 0;
+}
+
+// Escribir el % calcula el monto
+function calcularMontoFlete(ccId) {
+    const chk = document.querySelector(`.chk-camion[value="${ccId}"]`);
+    if (!chk) return;
+    const saldo = parseFloat(chk.dataset.saldo ?? 0);
+    const pctIn = document.getElementById('pct_f_' + ccId);
+    const monIn = document.getElementById('monto_f_' + ccId);
+    const errEl = document.getElementById('err_pct_f_' + ccId);
+
+    const pct = parseFloat(pctIn.value);
+    const invalido = !isNaN(pct) && pct > 100;
+    pctIn.classList.toggle('is-invalid', invalido);
+    if (errEl) errEl.style.display = invalido ? 'block' : 'none';
+
+    if (isNaN(pct) || pct <= 0 || invalido) {
+        monIn.value = '';
+    } else {
+        monIn.value = _fmtMonto(Math.round(saldo * pct) / 100);
+        monIn.classList.remove('is-invalid');
+    }
+    actualizarResumen();
+}
+
+// Escribir el monto calcula el %
+function calcularPctFlete(ccId) {
+    const chk = document.querySelector(`.chk-camion[value="${ccId}"]`);
+    if (!chk) return;
+    const saldo = parseFloat(chk.dataset.saldo ?? 0);
+    const pctIn = document.getElementById('pct_f_' + ccId);
+    const monIn = document.getElementById('monto_f_' + ccId);
+
+    const monto = _txt2numFlete(monIn.value);
+    // Un céntimo de tolerancia por el redondeo al calcular desde el %
+    const invalido = monto > saldo + 0.005;
+    monIn.classList.toggle('is-invalid', invalido);
+
+    pctIn.value = (monto > 0 && !invalido) ? (Math.round(monto / saldo * 10000) / 100).toFixed(2) : '';
+    if (!invalido) pctIn.classList.remove('is-invalid');
+    actualizarResumen();
 }
 
 // ===== Paso 2 =====
@@ -493,13 +631,12 @@ function irAPaso2() {
     const cuentaSel = document.getElementById('pm_cuenta');
     const metodo    = document.getElementById('pm_metodo').value;
     const fecha     = document.getElementById('pm_fecha').value;
-    const obs       = document.getElementById('pm_obs').value.trim();
 
     document.getElementById('h_cuenta_origen').value = cuentaSel.value;
     document.getElementById('h_fecha_pago').value    = fecha;
     document.getElementById('h_metodo_pago').value   = metodo;
     document.getElementById('h_codigo').value        = '';
-    document.getElementById('h_obs').value           = obs;
+    // Las observaciones las arma el backend con los datos del lote
 
     const cont = document.getElementById('h_contrato_ids_container');
     cont.innerHTML = '';
@@ -509,6 +646,13 @@ function irAPaso2() {
         inp.name  = 'contrato_camion_ids[]';
         inp.value = cb.dataset.ccId;
         cont.appendChild(inp);
+
+        // Monto a pagar de este flete: el saldo completo o el adelanto indicado
+        const monto = document.createElement('input');
+        monto.type  = 'hidden';
+        monto.name  = 'montos[' + cb.dataset.ccId + ']';
+        monto.value = montoAPagarFlete(cb.value).toFixed(2);
+        cont.appendChild(monto);
     });
 
     // Rellenar resumen del pago
@@ -519,7 +663,8 @@ function irAPaso2() {
     let totalGeneral = 0, monedaGeneral = 'BOB';
     checks.forEach(cb => {
         const info = _contratosData[cb.dataset.ccId];
-        if (info) { totalGeneral += info.saldo; monedaGeneral = info.moneda; }
+        // Lo que se va a pagar, no la deuda total: puede ser un adelanto
+        if (info) { totalGeneral += montoAPagarFlete(cb.value); monedaGeneral = info.moneda; }
     });
     document.getElementById('p2_res_total').textContent = monedaGeneral + ' ' + _fmtMonto(totalGeneral);
     document.getElementById('p2_resumen').style.display = '';
@@ -574,7 +719,10 @@ function irAPaso2() {
                     ${info.conductor_nombre ? `<span class="text-muted small ms-2">Cond: ${info.conductor_nombre}</span>` : ''}
                     ${info.cliente_nombre   ? `<span class="text-muted small ms-2"><i class="bi bi-person me-1"></i>${info.cliente_nombre}</span>` : ''}
                 </div>
-                <span class="badge bg-danger">${info.moneda} ${_fmtMonto(info.saldo)}</span>
+                <span class="badge bg-danger" title="Monto a pagar de este flete">${info.moneda} ${_fmtMonto(montoAPagarFlete(ccId))}</span>
+                ${montoAPagarFlete(ccId) < info.saldo
+                    ? `<span class="badge bg-warning text-dark ms-1" title="No cubre el saldo: se registra como adelanto">Adelanto de ${info.moneda} ${_fmtMonto(info.saldo)}</span>`
+                    : ''}
                 <span id="badge_ok_${ccId}" class="badge bg-success ms-1" style="display:none;">
                     <i class="bi bi-check-circle me-1"></i>Asignada
                 </span>`;
@@ -726,13 +874,13 @@ function _buildRows() {
 
         rows.push({
             orden, codigo_cliente: 0, nro_cuenta: nroCuenta, nombre_cliente: nombreCliente,
-            doc_identidad: docIdentidad, importe: info.saldo.toFixed(2).replace('.', ','), fecha_pago: fechaFmt,
+            doc_identidad: docIdentidad, importe: montoAPagarFlete(ccId).toFixed(2).replace('.', ','), fecha_pago: fechaFmt,
             forma_pago: esGanadero ? 1 : 3,
             moneda_destino:  esGanadero ? 0 : (monedaCuenta === 'USD' ? 2 : 1),
             entidad_destino: esGanadero ? 0 : codigoBanco,
             sucursal:        esGanadero ? 0 : siglaSucursal,
             glosa: '', codigo_unico: '', email: emailNotificacion, nro_doc_tercero: '', nombre_tercero: '',
-            _moneda: info.moneda, _saldo: info.saldo,
+            _moneda: info.moneda, _saldo: montoAPagarFlete(ccId),
         });
         orden++;
     });

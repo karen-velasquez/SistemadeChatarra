@@ -56,11 +56,19 @@ class Contrato extends Model implements Auditable
         });
     }
 
+    /**
+     * Número correlativo que reinicia cada mes: CT{MM}{AA}-{NNN}.
+     * Por ejemplo CT0126-001 para el primero de enero de 2026.
+     * Los contratos anteriores conservan el formato viejo (CTR-AAAA-NNN);
+     * como el prefijo es distinto, no interfieren con este conteo.
+     */
     public static function generarNumero(): string
     {
-        $anio   = date('Y');
+        // now() y no date(): respeta la zona horaria de la app y es testeable
+        $prefijo = 'CT' . now()->format('my');   // mes y año de creación: CT0826
+
         $ultimo = self::withTrashed()
-            ->where('numero_contrato', 'like', "CTR-{$anio}-%")
+            ->where('numero_contrato', 'like', "{$prefijo}-%")
             ->max('numero_contrato');
 
         $correlativo = 1;
@@ -69,7 +77,7 @@ class Contrato extends Model implements Auditable
             $correlativo = (int) end($partes) + 1;
         }
 
-        return sprintf('CTR-%s-%03d', $anio, $correlativo);
+        return sprintf('%s-%03d', $prefijo, $correlativo);
     }
 
     public function cliente()

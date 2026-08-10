@@ -419,6 +419,27 @@
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script>
+    // ── Buscador en el select de Proveedor ──
+    // Se inicializa al abrir el modal porque Select2 necesita el elemento visible,
+    // y con dropdownParent para que el desplegable no quede detrás del modal.
+    $('#modalContrato').on('shown.bs.modal', function () {
+        if (!$('#proveedor_id').data('select2')) {
+            $('#proveedor_id').select2({
+                placeholder: '-- Seleccione proveedor --',
+                width: '100%',
+                dropdownParent: $('#modalContrato'),
+                language: {
+                    noResults: () => 'No se encontró ningún proveedor.',
+                    searching: () => 'Buscando...'
+                }
+            });
+        }
+        // El valor y el estado disabled se fijan por JS antes de abrir el modal:
+        // hay que avisarle a Select2 para que refleje ambos.
+        $('#proveedor_id').trigger('change.select2');
+    });
+</script>
+<script>
     // Reabrir modal si hay errores de validación
     @if($errors->any())
         document.addEventListener('DOMContentLoaded', function () {

@@ -232,6 +232,13 @@
                                                 </div>
                                                 <small class="{{ $pct >= 100 ? 'text-success' : 'text-warning' }} fw-semibold">{{ $pct }}%</small>
                                             </div>
+                                            <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
+                                                {{ $cc->moneda_flete ?? 'BOB' }}
+                                                {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
+                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
+                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                </span>
+                                            </div>
                                         @endif
                                     </td>
                                     <td class="text-center">
@@ -368,6 +375,13 @@
                                                 </div>
                                                 <small class="{{ $pct >= 100 ? 'text-success' : 'text-warning' }} fw-semibold">{{ $pct }}%</small>
                                             </div>
+                                            <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
+                                                {{ $cc->moneda_flete ?? 'BOB' }}
+                                                {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
+                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
+                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                </span>
+                                            </div>
                                         @endif
                                     </td>
                                     <td class="text-center">
@@ -498,6 +512,13 @@
                                                         style="width:{{ $pct }}%"></div>
                                                 </div>
                                                 <small class="{{ $pct >= 100 ? 'text-success' : 'text-warning' }} fw-semibold">{{ $pct }}%</small>
+                                            </div>
+                                            <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
+                                                {{ $cc->moneda_flete ?? 'BOB' }}
+                                                {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
+                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
+                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                </span>
                                             </div>
                                         @endif
                                     </td>
@@ -637,6 +658,13 @@
                                                 </div>
                                                 <small class="{{ $pct >= 100 ? 'text-success' : 'text-warning' }} fw-semibold">{{ $pct }}%</small>
                                             </div>
+                                            <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
+                                                {{ $cc->moneda_flete ?? 'BOB' }}
+                                                {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
+                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
+                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                </span>
+                                            </div>
                                         @endif
                                     </td>
                                     <td class="text-center">
@@ -713,6 +741,8 @@
             </div>
             <form method="POST" action="{{ route('pagos.camiones.store') }}">
                 @csrf
+                {{-- Token de idempotencia: sin él, store() rechaza el pago como duplicado --}}
+                <input type="hidden" name="_idempotency_token" id="segIdempotencyToken" value="{{ $idempotencyToken ?? '' }}">
                 <input type="hidden" name="contrato_camion_id" id="seg_pago_cc_id">
                 <div class="modal-body">
 
@@ -787,7 +817,7 @@
                                             <small class="text-muted fw-normal">— 1 <span id="seg_lbl_tc_moneda"></span> =</small>
                                         </label>
                                         <div class="input-group input-group-sm">
-                                            <input type="text" inputmode="numeric" class="form-control" id="seg_inp_tc_display" placeholder="0,0000" autocomplete="off" disabled>
+                                            <input type="text" inputmode="numeric" class="form-control" id="seg_inp_tc_display" placeholder="0,00" autocomplete="off" disabled>
                                             <input type="hidden" name="tipo_cambio" id="seg_inp_tc" value="">
                                             <span class="input-group-text">BOB</span>
                                         </div>
@@ -903,7 +933,6 @@
                             <label class="form-label fw-semibold">Tipo de Pago <span class="text-danger">*</span></label>
                             <select class="form-select" name="tipo_pago" id="edit_tipo_pago" required>
                                 <option value="adelanto">Adelanto</option>
-                                <option value="flete">Flete</option>
                                 <option value="pago_final">Pago Final</option>
                             </select>
                         </div>
@@ -911,7 +940,9 @@
                             <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" name="fecha_pago" id="edit_fecha_pago" required>
                         </div>
-                        <div class="col-md-4">
+                        {{-- El pago va en la moneda del flete: se fija sola y no se elige.
+                             El selector queda oculto (no eliminado) porque el form debe enviarlo. --}}
+                        <div class="col-md-4 d-none">
                             <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
                             <select class="form-select" name="moneda_pago" id="edit_moneda_pago" required onchange="editToggleTc(this.value)">
                                 @php
@@ -922,24 +953,44 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-12">
                             <label class="form-label fw-semibold">Monto <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="monto" id="edit_monto" step="0.01" min="0.01" required>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold" id="edit_monto_moneda">BOB</span>
+                                <input type="number" class="form-control" name="monto" id="edit_monto"
+                                       step="0.01" min="0.01" required oninput="editCalcEquiv()">
+                            </div>
+                            <div class="form-text">Se paga en la moneda del flete del contrato.</div>
                         </div>
                         <div class="col-12" id="edit_sec_tc">
                             <label class="form-label fw-semibold">Tipo de Cambio a BOB <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" name="tipo_cambio" id="edit_tipo_cambio" step="0.0001" min="0.0001" value="1">
+                            <input type="number" class="form-control" name="tipo_cambio" id="edit_tipo_cambio"
+                                   step="0.01" min="0.01" value="1" oninput="editCalcEquiv()">
+                            {{-- Equivalente en bolivianos: solo cuando el flete no es en BOB --}}
+                            <div id="edit_sec_equiv" style="display:none;" class="mt-2">
+                                <div class="d-flex align-items-center gap-2 rounded-2 px-3 py-2" style="background:#e8f4fd; border:1px solid #b8d9f5;">
+                                    <i class="bi bi-arrow-left-right text-primary"></i>
+                                    <span class="text-muted small">Equivalente en bolivianos:</span>
+                                    <strong class="text-primary fs-6" id="edit_lbl_equiv">—</strong>
+                                    <span class="text-muted small">BOB</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Método de Pago <span class="text-danger">*</span></label>
-                            <select class="form-select" name="metodo_pago" id="edit_metodo_pago" required>
+                            <select class="form-select" name="metodo_pago" id="edit_metodo_pago" required
+                                    onchange="editToggleCodigo(this.value)">
                                 <option value="transferencia">Transferencia Bancaria</option>
                                 <option value="qr">QR</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Código de seguimiento</label>
+                            {{-- Solo editable en transferencia: en QR lo genera el sistema --}}
                             <input type="text" class="form-control" name="codigo_seguimiento" id="edit_codigo" maxlength="100">
+                            <div class="form-text d-none" id="edit_codigo_ayuda">
+                                Generado por el sistema para pagos por QR.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1375,6 +1426,8 @@
             </div>
             <form method="POST" action="{{ route('tramo.store') }}">
                 @csrf
+                {{-- Token de idempotencia: sin él, store() rechaza el transbordo como duplicado --}}
+                <input type="hidden" name="_idempotency_token" value="{{ $tokenTransbordo ?? '' }}">
                 <input type="hidden" name="origen" value="seguimiento">
                 <input type="hidden" name="contrato_camion_id" id="seg_tsb_cc_id">
                 <input type="hidden" name="tramo_padre_id"     id="seg_tsb_padre_id">
@@ -1448,7 +1501,7 @@
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-secondary text-white">
-                <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Historial de Pagos — <span id="hist_camion_label"></span></h5>
+                <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Historial de Pagos</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0" id="hist_body">
@@ -1516,42 +1569,16 @@ function _fmtS4(n) {
     return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(parseFloat(n) || 0);
 }
 
-const dtLang = {
-    processing:  "Procesando...",
-    search:      "Buscar:",
-    lengthMenu:  'Mostrar <select><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="-1">Todos</option></select> registros',
-    info:        "Página _PAGE_ de _PAGES_",
-    infoEmpty:   "",
-    emptyTable:  "No hay datos disponibles.",
-    zeroRecords: "No se encontraron resultados.",
-    paginate: { first: "Primero", last: "Último", next: "Siguiente", previous: "Anterior" },
-};
-
-document.addEventListener('DOMContentLoaded', function () {
-    if (document.getElementById('tabla_en_ruta')) {
-        $('#tabla_en_ruta').DataTable({ language: dtLang, pageLength: 25 });
-    }
-
-    const tabsConfig = {
-        'pane-transbordando': 'tabla_transbordando',
-        'pane-transbordado':  'tabla_transbordado',
-        'pane-entregados':    'tabla_entregados',
-    };
-
-    document.querySelectorAll('#segTabs button[data-bs-toggle="tab"]').forEach(function(btn) {
-        btn.addEventListener('shown.bs.tab', function (e) {
-            const paneId  = e.target.getAttribute('data-bs-target').replace('#', '');
-            const tablaId = tabsConfig[paneId];
-            if (tablaId && document.getElementById(tablaId) && !$.fn.DataTable.isDataTable('#' + tablaId)) {
-                $('#' + tablaId).DataTable({ language: dtLang, pageLength: 25 });
-            }
-        });
-    });
-});
+// Estas 4 tablas ya tienen su propio filtro (aplicarFiltrosSeg) manipulando
+// el DOM directamente. DataTables no aportaba más que paginación y buscador,
+// y su envoltorio le rompía el sticky de la cabecera al hacer scroll: se
+// quitó para que se comporten como el resto de tablas del sistema.
 
 // ---- Pago desde seguimiento ----
 let segReceptorActual = {};
 let _segMonedaPendiente = null;
+// Moneda del flete del contrato abierto en el historial: la usa el modal de editar
+let _segMonedaFlete = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('modalPagoSeg').addEventListener('shown.bs.modal', function () {
@@ -1733,7 +1760,7 @@ function segCalcEquiv() {
     // Va aquí y no dentro de segCalcEquiv porque esa función corta antes si la moneda es BOB.
     const alCambiarMonto = () => { segCalcEquiv(); segMostrarSaldoCuenta(); };
     _initCajero('seg_inp_monto_display', 'seg_inp_monto', 2, alCambiarMonto);
-    _initCajero('seg_inp_tc_display',    'seg_inp_tc',    4, segCalcEquiv);
+    _initCajero('seg_inp_tc_display',    'seg_inp_tc',    2, segCalcEquiv);
 })();
 
 function segToggleCodigo(metodo) {
@@ -1798,18 +1825,58 @@ function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, meto
     document.getElementById('formEditarPago').action = url_global + '/pagos/camiones/' + uuid;
     document.getElementById('edit_tipo_pago').value   = tipo;
     document.getElementById('edit_monto').value       = monto;
-    document.getElementById('edit_moneda_pago').value = moneda;
     document.getElementById('edit_tipo_cambio').value = tipoCambio;
     document.getElementById('edit_fecha_pago').value  = fecha;
     document.getElementById('edit_metodo_pago').value = metodo;
     document.getElementById('edit_codigo').value      = codigo;
-    editToggleTc(moneda);
+
+    // La moneda es la del flete del contrato, no la que traiga el pago
+    const monedaFlete = _segMonedaFlete || moneda || 'BOB';
+    document.getElementById('edit_moneda_pago').value      = monedaFlete;
+    document.getElementById('edit_monto_moneda').textContent = monedaFlete;
+
+    editToggleTc(monedaFlete);
+    editToggleCodigo(metodo);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarPago')).show();
+}
+
+// El código de seguimiento solo se edita en transferencia; en QR lo genera el sistema
+function editToggleCodigo(metodo) {
+    const inp   = document.getElementById('edit_codigo');
+    const ayuda = document.getElementById('edit_codigo_ayuda');
+    const esTransferencia = metodo === 'transferencia';
+    // readonly y no disabled: un campo deshabilitado no se envía en el POST
+    inp.readOnly = !esTransferencia;
+    inp.classList.toggle('bg-light', !esTransferencia);
+    ayuda.classList.toggle('d-none', esTransferencia);
 }
 
 function editToggleTc(moneda) {
     document.getElementById('edit_sec_tc').style.display = moneda === 'BOB' ? 'none' : 'block';
     if (moneda === 'BOB') document.getElementById('edit_tipo_cambio').value = 1;
+    editCalcEquiv();
+}
+
+// Muestra monto x tipo de cambio cuando el flete no es en bolivianos
+function editCalcEquiv() {
+    const moneda = document.getElementById('edit_moneda_pago').value;
+    const sec    = document.getElementById('edit_sec_equiv');
+    if (!sec) return;
+
+    if (moneda === 'BOB') {
+        sec.style.display = 'none';
+        return;
+    }
+
+    const monto = parseFloat(document.getElementById('edit_monto').value) || 0;
+    const tc    = parseFloat(document.getElementById('edit_tipo_cambio').value) || 0;
+
+    if (monto > 0 && tc > 0) {
+        document.getElementById('edit_lbl_equiv').textContent = _fmtS(monto * tc);
+        sec.style.display = 'block';
+    } else {
+        sec.style.display = 'none';
+    }
 }
 
 // Editar se abre desde el historial: marcar su backdrop para que quede encima
@@ -2372,7 +2439,6 @@ function abrirModalTransbordoSeg(ccId, tramoPadreId, infoPadre, disponible, fech
 }
 
 function abrirHistorialPagos(ccId, camionLabel) {
-    document.getElementById('hist_camion_label').textContent = camionLabel;
     document.getElementById('hist_loading').style.display = 'block';
     document.getElementById('hist_contenido').style.display = 'none';
     document.getElementById('hist_contenido').innerHTML = '';
@@ -2383,18 +2449,34 @@ function abrirHistorialPagos(ccId, camionLabel) {
         .then(d => {
             document.getElementById('hist_loading').style.display = 'none';
             const cont = document.getElementById('hist_contenido');
+            const cabecera = `
+                <div class="px-3 pt-3 pb-2">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <span class="small text-muted"><i class="bi bi-truck me-1"></i>Camión: <strong>${d.camion ?? '—'}</strong></span>
+                        <span class="small text-muted">Contrato: <strong>${d.contrato ?? '—'}</strong></span>
+                        <span class="small text-muted"><i class="bi bi-person me-1"></i>Conductor: <strong>${d.conductor ?? '—'}</strong></span>
+                        <span class="small text-muted"><i class="bi bi-signpost-split me-1"></i>Ruta: <strong>${d.ruta ?? '—'}</strong></span>
+                    </div>
+                </div>`;
             if (!d.pagos || !d.pagos.length) {
-                cont.innerHTML = '<div class="alert alert-info m-3"><i class="bi bi-info-circle me-1"></i>Este contrato no tiene pagos registrados aún.</div>';
+                cont.innerHTML = cabecera + '<div class="alert alert-info mx-3"><i class="bi bi-info-circle me-1"></i>Este contrato no tiene pagos registrados aún.</div>';
                 cont.style.display = 'block';
                 return;
             }
             const moneda    = d.moneda_flete ?? 'BOB';
+            // El pago se hace en la moneda del flete: el modal de editar la fija con esto
+            _segMonedaFlete = moneda;
             const saldoClass = d.saldo_pendiente > 0 ? 'text-danger' : 'text-success';
             const saldoIcon  = d.saldo_pendiente > 0 ? 'bi-exclamation-circle' : 'bi-check-circle';
             let html = `
             <div class="px-3 pt-3 pb-2">
-                <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                <div class="d-flex align-items-center gap-3 mb-2 flex-wrap">
+                    <span class="small text-muted"><i class="bi bi-truck me-1"></i>Camión: <strong>${d.camion ?? '—'}</strong></span>
                     <span class="small text-muted">Contrato: <strong>${d.contrato}</strong></span>
+                    <span class="small text-muted"><i class="bi bi-person me-1"></i>Conductor: <strong>${d.conductor ?? '—'}</strong></span>
+                    <span class="small text-muted"><i class="bi bi-signpost-split me-1"></i>Ruta: <strong>${d.ruta ?? '—'}</strong></span>
+                </div>
+                <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
                     <span class="small text-muted">Acordado: <strong>${moneda} ${_fmtS(d.monto_acordado||0)}</strong></span>
                     <span class="small text-success">Pagado: <strong>${moneda} ${_fmtS(d.total_pagado||0)}</strong></span>
                     <span class="small ${saldoClass}"><i class="bi ${saldoIcon} me-1"></i>Saldo: <strong>${moneda} ${_fmtS(d.saldo_pendiente||0)}</strong></span>
@@ -2405,6 +2487,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                             <th>Fecha</th>
                             <th>Tipo</th>
                             <th class="text-end">Monto</th>
+                            <th class="text-end">Tipo de cambio</th>
                             <th>Método</th>
                             <th>Receptor</th>
                             <th>Cuenta origen</th>
@@ -2436,6 +2519,11 @@ function abrirHistorialPagos(ccId, camionLabel) {
                     <td class="small">${p.fecha}</td>
                     <td><span class="badge bg-secondary">${p.tipo}</span></td>
                     <td class="text-end small fw-semibold">${p.moneda_pago} ${_fmtS(p.monto)}</td>
+                    <td class="text-end small">
+                        ${p.moneda_pago === 'BOB'
+                            ? '<span class="text-muted">—</span>'
+                            : `${_fmtS(p.tipo_cambio)}<span class="text-muted d-block" style="font-size:.7rem">= Bs ${_fmtS(p.monto_bob)}</span>`}
+                    </td>
                     <td class="small">${p.metodo}</td>
                     <td class="small">${p.receptor ?? '—'}</td>
                     <td class="small">${origen}</td>

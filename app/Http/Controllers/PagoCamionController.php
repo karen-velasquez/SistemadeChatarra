@@ -49,6 +49,13 @@ class PagoCamionController extends Controller
             Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
             return redirect()->route('pagos.camiones.index');
         }
+
+        // En bolivianos no hay conversión: el tipo de cambio es 1.
+        // Se normaliza aquí para no depender de que el formulario lo envíe.
+        if ($request->moneda_pago === 'BOB' && !$request->filled('tipo_cambio')) {
+            $request->merge(['tipo_cambio' => 1]);
+        }
+
         $request->validate([
             'contrato_camion_id' => 'required|exists:contrato_camiones,id',
             'tipo_pago'          => 'required|in:adelanto,flete,pago_final',
@@ -84,7 +91,13 @@ class PagoCamionController extends Controller
 
         $cc = ContratoCamion::with(['camion', 'conductor'])->findOrFail($request->contrato_camion_id);
 
-        DB::transaction(function () use ($request, $receptorType, $cc) {
+        // En QR no se captura código: se genera uno para poder rastrear el pago.
+        $codigoSeguimiento = $request->codigo_seguimiento ?: null;
+        if (!$codigoSeguimiento && $request->metodo_pago === 'qr') {
+            $codigoSeguimiento = 'QR-' . strtoupper(\Illuminate\Support\Str::random(8));
+        }
+
+        DB::transaction(function () use ($request, $receptorType, $cc, $codigoSeguimiento) {
             $pago = PagoCamion::create([
                 'contrato_camion_id' => $request->contrato_camion_id,
                 'tipo_pago'          => $request->tipo_pago,
@@ -97,7 +110,7 @@ class PagoCamionController extends Controller
                 'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
                 'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
                 'metodo_pago'        => $request->metodo_pago,
-                'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
+                'codigo_seguimiento' => $codigoSeguimiento,
                 'observaciones'      => $request->observaciones ?: null,
                 'created_by'         => auth()->id(),
                 'updated_by'         => auth()->id(),
@@ -125,28 +138,55 @@ class PagoCamionController extends Controller
     {
         $pago = PagoCamion::where('uuid', $uuid)->firstOrFail();
 
+        // En bolivianos no hay conversión: el tipo de cambio es 1
+        if ($request->moneda_pago === 'BOB' && !$request->filled('tipo_cambio')) {
+            $request->merge(['tipo_cambio' => 1]);
+        }
+
         $request->validate([
-            'tipo_pago'          => 'required|in:adelanto,flete,pago_final',
+            'tipo_pago'          => 'required|in:adelanto,pago_final',
             'monto'              => 'required|numeric|min:0.01',
             'moneda_pago'        => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
             'tipo_cambio'        => 'required|numeric|min:0.0001',
             'fecha_pago'         => 'required|date',
-            'metodo_pago'        => 'required|in:efectivo,transferencia,qr,cheque',
+            'metodo_pago'        => 'required|in:transferencia,qr',
             'codigo_seguimiento' => 'nullable|string|max:100',
         ]);
 
-        $pago->update([
-            'tipo_pago'          => $request->tipo_pago,
-            'monto'              => $request->monto,
-            'moneda_pago'        => $request->moneda_pago,
-            'tipo_cambio'        => $request->tipo_cambio,
-            'fecha_pago'         => $request->fecha_pago,
-            'metodo_pago'        => $request->metodo_pago,
-            'codigo_seguimiento' => $request->codigo_seguimiento ?: null,
-            'updated_by'         => auth()->id(),
-        ]);
+        // En QR el código lo genera el sistema y el campo no es editable:
+        // si llega vacío se conserva el que ya tenía en vez de borrarlo.
+        $codigo = $request->codigo_seguimiento ?: null;
+        if (!$codigo && $request->metodo_pago === 'qr') {
+            $codigo = $pago->codigo_seguimiento ?: 'QR-' . strtoupper(\Illuminate\Support\Str::random(8));
+        }
 
-        Alert::success('Éxito', 'Pago actualizado correctamente.');
+        DB::transaction(function () use ($request, $pago, $codigo) {
+            $pago->update([
+                'tipo_pago'          => $request->tipo_pago,
+                'monto'              => $request->monto,
+                'moneda_pago'        => $request->moneda_pago,
+                'tipo_cambio'        => $request->tipo_cambio,
+                'fecha_pago'         => $request->fecha_pago,
+                'metodo_pago'        => $request->metodo_pago,
+                'codigo_seguimiento' => $codigo,
+                'updated_by'         => auth()->id(),
+            ]);
+
+            // El movimiento de tesorería es espejo del pago: debe reflejar la edición.
+            // El hook updated() de Movimiento recalcula monto_bolivianos y ajusta el saldo.
+            Movimiento::where('origen_type', PagoCamion::class)
+                ->where('origen_id', $pago->id)
+                ->each(fn($m) => $m->update([
+                    'monto'              => $pago->monto,
+                    'moneda'             => $pago->moneda_pago,
+                    'tipo_cambio'        => $pago->tipo_cambio,
+                    'fecha'              => $pago->fecha_pago,
+                    'codigo_seguimiento' => $pago->codigo_seguimiento,
+                    'updated_by'         => auth()->id(),
+                ]));
+        });
+
+        Alert::success('Éxito', 'Pago actualizado y movimiento en tesorería sincronizado.');
         return redirect()->route('seguimiento.index');
     }
 
@@ -230,7 +270,7 @@ class PagoCamionController extends Controller
         return response()->json([
             'id'               => $cc->id,
             'ruta'             => $puntos ? implode(' → ', $puntos) : null,
-            'camion'           => $cc->camion->placa . ' ' . $cc->camion->marca,
+            'camion'           => trim($cc->camion->placa . ' ' . ($cc->camion->marca->valor ?? '')),
             'contrato'         => $cc->contrato->numero_contrato ?? '—',
             'proveedor'        => $cc->contrato->proveedor->nombre ?? '—',
             'placa'            => $cc->camion->placa,
@@ -250,6 +290,7 @@ class PagoCamionController extends Controller
                 'monto'       => $p->monto,
                 'moneda_pago' => $p->moneda_pago,
                 'tipo_cambio' => $p->tipo_cambio,
+                // Equivalente en bolivianos, para mostrarlo junto al tipo de cambio
                 'monto_bob'   => $p->monto_en_bob,
                 'fecha'       => $p->fecha_pago->format('d/m/Y'),
                 'fecha_raw'   => $p->fecha_pago->format('Y-m-d'),
@@ -276,6 +317,9 @@ class PagoCamionController extends Controller
     // Vista de pago masivo de camiones
     public function pagoMasivoView()
     {
+        // Se listan todos los fletes con monto acordado y saldo pendiente, estén
+        // entregados o aún en ruta: a estos últimos se les puede pagar un adelanto.
+        // La vista los distingue con una etiqueta de estado.
         $contratosConSaldo = ContratoCamion::with([
                 'contrato.proveedor',
                 'camion',
@@ -283,7 +327,7 @@ class PagoCamionController extends Controller
                 'pagos',
                 'tramos.cliente',
             ])
-            ->whereHas('tramos', fn($q) => $q->where('estado', 'Entregado'))
+            ->whereHas('tramos')
             ->whereNotNull('monto_acordado')
             ->get()
             ->filter(fn($cc) => $cc->saldo_pendiente > 0)
@@ -304,12 +348,12 @@ class PagoCamionController extends Controller
             ->get()
             ->groupBy('titular_id');
 
-        // Agrupar por proveedor y tomar máx 3 por proveedor
+        // Agrupar por proveedor (sin recortar: deben verse todos los fletes por pagar)
         $porProveedor = $contratosConSaldo
             ->groupBy(fn($cc) => $cc->contrato->proveedor_id ?? 0)
             ->map(fn($grupo) => [
                 'proveedor' => $grupo->first()->contrato->proveedor,
-                'contratos' => $grupo->take(3)->values(),
+                'contratos' => $grupo->values(),
             ])
             ->filter(fn($g) => $g['proveedor'])
             ->values();
@@ -331,6 +375,8 @@ class PagoCamionController extends Controller
             'codigo_seguimiento'   => 'nullable|string|max:100',
             'cuenta_destino'       => 'nullable|array',
             'cuenta_destino.*'     => 'nullable|exists:cuentas_bancarias,id',
+            'montos'               => 'nullable|array',
+            'montos.*'             => 'nullable|numeric|min:0.01',
             'observaciones'        => 'nullable|string|max:500',
         ], [
             'contrato_camion_ids.required' => 'Debe seleccionar al menos un camión.',
@@ -344,7 +390,14 @@ class PagoCamionController extends Controller
         $contratosChk = ContratoCamion::with('pagos')
             ->whereIn('id', $request->contrato_camion_ids)
             ->get();
-        $totalAPagar = $contratosChk->sum(fn($cc) => max(0, $cc->saldo_pendiente));
+        // Monto por flete: el enviado (adelanto) o el saldo completo. Nunca más que el saldo.
+        $montosSolicitados = $request->input('montos', []);
+        $montoPorFlete = fn($cc) => min(
+            max(0, (float) ($montosSolicitados[$cc->id] ?? $cc->saldo_pendiente)),
+            max(0, $cc->saldo_pendiente)
+        );
+
+        $totalAPagar = $contratosChk->sum($montoPorFlete);
 
         if ($cuenta->saldo_actual < $totalAPagar) {
             return back()
@@ -359,14 +412,18 @@ class PagoCamionController extends Controller
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
         $codigoLote = $prefijo . '-' . strtoupper(bin2hex(random_bytes(4)));
 
-        $lineas = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote) {
+        // Las observaciones ya no se capturan en el formulario: dejan constancia
+        // de que el pago vino de un lote masivo.
+        $observaciones = 'Pago realizado mediante pago masivo de fletes (lote ' . $codigoLote . ').';
+
+        $lineas = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote, $observaciones, $montosSolicitados) {
             $lote = LotePago::create([
                 'tipo'               => 'camion',
                 'codigo_provisional' => $codigoLote,
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
                 'cuenta_origen_id'   => $request->cuenta_origen_id,
-                'observaciones'      => $request->observaciones ?: null,
+                'observaciones'      => $observaciones,
                 'created_by'         => auth()->id(),
             ]);
 
@@ -380,6 +437,18 @@ class PagoCamionController extends Controller
             foreach ($contratos as $cc) {
                 $saldo = $cc->saldo_pendiente;
                 if ($saldo <= 0) continue;
+
+                // Puede pagarse el saldo completo o un adelanto (monto menor)
+                $montoPago = min(
+                    max(0, (float) ($montosSolicitados[$cc->id] ?? $saldo)),
+                    (float) $saldo
+                );
+                if ($montoPago <= 0) continue;
+
+                // Si no cubre el saldo es un adelanto; si lo cubre, liquida el flete.
+                // Se comparan ambos redondeados a 2 decimales para que una diferencia
+                // de céntimos por redondeo no deje el flete como adelanto.
+                $tipoPago = round($montoPago, 2) >= round((float) $saldo, 2) ? 'pago_final' : 'adelanto';
 
                 $proveedor  = $cc->contrato->proveedor->nombre ?? '—';
                 $placa      = $cc->camion->placa ?? '—';
@@ -407,8 +476,8 @@ class PagoCamionController extends Controller
                 $pago = PagoCamion::create([
                     'lote_pago_id'       => $lote->id,
                     'contrato_camion_id' => $cc->id,
-                    'tipo_pago'          => 'pago_final',
-                    'monto'              => $saldo,
+                    'tipo_pago'          => $tipoPago,
+                    'monto'              => $montoPago,
                     'moneda_pago'        => $monedaPago,
                     'tipo_cambio'        => $tipoCambio,
                     'fecha_pago'         => $request->fecha_pago,
@@ -418,19 +487,20 @@ class PagoCamionController extends Controller
                     'cuenta_destino_id'  => $ctaDestId ?: null,
                     'receptor_type'      => $receptorType,
                     'receptor_id'        => $receptorId,
-                    'observaciones'      => $request->observaciones ?: null,
+                    'observaciones'      => $observaciones,
                     'created_by'         => auth()->id(),
                     'updated_by'         => auth()->id(),
                 ]);
 
-                Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')', $request->observaciones ?: null);
+                Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')', $observaciones);
 
                 $lineas[] = [
                     'proveedor'     => $proveedor,
                     'camion'        => $placa,
                     'contrato'      => $contrato,
                     'cuenta_destino'=> $ctaDestLabel,
-                    'monto'         => $monedaPago . ' ' . number_format($saldo, 2),
+                    'monto'         => $monedaPago . ' ' . number_format($montoPago, 2),
+                    'tipo'          => $tipoPago === 'adelanto' ? 'Adelanto' : 'Pago Final',
                 ];
             }
 
