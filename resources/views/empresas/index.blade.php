@@ -224,6 +224,11 @@
                                             <i class="bi bi-cash me-1"></i>Efectivo / Sin banco
                                         </div>
                                         @endif
+                                        @if($cuenta->descripcion)
+                                        <div class="text-muted fst-italic" style="font-size:.68rem" title="{{ $cuenta->descripcion }}">
+                                            {{ \Illuminate\Support\Str::limit($cuenta->descripcion, 50) }}
+                                        </div>
+                                        @endif
                                     </div>
                                 </a>
                                 <div class="d-flex align-items-start gap-2 flex-shrink-0">
@@ -235,14 +240,27 @@
                                         <div class="text-muted" style="font-size:.65rem">{{ $pctCuenta }}%</div>
                                         @endif
                                     </div>
-                                    @can('empresas.edit')
-                                    <button class="btn btn-outline-secondary btn-sm p-0 px-1"
-                                            onclick="editarCuenta('{{ $cuenta->uuid }}')"
-                                            title="Editar cuenta"
-                                            style="font-size:.7rem; line-height:1.4;">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    @endcan
+                                    <div class="d-flex flex-column gap-1">
+                                        @can('empresas.edit')
+                                        <button class="btn btn-outline-secondary btn-sm p-0 px-1"
+                                                onclick="editarCuenta('{{ $cuenta->uuid }}')"
+                                                title="Editar cuenta"
+                                                style="font-size:.7rem; line-height:1.4;">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        @endcan
+                                        @can('empresas.destroy')
+                                            @if($cuenta->puedeEliminar())
+                                            <a class="btn btn-outline-danger btn-sm p-0 px-1"
+                                               href="{{ route('empresas.cuenta.destroy', $cuenta->uuid) }}"
+                                               onclick="return confirm('¿Eliminar la cuenta {{ $cuenta->nombre_cuenta }}?')"
+                                               title="Eliminar cuenta"
+                                               style="font-size:.7rem; line-height:1.4;">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                            @endif
+                                        @endcan
+                                    </div>
                                 </div>
                             </div>
                             @if($saldoEmpresa > 0 && $cuenta->activo)
@@ -311,15 +329,26 @@
                                 oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,20)">
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label">Saldo Inicial <span class="text-danger">*</span></label>
+                            <input type="text" inputmode="numeric" id="ec_saldo_inicial_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="saldo_inicial" id="ec_saldo_inicial" value="0">
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Estado</label>
                             <select name="activo" id="ec_activo" class="form-select">
                                 <option value="1">Activa</option>
                                 <option value="0">Inactiva</option>
                             </select>
                         </div>
+                        <div class="col-12 d-none" id="ec_aviso_bloqueo">
+                            <div class="alert alert-warning py-2 mb-0 small">
+                                <i class="bi bi-lock-fill me-1"></i>
+                                Esta cuenta ya tiene movimientos registrados: el banco, el N° de cuenta y el saldo inicial ya no se pueden editar.
+                            </div>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Descripción</label>
-                            <textarea name="descripcion" id="ec_descripcion" class="form-control" rows="2" maxlength="500"></textarea>
+                            <textarea name="descripcion" id="ec_descripcion" class="form-control" rows="2" maxlength="60"></textarea>
                         </div>
                     </div>
                 </div>
@@ -926,8 +955,17 @@ function editarCuenta(uuid) {
             document.getElementById('ec_nombre_cuenta').value  = c.nombre_cuenta ?? '';
             document.getElementById('ec_banco').value          = c.banco_id ?? '';
             document.getElementById('ec_numero_cuenta').value  = c.numero_cuenta ?? '';
+            document.getElementById('ec_saldo_inicial').value  = c.saldo_inicial ?? 0;
+            document.getElementById('ec_saldo_inicial_display').value = formatearSaldo(c.saldo_inicial ?? 0);
             document.getElementById('ec_activo').value         = c.activo ? '1' : '0';
             document.getElementById('ec_descripcion').value    = c.descripcion ?? '';
+
+            const bloqueado = !!c.tiene_movimientos;
+            document.getElementById('ec_banco').disabled                = bloqueado;
+            document.getElementById('ec_numero_cuenta').disabled        = bloqueado;
+            document.getElementById('ec_saldo_inicial_display').disabled = bloqueado;
+            document.getElementById('ec_aviso_bloqueo').classList.toggle('d-none', !bloqueado);
+
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCuenta')).show();
         });
 }
@@ -940,18 +978,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// ── Cajero saldo inicial nueva cuenta ──
-(function() {
-    var display = document.getElementById('nc_saldo_inicial_display');
-    var hidden  = document.getElementById('nc_saldo_inicial');
+// ── Cajero de saldo: formatea con "." de miles y "," de decimales (2 decimales) ──
+function textoANumero(v) {
+    return parseFloat(v.replace(/\./g, '').replace(',', '.')) || 0;
+}
+function formatearSaldo(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+function attachCajeroSaldo(displayId, hiddenId, onChange) {
+    var display = document.getElementById(displayId);
+    var hidden  = document.getElementById(hiddenId);
     if (!display || !hidden) return;
-
-    function textoANumero(v) {
-        return parseFloat(v.replace(/\./g, '').replace(',', '.')) || 0;
-    }
-    function formatear(n) {
-        return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-    }
 
     display.addEventListener('input', function() {
         var raw = this.value.replace(/[^0-9,]/g, '');
@@ -966,15 +1003,17 @@ document.addEventListener('DOMContentLoaded', function() {
         this.value = nuevo;
         try { this.setSelectionRange(pos, pos); } catch(_) {}
         hidden.value = textoANumero(nuevo) || 0;
-        validarFormularioCuenta();
+        if (onChange) onChange();
     });
 
     display.addEventListener('blur', function() {
         var n = textoANumero(this.value);
-        this.value  = n > 0 ? formatear(n) : '';
+        this.value  = n > 0 ? formatearSaldo(n) : '';
         hidden.value = n;
-        validarFormularioCuenta();
+        if (onChange) onChange();
     });
-})();
+}
+attachCajeroSaldo('nc_saldo_inicial_display', 'nc_saldo_inicial', validarFormularioCuenta);
+attachCajeroSaldo('ec_saldo_inicial_display', 'ec_saldo_inicial');
 </script>
 @endsection

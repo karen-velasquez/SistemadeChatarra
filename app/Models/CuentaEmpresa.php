@@ -51,6 +51,11 @@ class CuentaEmpresa extends Model
         return $this->hasMany(Movimiento::class, 'cuenta_empresa_id');
     }
 
+    public function puedeEliminar(): bool
+    {
+        return !$this->movimientos()->exists();
+    }
+
     public function prestamosOtorgados()
     {
         return $this->hasMany(PrestamoInterno::class, 'cuenta_origen_id');

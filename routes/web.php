@@ -249,6 +249,7 @@ use Illuminate\Support\Facades\Route;
     Route::post('empresas/store', [App\Http\Controllers\EmpresaController::class, 'store'])->name('empresas.store')->middleware('permission:empresas.create');
     Route::get('empresas/cuenta/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'editCuenta'])->name('empresas.cuenta.edit')->middleware('permission:empresas.edit');
     Route::put('empresas/cuenta/{uuid}', [App\Http\Controllers\EmpresaController::class, 'updateCuenta'])->name('empresas.cuenta.update')->middleware('permission:empresas.edit');
+    Route::get('empresas/cuenta/{uuid}/destroy', [App\Http\Controllers\EmpresaController::class, 'destroyCuenta'])->name('empresas.cuenta.destroy')->middleware('permission:empresas.destroy');
     Route::get('empresas/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'edit'])->name('empresas.edit')->middleware('permission:empresas.edit');
     Route::put('empresas/{uuid}', [App\Http\Controllers\EmpresaController::class, 'update'])->name('empresas.update')->middleware('permission:empresas.edit');
     Route::get('empresas/{uuid}/destroy', [App\Http\Controllers\EmpresaController::class, 'destroy'])->name('empresas.destroy')->middleware('permission:empresas.destroy');

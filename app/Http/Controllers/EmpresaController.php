@@ -154,35 +154,67 @@ class EmpresaController extends Controller
     public function editCuenta(string $uuid)
     {
         $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
+        $cuenta->tiene_movimientos = $cuenta->movimientos()->exists();
         return response()->json($cuenta);
     }
 
     public function updateCuenta(Request $request, string $uuid)
     {
         $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
-        $request->validate([
+        $tieneMovimientos = $cuenta->movimientos()->exists();
+
+        $reglas = [
             'nombre_cuenta' => 'required|string|max:150',
-            'banco_id'      => 'required|exists:bancos,id',
-            'numero_cuenta' => 'required|digits_between:1,20',
             'descripcion'   => 'nullable|string|max:500',
             'activo'        => 'nullable|boolean',
-        ], [
-            'nombre_cuenta.required'           => 'El nombre de la cuenta es obligatorio.',
-            'banco_id.required'                => 'Debe seleccionar un banco.',
-            'banco_id.exists'                  => 'El banco seleccionado no existe.',
-            'numero_cuenta.required'           => 'El número de cuenta es obligatorio.',
-            'numero_cuenta.digits_between'     => 'El número de cuenta debe tener entre 1 y 20 dígitos numéricos.',
-        ]);
+        ];
+        $mensajes = [
+            'nombre_cuenta.required' => 'El nombre de la cuenta es obligatorio.',
+        ];
 
-        $cuenta->update([
+        // Banco, N° de cuenta y Saldo Inicial solo se pueden cambiar mientras
+        // la cuenta no tenga movimientos: una vez que hay ingresos/egresos,
+        // esos datos ya forman parte del historial contable.
+        if (!$tieneMovimientos) {
+            $reglas['banco_id']      = 'required|exists:bancos,id';
+            $reglas['numero_cuenta'] = 'required|digits_between:1,20';
+            $reglas['saldo_inicial'] = 'required|numeric|min:0';
+            $mensajes['banco_id.required']            = 'Debe seleccionar un banco.';
+            $mensajes['banco_id.exists']               = 'El banco seleccionado no existe.';
+            $mensajes['numero_cuenta.required']        = 'El número de cuenta es obligatorio.';
+            $mensajes['numero_cuenta.digits_between']  = 'El número de cuenta debe tener entre 1 y 20 dígitos numéricos.';
+        }
+
+        $request->validate($reglas, $mensajes);
+
+        $datos = [
             'nombre_cuenta' => $request->nombre_cuenta,
-            'banco_id'      => $request->banco_id,
-            'numero_cuenta' => $request->numero_cuenta,
             'descripcion'   => $request->descripcion,
             'activo'        => $request->boolean('activo', true),
             'updated_by'    => auth()->id(),
-        ]);
+        ];
+
+        if (!$tieneMovimientos) {
+            $datos['banco_id']      = $request->banco_id;
+            $datos['numero_cuenta'] = $request->numero_cuenta;
+            $datos['saldo_inicial'] = $request->saldo_inicial;
+            $datos['saldo_actual']  = $request->saldo_inicial;
+        }
+
+        $cuenta->update($datos);
         Alert::success('Actualizado', 'Cuenta actualizada correctamente.');
+        return redirect()->route('empresas.index');
+    }
+
+    public function destroyCuenta(string $uuid)
+    {
+        $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
+        if (!$cuenta->puedeEliminar()) {
+            Alert::error('No se puede eliminar', 'Esta cuenta tiene movimientos registrados y no se puede eliminar.');
+            return redirect()->route('empresas.index');
+        }
+        $cuenta->delete();
+        Alert::success('Eliminada', 'Cuenta eliminada correctamente.');
         return redirect()->route('empresas.index');
     }
 

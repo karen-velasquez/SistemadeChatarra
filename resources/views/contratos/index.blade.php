@@ -419,7 +419,18 @@
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
 <script>
-    // ── Buscador en el select de Proveedor ──
+    // ── Buscador en el select de Proveedor del filtro de la tabla ──
+    $('#filtro_proveedor_contrato').select2({
+        placeholder: '— Todos —',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: () => 'No se encontró ningún proveedor.',
+            searching: () => 'Buscando...'
+        }
+    });
+
+    // ── Buscador en el select de Proveedor del modal Nuevo/Editar Contrato ──
     // Se inicializa al abrir el modal porque Select2 necesita el elemento visible,
     // y con dropdownParent para que el desplegable no quede detrás del modal.
     $('#modalContrato').on('shown.bs.modal', function () {

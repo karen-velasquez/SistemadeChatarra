@@ -603,11 +603,24 @@ const canDeletePago = {{ auth()->user()->can('pagos_proveedores.destroy') ? 'tru
 function filtrarPorProveedor(proveedorId) {
     const sel = document.getElementById('filtro_proveedor');
     if (sel) sel.value = proveedorId;
+    $('#filtro_proveedor').trigger('change.select2');
     aplicarFiltrosPP();
 }
 
+// ── Buscador en el select de Filtrar por proveedor ──
+$('#filtro_proveedor').select2({
+    placeholder: '— Todos los proveedores —',
+    allowClear: true,
+    width: '100%',
+    language: {
+        noResults: () => 'No se encontró ningún proveedor.',
+        searching: () => 'Buscando...'
+    }
+});
+
 function limpiarFiltrosPP() {
     document.getElementById('filtro_proveedor').value = '';
+    $('#filtro_proveedor').trigger('change.select2');
     document.getElementById('filtro_desde').value     = '';
     document.getElementById('filtro_hasta').value     = '';
     document.getElementById('filtro_orden').value     = 'fecha_desc';

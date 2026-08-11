@@ -393,7 +393,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-truck"></i> <span id="tituloCamion">Nuevo Camión</span></h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
                             class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                             data-tour-modal="#modalCamion"
@@ -664,7 +664,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-person-workspace"></i> <span id="tituloOperador">Nuevo Operador</span></h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
                             class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                             data-tour-modal="#modalOperador"
@@ -881,7 +881,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-person-check"></i> Asignar Conductor a Camión</h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
                             class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                             data-tour-modal="#modalAsignacion"
