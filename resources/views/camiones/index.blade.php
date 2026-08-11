@@ -453,24 +453,22 @@
                             @error('placa')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             <div id="cam_placa_existente" class="d-none mt-2"></div>
                         </div>
+                        
                         <div class="col-md-4">
-                            <label class="form-label">Tipo Vehículo <span class="text-danger">(*)</span></label>
-                            <div class="input-group">
-                                <select class="form-select @error('tipo_vehiculo_id') is-invalid @enderror" name="tipo_vehiculo_id" id="cam_tipo_vehiculo_id" required>
-                                    <option value="">-- SELECCIONE UN TIPO --</option>
-                                    @foreach($tiposVehiculo as $tipo)
-                                        <option value="{{ $tipo->id }}">{{ $tipo->valor }}</option>
-                                    @endforeach
-                                </select>
-                                @can('parametros.create')
-                                <button type="button" class="btn btn-outline-secondary" title="Agregar nuevo tipo de vehículo"
-                                        onclick="abrirModalParametroRapido('camion_tipo', 'cam_tipo_vehiculo_id', 'Nuevo Tipo de Vehículo')">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                                @endcan
-                            </div>
-                            @error('tipo_vehiculo_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <label class="form-label">Año <span class="text-danger">(*)</span></label>
+                            <input type="text"
+                                class="form-control @error('anio') is-invalid @enderror"
+                                name="anio" id="cam_anio"
+                                maxlength="4"
+                                placeholder="{{ date('Y') }}"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                required>
+                            <small id="anio_hint" class="text-muted">Entre 1970 y {{ date('Y') }}</small>
+                            @error('anio')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
+
+                        
                         <div class="col-md-4 d-none" id="cam_estado_wrapper">
                             <label class="form-label">Estado <span class="text-danger">(*)</span></label>
                             <select class="form-select @error('estado') is-invalid @enderror" name="estado" id="cam_estado" required>
@@ -501,6 +499,24 @@
                             @error('marca_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-4">
+                            <label class="form-label">Tipo Vehículo <span class="text-danger">(*)</span></label>
+                            <div class="input-group">
+                                <select class="form-select @error('tipo_vehiculo_id') is-invalid @enderror" name="tipo_vehiculo_id" id="cam_tipo_vehiculo_id" required>
+                                    <option value="">-- SELECCIONE UN TIPO --</option>
+                                    @foreach($tiposVehiculo as $tipo)
+                                        <option value="{{ $tipo->id }}">{{ $tipo->valor }}</option>
+                                    @endforeach
+                                </select>
+                                @can('parametros.create')
+                                <button type="button" class="btn btn-outline-secondary" title="Agregar nuevo tipo de vehículo"
+                                        onclick="abrirModalParametroRapido('camion_tipo', 'cam_tipo_vehiculo_id', 'Nuevo Tipo de Vehículo')">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                @endcan
+                            </div>
+                            @error('tipo_vehiculo_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-4">
                             <label class="form-label">Modelo <span class="text-danger">(*)</span></label>
                             <input type="text"
                                 class="form-control @error('modelo') is-invalid @enderror"
@@ -511,19 +527,7 @@
                                 required>
                             @error('modelo')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Año <span class="text-danger">(*)</span></label>
-                            <input type="text"
-                                class="form-control @error('anio') is-invalid @enderror"
-                                name="anio" id="cam_anio"
-                                maxlength="4"
-                                placeholder="{{ date('Y') }}"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                required>
-                            <small id="anio_hint" class="text-muted">Entre 1970 y {{ date('Y') }}</small>
-                            @error('anio')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
+                        
 
                         {{-- Fila 3: Capacidad / Color / Propietario --}}
                         <div class="col-md-4">
@@ -936,6 +940,16 @@
         </div>
     </div>
 </div>
+
+
+<style>
+    /* Select2 dentro de un input-group (Tipo Vehículo / Marca en el modal de Camión):
+       sin esto el contenedor de Select2 se apila debajo en vez de compartir la fila con el botón "+". */
+    #modalCamion .input-group > .select2-container {
+        flex: 1 1 auto;
+        width: auto !important;
+    }
+</style>
 
 @endsection
 
@@ -1910,7 +1924,7 @@
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalOperador')).show();
     }
 
-    // ── Camión: Select2 con buscador en el select de Propietario ────
+    // ── Camión: Select2 con buscador en Propietario, Tipo de Vehículo y Marca ────
     $('#modalCamion').on('shown.bs.modal', function () {
         if (!$('#cam_propietario').data('select2')) {
             $('#cam_propietario').select2({
@@ -1919,6 +1933,24 @@
                 width: '100%',
                 dropdownParent: $('#modalCamion'),
                 language: { noResults: () => 'No se encontró ningún propietario.', searching: () => 'Buscando...' }
+            });
+        }
+        if (!$('#cam_tipo_vehiculo_id').data('select2')) {
+            $('#cam_tipo_vehiculo_id').select2({
+                placeholder: '-- Seleccione tipo --',
+                allowClear: true,
+                width: 'style',
+                dropdownParent: $('#modalCamion'),
+                language: { noResults: () => 'No se encontró ningún tipo de vehículo.', searching: () => 'Buscando...' }
+            });
+        }
+        if (!$('#cam_marca_id').data('select2')) {
+            $('#cam_marca_id').select2({
+                placeholder: '-- Seleccione marca --',
+                allowClear: true,
+                width: 'style',
+                dropdownParent: $('#modalCamion'),
+                language: { noResults: () => 'No se encontró ninguna marca.', searching: () => 'Buscando...' }
             });
         }
     });
