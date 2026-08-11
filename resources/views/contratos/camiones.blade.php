@@ -944,7 +944,8 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Peso (t) <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.001" min="0.001" class="form-control" name="peso_salida" id="et_peso_salida" required>
+                            <input type="text" inputmode="numeric" class="form-control" id="et_peso_salida_display" placeholder="0,00" autocomplete="off" required>
+                            <input type="hidden" name="peso_salida" id="et_peso_salida">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Fecha de Salida <span class="text-danger">(*)</span></label>
@@ -1180,7 +1181,8 @@ function abrirModalEditarTramo(tramoUuid) {
             document.getElementById('formEditarTramo').action = '{{ url("tramo") }}/' + t.uuid;
             document.getElementById('et_origen').value        = t.origen ?? '';
             document.getElementById('et_destino').value       = t.destino ?? '';
-            document.getElementById('et_peso_salida').value   = t.peso_salida ?? '';
+            document.getElementById('et_peso_salida').value        = t.peso_salida ?? '';
+            document.getElementById('et_peso_salida_display').value = t.peso_salida ? formatearCajero(parseFloat(t.peso_salida)) : '';
             document.getElementById('et_fecha_salida').value  = t.fecha_salida ?? '';
             document.getElementById('et_observaciones').value = t.observaciones ?? '';
             const tipoSel = document.getElementById('et_tipo_tramo');
@@ -1618,9 +1620,12 @@ function calcTotalVenta() {
         display.addEventListener('blur',  onBlur(displayId, hiddenId));
     }
 
+    window.formatearCajero = formatear;
+
     document.addEventListener('DOMContentLoaded', function () {
         initCajero('peso_declarado_display', 'peso_declarado', validarFormAsignar);
         initCajero('monto_acordado_display', 'monto_acordado');
+        initCajero('et_peso_salida_display', 'et_peso_salida');
 
         // Validar form asignar al cambiar origen, destino o fecha
         document.getElementById('formContratoCamion')?.querySelectorAll('[name="origen"],[name="destino"],[name="fecha_asignacion"]').forEach(function (el) {
