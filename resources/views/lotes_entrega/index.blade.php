@@ -53,7 +53,7 @@
             <form method="GET" action="{{ route('lotes_entrega.index') }}" class="row g-2 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label mb-1 small fw-semibold">Proveedor</label>
-                    <select name="proveedor_id" class="form-select form-select-sm">
+                    <select name="proveedor_id" id="filtro_proveedor_lotes" class="form-select form-select-sm">
                         <option value="">Todos los proveedores</option>
                         @foreach($proveedores as $prov)
                             <option value="{{ $prov->id }}" {{ $proveedorFiltro == $prov->id ? 'selected' : '' }}>
@@ -223,7 +223,7 @@
                                     </div>
                                     <div class="col-6 col-md-3">
                                         <div class="border rounded p-2 text-center">
-                                            <div class="fw-bold fs-5 text-success">{{ number_format($totalToneladas, 3, ',', '.') }} t</div>
+                                            <div class="fw-bold fs-5 text-success">{{ number_format($totalToneladas, 2, ',', '.') }} t</div>
                                             <small class="text-muted">Total toneladas</small>
                                         </div>
                                     </div>
@@ -749,6 +749,16 @@ function peActualizarSaldoRestante(loteId, monto) {
 
     if (warnEl) warnEl.style.display = (montoVal > 0 && restante < 0) ? '' : 'none';
 }
+
+// Buscador en el select de Proveedor del filtro
+document.addEventListener('DOMContentLoaded', () => {
+    $('#filtro_proveedor_lotes').select2({
+        placeholder: 'Todos los proveedores',
+        allowClear: true,
+        width: '100%',
+        language: { noResults: () => 'No se encontró ningún proveedor.', searching: () => 'Buscando...' }
+    });
+});
 
 // Select2 en el modal de lote internacional
 document.addEventListener('DOMContentLoaded', () => {

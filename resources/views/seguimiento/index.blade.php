@@ -1991,18 +1991,20 @@ function abrirModalFlete(ccUuid, label) {
 
     function segCalcTotalVenta() {
         // La moneda va en el texto porque su selector está oculto (siempre BOB)
+        // Los inputs *_hidden ya son números planos (ej. "3528.72"): usar parseFloat,
+        // no textoANum (que asume formato con puntos de miles y rompería el decimal).
         var accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
         if (accion === 'entregado') {
-            var tn    = textoANum(document.getElementById('seg_inp_peso_llegada').value);
-            var precio = textoANum(document.getElementById('seg_inp_precio_ton').value);
+            var tn    = parseFloat(document.getElementById('seg_inp_peso_llegada').value) || 0;
+            var precio = parseFloat(document.getElementById('seg_inp_precio_ton').value) || 0;
             var lbl    = document.getElementById('seg_lbl_total_venta');
             if (lbl) lbl.textContent = (tn > 0 && precio > 0) ? 'BOB ' + formatear(tn * precio) : '—';
         } else if (accion === 'div_carga') {
-            var tn2    = textoANum(document.getElementById('seg_inp_tn_parcial').value);
-            var precio2= textoANum(document.getElementById('seg_inp_precio_ton_div').value);
+            var tn2    = parseFloat(document.getElementById('seg_inp_tn_parcial').value) || 0;
+            var precio2= parseFloat(document.getElementById('seg_inp_precio_ton_div').value) || 0;
             var lbl2   = document.getElementById('seg_lbl_total_venta_div');
             var restLbl= document.getElementById('seg_lbl_tn_restante');
-            var total  = textoANum(document.getElementById('seg_inp_peso_llegada').value);
+            var total  = parseFloat(document.getElementById('seg_inp_peso_llegada').value) || 0;
             var rest   = Math.max(0, total - tn2);
             if (lbl2)   lbl2.textContent  = (tn2 > 0 && precio2 > 0) ? 'BOB ' + formatear(tn2 * precio2) : '—';
             if (restLbl) restLbl.textContent = rest > 0 ? formatear(rest) + ' t' : '—';

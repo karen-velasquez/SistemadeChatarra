@@ -653,7 +653,7 @@
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold">Destino del nuevo tramo <span class="text-danger">*</span></label>
                                                     <input type="text" class="form-control" name="destino_nuevo_tramo"
-                                                        maxlength="150" placeholder="Ciudad / punto de entrega">
+                                                        id="cam_inp_destino_nuevo" maxlength="150" placeholder="Ciudad / punto de entrega">
                                                 </div>
                                                 <div class="col-12">
                                                     <div class="border rounded-3 p-3 bg-white">
