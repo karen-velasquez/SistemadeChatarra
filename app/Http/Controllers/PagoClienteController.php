@@ -156,15 +156,22 @@ class PagoClienteController extends Controller
         $request->validate([
             'precio_por_tonelada' => 'required|numeric|min:0.0001',
             'moneda_venta'        => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
+            'peso_llegada'        => 'required|numeric|min:0.001',
         ], [
             'precio_por_tonelada.required' => 'El precio por tonelada es obligatorio.',
             'precio_por_tonelada.min'      => 'El precio debe ser mayor a cero.',
             'moneda_venta.required'        => 'La moneda es obligatoria.',
+            'peso_llegada.required'        => 'Las toneladas de llegada son obligatorias.',
+            'peso_llegada.min'             => 'Las toneladas deben ser mayores a 0.',
         ]);
 
+        // Las toneladas solo se pueden corregir aquí mientras no haya ningún
+        // cobro registrado (el botón que abre este modal ya lo garantiza:
+        // solo aparece cuando $cobrado == 0).
         $tramo->update([
             'precio_por_tonelada' => $request->precio_por_tonelada,
             'moneda_venta'        => $request->moneda_venta,
+            'peso_llegada'        => $request->peso_llegada,
             'updated_by'          => auth()->id(),
         ]);
 

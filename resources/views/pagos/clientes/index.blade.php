@@ -156,7 +156,7 @@
                                 <th>Fecha entrega</th>
                                 <th class="text-end">Peso (t)</th>
                                 <th class="text-end">Precio / t</th>
-                                <th class="text-end">Total deuda</th>
+                                <th class="text-end">Total por cobrar</th>
                                 <th class="text-end">Cobrado</th>
                                 <th class="text-end">Saldo</th>
                                 <th>Estado</th>
@@ -247,7 +247,7 @@
                                             @endif
                                             @if($cobrado == 0)
                                             <li>
-                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}', {{ $t->precio_por_tonelada ?? 'null' }})">
+                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}', {{ $t->precio_por_tonelada ?? 'null' }}, {{ $t->peso_llegada ?? 'null' }})">
                                                     <i class="bi bi-pencil text-secondary me-2"></i> Editar precio/t
                                                 </button>
                                             </li>
@@ -322,6 +322,16 @@
                                 <input type="hidden" name="precio_por_tonelada" id="precio_hidden" value="">
                                 <span class="input-group-text">/ t</span>
                             </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Toneladas de llegada <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" inputmode="numeric" class="form-control"
+                                    id="precio_toneladas_display" placeholder="0,00" autocomplete="off" required>
+                                <input type="hidden" name="peso_llegada" id="precio_toneladas_hidden" value="">
+                                <span class="input-group-text">t</span>
+                            </div>
+                            <small class="text-muted">Corrige el peso registrado al llegar, si fue un error.</small>
                         </div>
                     </div>
                 </div>
@@ -800,7 +810,7 @@ function filtrarPorCliente(clienteId) {
 }
 
 // ===== Modal precio/tonelada =====
-function abrirModalPrecio(tramoId, label, contrato, precio) {
+function abrirModalPrecio(tramoId, label, contrato, precio, toneladas) {
     document.getElementById('precio_label').textContent    = label;
     document.getElementById('precio_contrato').textContent = 'Contrato: ' + contrato;
     document.getElementById('formPrecio').action = url_global + '/pagos/clientes/' + tramoId + '/precio';
@@ -813,6 +823,17 @@ function abrirModalPrecio(tramoId, label, contrato, precio) {
         hidden.value = '';
         disp.value   = '';
     }
+
+    var tnDisp   = document.getElementById('precio_toneladas_display');
+    var tnHidden = document.getElementById('precio_toneladas_hidden');
+    if (toneladas && parseFloat(toneladas) > 0) {
+        tnHidden.value = toneladas;
+        tnDisp.value   = _fmtC(toneladas);
+    } else {
+        tnHidden.value = '';
+        tnDisp.value   = '';
+    }
+
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPrecio')).show();
 }
 
@@ -1370,31 +1391,35 @@ function guardarEditarCobro() {
     });
 }
 
-// ── Cajero precio/t ──
+// ── Cajero precio/t y toneladas de llegada (modal Editar precio/t) ──
 (function() {
     function _txt2num(v) { return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0; }
-    var disp   = document.getElementById('precio_display');
-    var hidden = document.getElementById('precio_hidden');
-    if (!disp || !hidden) return;
-    disp.addEventListener('input', function() {
-        var raw    = this.value.replace(/[^0-9,]/g, '');
-        var partes = raw.split(',');
-        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
-        partes = raw.split(',');
-        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
-        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
-        var diff  = nuevo.length - this.value.length;
-        var pos   = (this.selectionStart || 0) + diff;
-        this.value = nuevo;
-        try { this.setSelectionRange(pos, pos); } catch(_) {}
-        hidden.value = _txt2num(nuevo) || '';
-    });
-    disp.addEventListener('blur', function() {
-        var n = _txt2num(this.value);
-        this.value   = n > 0 ? _fmtC(n) : '';
-        hidden.value = n > 0 ? n : '';
-    });
+    function _attach(displayId, hiddenId) {
+        var disp   = document.getElementById(displayId);
+        var hidden = document.getElementById(hiddenId);
+        if (!disp || !hidden) return;
+        disp.addEventListener('input', function() {
+            var raw    = this.value.replace(/[^0-9,]/g, '');
+            var partes = raw.split(',');
+            if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+            partes = raw.split(',');
+            if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+            var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            var diff  = nuevo.length - this.value.length;
+            var pos   = (this.selectionStart || 0) + diff;
+            this.value = nuevo;
+            try { this.setSelectionRange(pos, pos); } catch(_) {}
+            hidden.value = _txt2num(nuevo) || '';
+        });
+        disp.addEventListener('blur', function() {
+            var n = _txt2num(this.value);
+            this.value   = n > 0 ? _fmtC(n) : '';
+            hidden.value = n > 0 ? n : '';
+        });
+    }
+    _attach('precio_display', 'precio_hidden');
+    _attach('precio_toneladas_display', 'precio_toneladas_hidden');
 })();
 
 // ── Cajero monto y tipo_cambio en Registrar Cobro ──
