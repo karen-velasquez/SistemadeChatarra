@@ -126,6 +126,18 @@
                             <option value="1">Envíos cerrados</option>
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-upc-scan"></i> Código de seguimiento</label>
+                        <select class="form-select" id="filtro_codigo" onchange="aplicarFiltros()">
+                            <option value="">— Todos —</option>
+                            @foreach($lotesCobroCliente as $lote)
+                                <option value="{{ $lote->codigo_real ?? $lote->codigo_provisional }}"
+                                        data-fecha="{{ $lote->created_at->format('d/m/Y H:i') }}">
+                                    {{ $lote->codigo_real ?? $lote->codigo_provisional }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="col-auto">
                         <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltros()">
                             <i class="bi bi-x-circle"></i> Limpiar
@@ -159,6 +171,8 @@
                                 <th class="text-end">Total por cobrar</th>
                                 <th class="text-end">Cobrado</th>
                                 <th class="text-end">Saldo</th>
+                                <th>Código de seguimiento</th>
+                                <th>Observaciones</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
@@ -173,8 +187,10 @@
                                 $saldo       = $tienePrecio ? $t->saldo_cliente : null;
                                 $pct         = $deuda > 0 ? min(100, round($cobrado / $deuda * 100)) : 0;
                                 $rowClass    = $tienePrecio && $saldo <= 0 ? 'table-success' : ($tienePrecio ? '' : 'table-warning');
+                                $codigos     = $t->pagosCliente->pluck('codigo_seguimiento')->filter()->unique()->values();
+                                $obsCobros   = $t->pagosCliente->pluck('observaciones')->filter()->unique()->values();
                             @endphp
-                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id ?? '' }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}">
+                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id ?? '' }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}" data-codigos="{{ strtoupper($t->pagosCliente->pluck('codigo_seguimiento')->filter()->implode(' ')) }}">
                                 <td>
                                     <small class="d-inline-block text-truncate" style="max-width:140px;" title="{{ $t->cliente->nombre ?? '—' }}">
                                         {{ $t->cliente->nombre ?? '—' }}
@@ -212,6 +228,20 @@
                                 <td class="text-end text-success fw-semibold">{{ $tienePrecio ? $mon.' '.number_format($cobrado, 2, ',', '.') : '—' }}</td>
                                 <td class="text-end {{ $tienePrecio && $saldo > 0 ? 'text-danger fw-semibold' : 'text-success' }}">
                                     {{ $tienePrecio ? $mon.' '.number_format($saldo, 2, ',', '.') : '—' }}
+                                </td>
+                                <td>
+                                    @forelse($codigos as $cod)
+                                        <code class="small d-block">{{ $cod }}</code>
+                                    @empty
+                                        <span class="text-muted small">—</span>
+                                    @endforelse
+                                </td>
+                                <td>
+                                    @forelse($obsCobros as $obs)
+                                        <small class="d-block text-truncate" style="max-width:160px;" title="{{ $obs }}">{{ $obs }}</small>
+                                    @empty
+                                        <span class="text-muted small">—</span>
+                                    @endforelse
                                 </td>
                                 <td>
                                     @if(!$tienePrecio)
@@ -452,6 +482,7 @@
                             <input type="text" class="form-control" name="codigo_seguimiento" id="cobro_codigo"
                                    maxlength="100" placeholder="Ej: TRX-20260512-001"
                                    oninput="validarBobroCobro()">
+                            <div class="invalid-feedback d-block" id="cobro_codigo_feedback" style="display:none !important;"></div>
                         </div>
 
                         {{-- Fila 3: Monto + Fecha --}}
@@ -538,9 +569,12 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-cash-stack me-2"></i>Cobro Masivo por Cliente</h5>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 ms-auto">
                     <button type="button"
-                            class="btn btn-light btn-sm btn-iniciar-tour"
+                            class="btn btn-sm btn-iniciar-tour text-white rounded-circle d-flex align-items-center justify-content-center p-0"
+                            style="width:28px;height:28px;background:#146c43"
+                            title="Ayuda"
+                            aria-label="Ayuda"
                             data-tour-modal="#modalCobroMasivo"
                             data-steps='[
                                 {"intro":"💰 El <b>Cobro Masivo</b> sirve cuando un cliente paga un monto grande que cubre <b>varias entregas</b> a la vez. El sistema reparte el dinero entre las cargas que marques."},
@@ -551,13 +585,14 @@
                                 {"element":"#cm_contenedor_tramos","intro":"📋 Marca las <b>entregas pendientes</b> que cubre este pago. Abajo verás un resumen que te dice si el monto cubre todo o solo parte.","position":"top"},
                                 {"element":"#cm_btn_guardar","intro":"💾 El botón <b>Registrar Cobro Masivo</b> se activa al completar los datos y marcar al menos una entrega.","position":"top"}
                             ]'>
-                        <i class="bi bi-question-circle"></i> Ayuda
+                        <i class="bi bi-question-circle"></i>
                     </button>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form method="POST" action="{{ route('pagos.clientes.cobro_masivo') }}">
+            <form method="POST" id="formCobroMasivo" action="{{ route('pagos.clientes.cobro_masivo') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" id="idempotencyTokenCobroMasivo" value="{{ $idempotencyTokenCobroMasivo ?? '' }}">
                 <div class="modal-body">
 
                     <p class="text-muted small mb-3">
@@ -632,6 +667,7 @@
                             <input type="text" name="codigo_seguimiento" id="cm_codigo" class="form-control"
                                    maxlength="100" placeholder="Ej: TRX-20260519-001">
                             <div class="form-text text-muted" id="cm_hint_codigo"></div>
+                            <div class="invalid-feedback d-block" id="cm_codigo_feedback" style="display:none !important;"></div>
                         </div>
 
                         {{-- Observaciones --}}
@@ -774,6 +810,23 @@ const canDeleteCobro = {{ auth()->user()->can('pagos_clientes.destroy') ? 'true'
 
 let _clienteActual = null;
 
+// Verificar código duplicado al enviar + bloqueo anti-doble-submit
+document.getElementById('formCobroMasivo')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('cm_btn_guardar');
+    if (!btn || btn.disabled) return;
+
+    const codigoInput = document.getElementById('cm_codigo');
+    if (codigoInput.value.trim() && document.getElementById('cm_sec_codigo').style.display !== 'none') {
+        const disponible = await verificarCodigoDuplicado(codigoInput, 'cm_codigo_feedback');
+        if (!disponible) return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    this.submit();
+});
+
 // ===== Filtros de la tabla (integrados con la paginación de DataTables) =====
 const tablaCobros = $('#datos').DataTable();
 
@@ -783,10 +836,12 @@ $.fn.dataTable.ext.search.push(function (settings, data, dataIndex, rowData, cou
     const clienteId   = document.getElementById('filtro_cliente').value;
     const proveedorId = document.getElementById('filtro_proveedor').value;
     const envios      = document.getElementById('filtro_envios').value;
+    const codigo      = document.getElementById('filtro_codigo').value.trim().toUpperCase();
     const okCliente   = !clienteId || fila.dataset.clienteId === clienteId;
     const okProveedor = !proveedorId || fila.dataset.proveedorId === proveedorId;
     const okEnvios    = envios === '' || fila.dataset.enviosCerrados === envios;
-    return okCliente && okProveedor && okEnvios;
+    const okCodigo    = !codigo || (fila.dataset.codigos || '').includes(codigo);
+    return okCliente && okProveedor && okEnvios && okCodigo;
 });
 
 tablaCobros.on('draw', function () {
@@ -797,10 +852,42 @@ function aplicarFiltros() {
     tablaCobros.draw();
 }
 
+// ── Buscador en el select de Filtrar por proveedor ──
+$('#filtro_proveedor').select2({
+    placeholder: '— Todos los proveedores —',
+    allowClear: true,
+    width: '100%',
+    language: {
+        noResults: () => 'No se encontró ningún proveedor.',
+        searching: () => 'Buscando...'
+    }
+});
+
+// ── Buscador en el select de Código de seguimiento (últimos 10 cobros masivos) ──
+function _tplCodigo(opt) {
+    if (!opt.id) return opt.text;
+    const fecha = $(opt.element).data('fecha');
+    if (!fecha) return opt.text;
+    return $('<div>' + opt.text + '<br><small class="text-muted">' + fecha + '</small></div>');
+}
+$('#filtro_codigo').select2({
+    placeholder: '— Todos —',
+    allowClear: true,
+    width: '100%',
+    templateResult: _tplCodigo,
+    language: {
+        noResults: () => 'No se encontró ningún código.',
+        searching: () => 'Buscando...'
+    }
+});
+
 function limpiarFiltros() {
     document.getElementById('filtro_cliente').value   = '';
     document.getElementById('filtro_proveedor').value = '';
+    $('#filtro_proveedor').trigger('change.select2');
     document.getElementById('filtro_envios').value    = '';
+    document.getElementById('filtro_codigo').value    = '';
+    $('#filtro_codigo').trigger('change.select2');
     aplicarFiltros();
 }
 
@@ -984,13 +1071,40 @@ function validarBobroCobro() {
     const fecha         = document.getElementById('cobro_fecha').value;
     const codigoVisible = document.getElementById('cobro_sec_codigo').style.display !== 'none';
     const codigo        = document.getElementById('cobro_codigo').value.trim();
-
-    const codigoOk = !codigoVisible || codigo !== '';
+    const codigoOk       = !codigoVisible || codigo !== '';
 
     const ok = cuentaOrigen !== '' && tipo !== '' && cuentaDest !== '' &&
                metodo !== '' && monto > 0 && fecha !== '' && codigoOk;
 
     document.getElementById('cobro_btn_guardar').disabled = !ok;
+}
+
+// ── Verificación AJAX de código de transferencia duplicado ──
+// Se llama solo al hacer clic en Guardar (no en cada tecla), para no saturar
+// de consultas cuando haya muchos pagos registrados. Devuelve una Promise<bool>
+// que resuelve true si el código está disponible (o el campo está vacío).
+function verificarCodigoDuplicado(input, feedbackId) {
+    const feedback = document.getElementById(feedbackId);
+    const codigo   = input.value.trim();
+
+    input.classList.remove('is-invalid');
+    feedback.style.display = 'none';
+
+    if (!codigo) {
+        return Promise.resolve(true);
+    }
+
+    return fetch(`${url_global}/api/pagos/clientes/verificar-codigo?codigo=${encodeURIComponent(codigo)}`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.disponible) {
+                input.classList.add('is-invalid');
+                feedback.textContent = 'Este código ya está en uso por otro pago o lote. Ingresa uno distinto.';
+                feedback.style.display = 'block';
+                return false;
+            }
+            return true;
+        });
 }
 
 // ===== Modal detalle =====
@@ -1462,12 +1576,21 @@ function guardarEditarCobro() {
     _initCajero('cm_monto_display',              'cm_monto',                2, function() { actualizarResumenMasivo(); });
 })();
 
-// Bloqueo anti-doble-submit cobro cliente
-document.getElementById('formCobroCliente').addEventListener('submit', function(e) {
+// Verificar código duplicado al enviar + bloqueo anti-doble-submit
+document.getElementById('formCobroCliente').addEventListener('submit', async function(e) {
+    e.preventDefault();
     var btn = document.getElementById('cobro_btn_guardar');
-    if (btn.disabled) { e.preventDefault(); return; }
+    if (btn.disabled) return;
+
+    var codigoInput = document.getElementById('cobro_codigo');
+    if (codigoInput.value.trim() && document.getElementById('cobro_sec_codigo').style.display !== 'none') {
+        var disponible = await verificarCodigoDuplicado(codigoInput, 'cobro_codigo_feedback');
+        if (!disponible) return;
+    }
+
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+    this.submit();
 });
 </script>
 @endsection

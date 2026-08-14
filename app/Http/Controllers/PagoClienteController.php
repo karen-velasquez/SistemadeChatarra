@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tramo;
 use App\Models\PagoCliente;
+use App\Models\LotePago;
 use App\Models\CuentaBancaria;
 use App\Models\CuentaEmpresa;
 use App\Models\Empresa;
@@ -19,6 +20,7 @@ use Carbon\Carbon;
 class PagoClienteController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
 
     public function __construct()
     {
@@ -71,8 +73,33 @@ class PagoClienteController extends Controller
 
         $monedas = Parametro::where('tipo', 'tipo_moneda')->orderBy('valor')->get();
         $idempotencyToken = $this->generarToken('pago_cliente_store_token');
+        $idempotencyTokenCobroMasivo = $this->generarToken('cobro_masivo_store_token');
 
-        return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas', 'idempotencyToken', 'proveedores'));
+        // Últimos cobros masivos, para el buscador de "Código de seguimiento" en el filtro
+        $lotesCobroCliente = LotePago::where('tipo', 'cliente')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get(['uuid', 'codigo_provisional', 'codigo_real', 'created_at']);
+
+        return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas', 'idempotencyToken', 'idempotencyTokenCobroMasivo', 'proveedores', 'lotesCobroCliente'));
+    }
+
+    /**
+     * Verificación AJAX mientras el usuario escribe el código de transferencia:
+     * evita descubrir la colisión recién al enviar el formulario (lo cual cierra
+     * el modal sin explicación, porque estos forms no reabren tras error 422).
+     */
+    public function verificarCodigo(Request $request)
+    {
+        $codigo = trim((string) $request->query('codigo'));
+        if ($codigo === '') {
+            return response()->json(['disponible' => true]);
+        }
+
+        $exceptoId = $request->query('except_id');
+        $disponible = $this->codigoDisponible($codigo, $exceptoId ? (int) $exceptoId : null, PagoCliente::class);
+
+        return response()->json(['disponible' => $disponible]);
     }
 
     public function store(Request $request)
@@ -89,7 +116,11 @@ class PagoClienteController extends Controller
             'tipo_cambio'        => 'required|numeric|min:0.0001',
             'fecha_pago'         => 'required|date',
             'metodo_pago'        => 'required|in:transferencia,qr',
-            'codigo_seguimiento' => 'nullable|string|max:100',
+            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) {
+                if (!$this->codigoDisponible($value)) {
+                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
+                }
+            }],
             'cuenta_origen_id'   => 'required|exists:cuentas_bancarias,id',
             'cuenta_destino_id'  => 'required|exists:cuentas_empresa,id',
             'observaciones'      => 'nullable|string|max:500',
@@ -181,6 +212,11 @@ class PagoClienteController extends Controller
 
     public function cobroMasivo(Request $request)
     {
+        if (!$this->tokenValido('cobro_masivo_store_token', $request->input('_idempotency_token'))) {
+            Alert::error('Solicitud duplicada', 'Este cobro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            return redirect()->route('pagos.clientes.index');
+        }
+
         $request->validate([
             'cliente_id'        => 'required|exists:clientes,id',
             'tramo_ids'         => 'required|array|min:1',
@@ -189,7 +225,11 @@ class PagoClienteController extends Controller
             'tipo_cambio'       => 'nullable|numeric|min:0.0001',
             'fecha_pago'        => 'required|date',
             'metodo_pago'       => 'required|in:transferencia,qr',
-            'codigo_seguimiento'=> 'nullable|string|max:100',
+            'codigo_seguimiento'=> ['nullable', 'string', 'max:100', function ($attr, $value, $fail) {
+                if (!$this->codigoDisponible($value)) {
+                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
+                }
+            }],
             'cuenta_origen_id'  => 'required|exists:cuentas_bancarias,id',
             'cuenta_destino_id' => 'required|exists:cuentas_empresa,id',
             'observaciones'     => 'nullable|string|max:500',
@@ -203,10 +243,12 @@ class PagoClienteController extends Controller
         $monedaPago    = $cuentaDestino->moneda;
         $tipoCambio    = $monedaPago === 'BOB' ? 1 : (float) $request->tipo_cambio;
 
-        if ($request->metodo_pago === 'qr') {
-            do {
-                $codigo = 'QR-' . strtoupper(bin2hex(random_bytes(4)));
-            } while (\App\Models\PagoCliente::withTrashed()->where('codigo_seguimiento', $codigo)->exists());
+        // El QR lo genera el sistema: es un código provisional hasta que el banco lo
+        // confirme. Si es transferencia, el código ya lo escribió el usuario a mano
+        // (normalmente copiado del comprobante), así que ya es el código real.
+        $esProvisional = $request->metodo_pago === 'qr';
+        if ($esProvisional) {
+            $codigo = $this->generarCodigoUnico('QR');
         } else {
             $codigo = $request->codigo_seguimiento ?: null;
         }
@@ -215,7 +257,21 @@ class PagoClienteController extends Controller
                             ->where('cliente_id', $request->cliente_id)
                             ->get();
 
-        $lineas = DB::transaction(function () use ($request, $cliente, $monedaPago, $tipoCambio, $codigo, $tramos) {
+        $lineas = DB::transaction(function () use ($request, $cliente, $monedaPago, $tipoCambio, $codigo, $esProvisional, $tramos) {
+            // Agrupa todas las líneas de este cobro masivo, igual que ya se hace
+            // para pago masivo a proveedores/camiones: permite editar el código
+            // de transferencia real después desde Tesorería → Lotes de Pago.
+            $lote = LotePago::create([
+                'tipo'               => 'cliente',
+                'codigo_provisional' => $esProvisional ? $codigo : null,
+                'codigo_real'        => $esProvisional ? null : $codigo,
+                'fecha_pago'         => $request->fecha_pago,
+                'metodo_pago'        => $request->metodo_pago,
+                'cuenta_origen_id'   => $request->cuenta_origen_id,
+                'observaciones'      => $request->observaciones ?: null,
+                'created_by'         => auth()->id(),
+            ]);
+
             $montoRestante = round((float) $request->monto_total, 2);
             $lineas        = []; // resumen para mostrar al usuario
             $cuentaOrigenInfo = null;
@@ -240,8 +296,17 @@ class PagoClienteController extends Controller
                     ? (($cuentaOrigen->banco->nombre ?? '') . ' ' . $cuentaOrigen->numero_cuenta)
                     : null;
 
+                // Dejar constancia de que el cobro vino de un cobro masivo, se hayan
+                // escrito observaciones o no. Si luego cambia el código real del lote,
+                // LotePagoController::actualizarCodigo reemplaza este texto también.
+                $notaMasivo    = 'Cobro masivo (código ' . $codigo . ').';
+                $observaciones = trim($request->observaciones ?: '') !== ''
+                    ? trim($request->observaciones) . ' — ' . $notaMasivo
+                    : $notaMasivo;
+
                 $pago = PagoCliente::create([
                     'tramo_id'           => $tramo->id,
+                    'lote_pago_id'       => $lote->id,
                     'tipo_pago'          => $esFinal ? 'pago_final' : 'adelanto',
                     'monto'              => $montoPago,
                     'moneda_pago'        => $monedaPago,
@@ -251,7 +316,7 @@ class PagoClienteController extends Controller
                     'codigo_seguimiento' => $codigo,
                     'cuenta_origen_id'   => $request->cuenta_origen_id,
                     'cuenta_destino_id'  => $request->cuenta_destino_id,
-                    'observaciones'      => $request->observaciones ?: null,
+                    'observaciones'      => $observaciones,
                     'created_by'         => auth()->id(),
                     'updated_by'         => auth()->id(),
                 ]);
@@ -337,7 +402,11 @@ class PagoClienteController extends Controller
             'monto'       => 'required|numeric|min:0.01',
             'fecha_pago'  => 'required|date',
             'metodo_pago' => 'required|in:efectivo,transferencia,qr,cheque',
-            'codigo_seguimiento' => 'nullable|string|max:100',
+            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) use ($pago) {
+                if (!$this->codigoDisponible($value, $pago->id, PagoCliente::class)) {
+                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
+                }
+            }],
             'observaciones'      => 'nullable|string|max:500',
         ]);
 

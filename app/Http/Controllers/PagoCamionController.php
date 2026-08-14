@@ -16,6 +16,7 @@ use RealRashid\SweetAlert\Facades\Alert;
 class PagoCamionController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
 
     public function __construct()
     {
@@ -68,7 +69,11 @@ class PagoCamionController extends Controller
             'cuenta_origen_id'   => 'nullable|exists:cuentas_empresa,id',
             'cuenta_destino_id'  => 'nullable|exists:cuentas_bancarias,id',
             'metodo_pago'        => 'required|in:efectivo,transferencia,qr,cheque',
-            'codigo_seguimiento' => 'nullable|string|max:100',
+            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) {
+                if (!$this->codigoDisponible($value)) {
+                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
+                }
+            }],
             'observaciones'      => 'nullable|string|max:500',
         ], [
             'contrato_camion_id.required' => 'Debe seleccionar la asignación.',
@@ -94,7 +99,7 @@ class PagoCamionController extends Controller
         // En QR no se captura código: se genera uno para poder rastrear el pago.
         $codigoSeguimiento = $request->codigo_seguimiento ?: null;
         if (!$codigoSeguimiento && $request->metodo_pago === 'qr') {
-            $codigoSeguimiento = 'QR-' . strtoupper(\Illuminate\Support\Str::random(8));
+            $codigoSeguimiento = $this->generarCodigoUnico('QR');
         }
 
         DB::transaction(function () use ($request, $receptorType, $cc, $codigoSeguimiento) {
@@ -150,14 +155,18 @@ class PagoCamionController extends Controller
             'tipo_cambio'        => 'required|numeric|min:0.0001',
             'fecha_pago'         => 'required|date',
             'metodo_pago'        => 'required|in:transferencia,qr',
-            'codigo_seguimiento' => 'nullable|string|max:100',
+            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) use ($pago) {
+                if (!$this->codigoDisponible($value, $pago->id, PagoCamion::class)) {
+                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
+                }
+            }],
         ]);
 
         // En QR el código lo genera el sistema y el campo no es editable:
         // si llega vacío se conserva el que ya tenía en vez de borrarlo.
         $codigo = $request->codigo_seguimiento ?: null;
         if (!$codigo && $request->metodo_pago === 'qr') {
-            $codigo = $pago->codigo_seguimiento ?: 'QR-' . strtoupper(\Illuminate\Support\Str::random(8));
+            $codigo = $pago->codigo_seguimiento ?: $this->generarCodigoUnico('QR');
         }
 
         DB::transaction(function () use ($request, $pago, $codigo) {
@@ -410,7 +419,7 @@ class PagoCamionController extends Controller
         }
 
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
-        $codigoLote = $prefijo . '-' . strtoupper(bin2hex(random_bytes(4)));
+        $codigoLote = $this->generarCodigoUnico($prefijo);
 
         // Las observaciones ya no se capturan en el formulario: dejan constancia
         // de que el pago vino de un lote masivo.

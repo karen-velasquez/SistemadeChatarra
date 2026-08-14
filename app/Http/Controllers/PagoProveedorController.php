@@ -18,6 +18,7 @@ use RealRashid\SweetAlert\Facades\Alert;
 class PagoProveedorController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
 
     public function __construct()
     {
@@ -54,7 +55,11 @@ class PagoProveedorController extends Controller
             'tipo_cambio'        => 'required|numeric|min:0.0001',
             'fecha_pago'         => 'required|date',
             'metodo_pago'        => 'required|in:transferencia,qr',
-            'codigo_seguimiento' => 'nullable|string|max:100',
+            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) {
+                if (!$this->codigoDisponible($value)) {
+                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
+                }
+            }],
             'cuenta_origen_id'   => 'required|exists:cuentas_empresa,id',
             'cuenta_destino_id'  => 'required|exists:cuentas_bancarias,id',
             'observaciones'      => 'nullable|string|max:500',
@@ -76,7 +81,7 @@ class PagoProveedorController extends Controller
         // En QR no se captura código: se genera uno para poder rastrear el pago.
         $codigoSeguimiento = $request->codigo_seguimiento ?: null;
         if (!$codigoSeguimiento && $request->metodo_pago === 'qr') {
-            $codigoSeguimiento = 'QR-' . strtoupper(\Illuminate\Support\Str::random(8));
+            $codigoSeguimiento = $this->generarCodigoUnico('QR');
         }
 
         DB::transaction(function () use ($request, $codigoSeguimiento) {
@@ -329,7 +334,7 @@ class PagoProveedorController extends Controller
 
         // Código provisional del lote (compartido por todos los pagos de este lote)
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
-        $codigoLote = $prefijo . '-' . strtoupper(\Illuminate\Support\Str::random(8));
+        $codigoLote = $this->generarCodigoUnico($prefijo);
 
         $resumen = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote) {
             $lote = LotePago::create([

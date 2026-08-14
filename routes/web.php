@@ -174,6 +174,7 @@ use Illuminate\Support\Facades\Route;
     Route::put('pagos/clientes/{uuid}',[App\Http\Controllers\PagoClienteController::class,'update'])->name('pagos.clientes.update')->middleware('permission:pagos_clientes.edit');
     Route::post('pagos/clientes/cobro-masivo',[App\Http\Controllers\PagoClienteController::class,'cobroMasivo'])->name('pagos.clientes.cobro_masivo')->middleware('permission:pagos_clientes.create');
     Route::get('api/pagos/clientes/{id}/detalle',[App\Http\Controllers\PagoClienteController::class,'detalle'])->name('pagos.clientes.detalle');
+    Route::get('api/pagos/clientes/verificar-codigo',[App\Http\Controllers\PagoClienteController::class,'verificarCodigo'])->name('pagos.clientes.verificar_codigo')->middleware('permission:pagos_clientes.index');
     Route::get('pagos/clientes/{uuid}/voucher',[App\Http\Controllers\PagoClienteController::class,'verVoucher'])->name('pagos.clientes.voucher')->middleware('permission:pagos_clientes.index');
     Route::get('api/pagos/cuentas-cliente',[App\Http\Controllers\PagoClienteController::class,'cuentasCliente'])->name('pagos.cuentas-cliente');
 
@@ -190,6 +191,7 @@ use Illuminate\Support\Facades\Route;
 
     // Lotes de pago masivo
     Route::get('lotes-pago', [App\Http\Controllers\LotePagoController::class, 'index'])->name('lotes_pago.index')->middleware('permission:pagos_camiones.index');
+    Route::get('api/lotes-pago/verificar-codigo', [App\Http\Controllers\LotePagoController::class, 'verificarCodigo'])->name('lotes_pago.verificar_codigo')->middleware('permission:pagos_camiones.index');
     Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:pagos_camiones.create');
 
     // Lotes de entrega semanal por proveedor

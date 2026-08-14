@@ -69,9 +69,19 @@
           <tr>
             <td><small>{{ $lote->fecha_pago->format('d/m/Y') }}</small></td>
             <td>
-              <span class="badge {{ $lote->tipo === 'proveedor' ? 'bg-info text-dark' : 'bg-warning text-dark' }}">
-                {{ $lote->tipo === 'proveedor' ? 'Proveedor' : 'Camión' }}
-              </span>
+              @php
+                $badgeTipo = match($lote->tipo) {
+                    'proveedor' => 'bg-info text-dark',
+                    'cliente'   => 'bg-success',
+                    default     => 'bg-warning text-dark',
+                };
+                $labelTipo = match($lote->tipo) {
+                    'proveedor' => 'Proveedor',
+                    'cliente'   => 'Cliente',
+                    default     => 'Camión',
+                };
+              @endphp
+              <span class="badge {{ $badgeTipo }}">{{ $labelTipo }}</span>
             </td>
             <td>
               <small>{{ $lote->cuentaOrigen?->empresa?->nombre ?? '—' }}</small>
@@ -98,7 +108,7 @@
             <td>
               @can('pagos_camiones.create')
               <button class="btn btn-outline-primary btn-sm"
-                      onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? '' }}', '{{ $lote->tipo === 'proveedor' ? 'Proveedor' : 'Camión' }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
+                      onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? $lote->codigo_provisional ?? '' }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
                 <i class="bi bi-pencil-square me-1"></i>
                 {{ $lote->codigo_real ? 'Editar código' : 'Ingresar código' }}
               </button>
@@ -127,16 +137,18 @@
       </div>
       <form id="form_codigo" method="POST">
         @csrf
+        <input type="hidden" id="input_lote_uuid" value="">
         <div class="modal-body">
           <p class="small text-muted mb-2" id="lbl_info_lote"></p>
           <label class="form-label fw-semibold">Código real del banco</label>
           <input type="text" class="form-control" name="codigo_real" id="input_codigo_real"
                  placeholder="Ej: TRF-2026052500123" required maxlength="100">
+          <div class="invalid-feedback d-block" id="codigo_real_feedback" style="display:none !important;"></div>
           <small class="text-muted">Este código reemplazará el provisional en todos los registros del lote.</small>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary" id="btn_guardar_codigo">
             <i class="bi bi-save me-1"></i>Guardar
           </button>
         </div>
@@ -151,10 +163,46 @@
 <script>
 function abrirModalCodigo(uuid, codigoActual, tipo, fecha) {
     document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
+    document.getElementById('input_lote_uuid').value = uuid;
     document.getElementById('input_codigo_real').value = codigoActual;
+    document.getElementById('input_codigo_real').classList.remove('is-invalid');
+    document.getElementById('codigo_real_feedback').style.display = 'none';
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
     new bootstrap.Modal(document.getElementById('modalCodigo')).show();
     setTimeout(() => document.getElementById('input_codigo_real').focus(), 400);
 }
+
+// Verificar código duplicado al hacer clic en Guardar (no en cada tecla,
+// para no saturar de consultas), y solo entonces enviar el formulario.
+document.getElementById('form_codigo').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const btn      = document.getElementById('btn_guardar_codigo');
+    const input    = document.getElementById('input_codigo_real');
+    const feedback = document.getElementById('codigo_real_feedback');
+    const codigo   = input.value.trim();
+
+    input.classList.remove('is-invalid');
+    feedback.style.display = 'none';
+
+    if (!codigo) return;
+
+    btn.disabled = true;
+    const loteUuid = document.getElementById('input_lote_uuid').value;
+    const params = new URLSearchParams({ codigo, lote_uuid: loteUuid });
+
+    fetch(`${url_global}/api/lotes-pago/verificar-codigo?${params}`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.disponible) {
+                input.classList.add('is-invalid');
+                feedback.textContent = 'Este código ya está en uso por otro pago o lote. Ingresa uno distinto.';
+                feedback.style.display = 'block';
+                btn.disabled = false;
+                return;
+            }
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+            this.submit();
+        });
+});
 </script>
 @endsection

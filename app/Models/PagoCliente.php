@@ -16,6 +16,7 @@ class PagoCliente extends Model
 
     protected $fillable = [
         'tramo_id',
+        'lote_pago_id',
         'tipo_pago',
         'monto',
         'moneda_pago',
@@ -46,6 +47,11 @@ class PagoCliente extends Model
     public function tramo()
     {
         return $this->belongsTo(Tramo::class, 'tramo_id');
+    }
+
+    public function lotePago()
+    {
+        return $this->belongsTo(LotePago::class, 'lote_pago_id');
     }
 
     public function cuentaOrigen()

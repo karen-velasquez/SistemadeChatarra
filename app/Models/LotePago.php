@@ -40,6 +40,11 @@ class LotePago extends Model
         return $this->hasMany(PagoCamion::class, 'lote_pago_id');
     }
 
+    public function pagosCliente()
+    {
+        return $this->hasMany(PagoCliente::class, 'lote_pago_id');
+    }
+
     public function movimientos()
     {
         return $this->hasMany(Movimiento::class, 'lote_pago_id');
@@ -57,8 +62,10 @@ class LotePago extends Model
 
     public function getTotalPagosAttribute(): int
     {
-        return $this->tipo === 'proveedor'
-            ? $this->pagosProveedor()->count()
-            : $this->pagosCamion()->count();
+        return match ($this->tipo) {
+            'proveedor' => $this->pagosProveedor()->count(),
+            'cliente'   => $this->pagosCliente()->count(),
+            default     => $this->pagosCamion()->count(),
+        };
     }
 }
