@@ -7,7 +7,13 @@
       "Bash(git fetch *)",
       "Bash(Get-ChildItem database\\\\migrations\\\\*.php)",
       "Bash(Select-Object -ExpandProperty Name)",
-      "Bash(Sort-Object)"
+      "Bash(Sort-Object)",
+      "Bash(npm run *)",
+      "Bash(php -l \"resources/views/unidades/index.blade.php\")",
+      "Bash(php -l \"resources/views/unidades/show.blade.php\")",
+      "Bash(php -l \"app/Http/Controllers/UnidadPropiaController.php\")",
+      "Bash(grep -n \"function show\\\\|use App\\\\\\\\\\\\\\\\Models\" \"app/Http/Controllers/UnidadPropiaController.php\")",
+      "Bash(php -l \"app/Models/Parametro.php\")"
     ]
   }
 }

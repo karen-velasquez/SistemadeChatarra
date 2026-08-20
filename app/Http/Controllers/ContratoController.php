@@ -34,6 +34,7 @@ class ContratoController extends Controller
                             'proveedor.pais',
                             'contratoCamiones.tramos',
                             'usuarioCreador',
+                            'usuarioActualizador',
                         ])
                         ->whereNull('deleted_at')
                         ->orderByDesc('created_at')
@@ -51,7 +52,29 @@ class ContratoController extends Controller
         $idempotencyToken = Str::uuid()->toString();
         session(['contrato_store_token' => $idempotencyToken]);
 
-        return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente', 'idempotencyToken'));
+        // Datos planos para el botón "Descargar Excel": números reales (no texto
+        // formateado), para que el equipo pueda aplicar fórmulas directamente.
+        $contratosExcelData = $contratos->map(function ($c) {
+            return [
+                'numero_contrato'       => $c->numero_contrato,
+                'tipo_contrato'         => $c->tipo_contrato,
+                'proveedor'             => $c->proveedor->nombre ?? '',
+                'clientes'              => $c->clientes_entregados->pluck('nombre')->implode(', '),
+                'fecha_inicio'          => $c->fecha_inicio?->format('Y-m-d') ?? '',
+                'fecha_fin'             => $c->fecha_fin?->format('Y-m-d') ?? '',
+                'toneladas_contrato'    => (float) $c->toneladas_contrato,
+                'toneladas_entregadas'  => (float) $c->toneladas_entregadas,
+                'toneladas_en_transito' => (float) $c->toneladas_en_transito,
+                'moneda'                => $c->moneda,
+                'monto_total'           => (float) $c->monto_total,
+                'fecha_registro'        => $c->created_at?->format('Y-m-d H:i') ?? '',
+                'registrado_por'        => $c->usuarioCreador->name ?? '',
+                'ultima_edicion'        => $c->updated_at?->format('Y-m-d H:i') ?? '',
+                'editado_por'           => $c->usuarioActualizador->name ?? '',
+            ];
+        })->values();
+
+        return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente', 'idempotencyToken', 'contratosExcelData'));
     }
 
     public function nuevoToken()

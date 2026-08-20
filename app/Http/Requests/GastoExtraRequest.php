@@ -21,7 +21,7 @@ class GastoExtraRequest extends FormRequest
     {
         return [
             'contrato_id' => 'required',
-            'cuenta_bancaria_id' => 'required',
+            'cuenta_empresa_id' => 'required|exists:cuentas_empresa,id',
             'categoria' => 'required|string|max:50',
             'concepto' => 'required|string',
             'fecha' => 'required|date',

@@ -19,6 +19,8 @@ class CamionMantenimiento extends Model implements Auditable
     protected $fillable = [
         'camion_id',
         'taller_id',
+        'cuenta_empresa_id',
+        'categoria',
         'fecha',
         'tipo',
         'descripcion',
@@ -37,8 +39,22 @@ class CamionMantenimiento extends Model implements Auditable
     protected static function boot()
     {
         parent::boot();
+
         static::creating(function ($model) {
             $model->uuid = Str::uuid()->toString();
+        });
+
+        // El mantenimiento descuenta el costo de la cuenta de empresa elegida.
+        static::created(function ($model) {
+            if ($model->cuenta_empresa_id) {
+                Movimiento::registrarDeMantenimiento($model);
+            }
+        });
+
+        // Al eliminar (soft delete) el mantenimiento se elimina su movimiento,
+        // lo que revierte el saldo automáticamente (hook deleted() de Movimiento).
+        static::deleted(function ($model) {
+            $model->movimiento()->delete();
         });
     }
 
@@ -50,5 +66,15 @@ class CamionMantenimiento extends Model implements Auditable
     public function taller()
     {
         return $this->belongsTo(Taller::class, 'taller_id');
+    }
+
+    public function cuentaEmpresa()
+    {
+        return $this->belongsTo(CuentaEmpresa::class, 'cuenta_empresa_id');
+    }
+
+    public function movimiento()
+    {
+        return $this->morphOne(Movimiento::class, 'origen', 'origen_type', 'origen_id');
     }
 }

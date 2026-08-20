@@ -13,6 +13,7 @@ class GastoExtra extends Model
     protected $fillable = [
         'contrato_id',
         'cuenta_bancaria_id',
+        'cuenta_empresa_id',
         'tipo_pago',
         'nombre_titular',
         'categoria',
@@ -44,11 +45,32 @@ class GastoExtra extends Model
     {
         return $this->belongsTo(CuentaEmpresa::class, 'cuenta_empresa_id');
     }
+    public function movimiento()
+    {
+        return $this->morphOne(Movimiento::class, 'origen', 'origen_type', 'origen_id');
+    }
     protected static function boot()
     {
         parent::boot();
         static::creating(function ($model) {
             $model->uuid = Str::uuid()->toString();
+        });
+
+        // Al quedar en PAGADO (ya sea al crear o al editar) se descuenta el saldo
+        // de la cuenta elegida. Al revertir a PENDIENTE se devuelve el dinero.
+        static::saved(function ($model) {
+            $eraPagado = $model->getOriginal('estado') === 'PAGADO';
+            $esPagado  = $model->estado === 'PAGADO';
+
+            if (!$eraPagado && $esPagado) {
+                Movimiento::registrarDeGastoExtra($model);
+            } elseif ($eraPagado && !$esPagado) {
+                $model->movimiento()->delete();
+            }
+        });
+
+        static::deleted(function ($model) {
+            $model->movimiento()->delete();
         });
     }
 }

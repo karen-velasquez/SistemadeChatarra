@@ -12,7 +12,7 @@
                             data-steps='[
                                 {"intro":"📝 Registra un gasto extra de un contrato. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
                                 {"element":"#contrato","intro":"📄 <b>Contrato</b> al que pertenece este gasto.","position":"bottom"},
-                                {"element":"#cuenta_bancaria","intro":"🏦 <b>Cuenta bancaria</b> desde la que se realizó o se realizará el pago.","position":"bottom"},
+                                {"element":"#cuenta_empresa","intro":"🏦 <b>Cuenta de empresa</b> desde la que se realizó o se realizará el pago. El monto se descuenta de su saldo al marcar el gasto como PAGADO.","position":"bottom"},
                                 {"element":"#categoria","intro":"🏷️ <b>Categoría</b> del gasto (transporte, impuestos, etc.). Si eliges <b>OTRO</b>, podrás escribir una nueva.","position":"bottom"},
                                 {"element":"#concepto","intro":"✏️ <b>Concepto</b>: una descripción breve del gasto (mínimo 3 caracteres).","position":"bottom"},
                                 {"element":"#monto","intro":"💲 <b>Monto</b> del gasto.","position":"bottom"},
@@ -47,17 +47,11 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">CUENTA BANCARIA <strong class="text-danger">(*)</strong></label>
-                            <select name="cuenta_bancaria_id" id="cuenta_bancaria" class="form-select" required>
+                            <label class="form-label">CUENTA DE EMPRESA <strong class="text-danger">(*)</strong></label>
+                            <select name="cuenta_empresa_id" id="cuenta_empresa" class="form-select" required>
                                 <option value="">-- SELECCIONE --</option>
-                                @foreach($cuentas_banco as $cb)
-                                    @php
-                                        $cuenta = $cb->numero_cuenta;
-                                        $visibleInicio = substr($cuenta, 0, 2);
-                                        $visibleFinal = substr($cuenta, -4);
-                                        $ocultos = str_repeat('*', max(strlen($cuenta) - 6, 0));
-                                    @endphp
-                                    <option value="{{ $cb->id }}">{{ $cb->banco->nombre }} {{ $visibleInicio . $ocultos . $visibleFinal }}</option>
+                                @foreach($cuentasEmpresa as $ce)
+                                    <option value="{{ $ce->id }}">{{ $ce->nombre_cuenta }} (Bs {{ number_format($ce->saldo_actual, 2) }})</option>
                                 @endforeach
                             </select>
                         </div>

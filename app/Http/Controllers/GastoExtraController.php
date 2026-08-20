@@ -7,6 +7,7 @@ use App\Models\Contrato;
 use App\Models\Proveedor;
 use App\Http\Requests\GastoExtraRequest;
 use App\Models\CuentaBancaria;
+use App\Models\CuentaEmpresa;
 use App\Models\Parametro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class GastoExtraController extends Controller
     {
         $contratos = Contrato::whereNull('deleted_at')->get();
         $categorias = Parametro::where('tipo','categoria_gasto_extra')->get();
-        $cuentas_banco = CuentaBancaria::where('tipo_titular','empleado')->get();
+        $cuentasEmpresa = CuentaEmpresa::whereNull('deleted_at')->where('activo', true)->orderBy('nombre_cuenta')->get();
         $proveedores = Proveedor::whereNull('deleted_at')->orderBy('nombre')->get();
         $contratosFiltrados = Contrato::with('proveedor');
 
@@ -42,7 +43,7 @@ class GastoExtraController extends Controller
         $carga = GastoExtra::where('estado','PAGADO')->where('categoria','CARGUIO')->sum('monto_bolivianos');
         $otros = 0;
         $idempotencyToken = $this->generarToken('gasto_extra_store_token');
-        return view('gastos_extras.index',compact('contratos','categorias','cuentas_banco','proveedores','contratosFiltrados','total','pendientes','pagados','aduaneros','carga','otros','idempotencyToken'));
+        return view('gastos_extras.index',compact('contratos','categorias','cuentasEmpresa','proveedores','contratosFiltrados','total','pendientes','pagados','aduaneros','carga','otros','idempotencyToken'));
     }
     public function store(GastoExtraRequest $request)
     {
@@ -50,7 +51,6 @@ class GastoExtraController extends Controller
             Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
             return redirect()->route('gastos_extras.index');
         }
-        $cuenta = CuentaBancaria::findOrFail($request->cuenta_bancaria_id);
         $monedaEsBob = $request->moneda === 'BOB';
         $tipoCambioVacio = empty($request->tipo_cambio);
         if (
@@ -88,7 +88,7 @@ class GastoExtraController extends Controller
         $montoBolivianos = $monedaEsBob ? $request->monto : $request->monto * $request->tipo_cambio;
         $gasto = new GastoExtra();
         $gasto->contrato_id = $request->contrato_id;
-        $gasto->cuenta_bancaria_id = $request->cuenta_bancaria_id;
+        $gasto->cuenta_empresa_id = $request->cuenta_empresa_id;
         $gasto->categoria = $categoria;
         $gasto->concepto = strtoupper(trim($request->concepto));
         $gasto->fecha = $request->fecha;
@@ -106,13 +106,12 @@ class GastoExtraController extends Controller
     }
     public function show($id)
     {
-        return GastoExtra::with(['contrato', 'cuentaBancaria'])->findOrFail($id);
+        return GastoExtra::with(['contrato', 'cuentaEmpresa'])->findOrFail($id);
     }
 
     public function update(GastoExtraRequest $request, $uuid)
     {
          $gasto = GastoExtra::where('uuid', $uuid)->firstOrFail();
-        $cuenta = CuentaBancaria::findOrFail($request->cuenta_bancaria_id);
         $monedaEsBob = $request->moneda === 'BOB';
         $tipoCambioVacio = empty($request->tipo_cambio);
         if (
@@ -151,7 +150,7 @@ class GastoExtraController extends Controller
         }
         $montoBolivianos = $monedaEsBob ? $request->monto : $request->monto * $request->tipo_cambio;
         $gasto->contrato_id =$request->contrato_id;
-        $gasto->cuenta_bancaria_id =$request->cuenta_bancaria_id;
+        $gasto->cuenta_empresa_id =$request->cuenta_empresa_id;
         $gasto->categoria = $categoria;
         $gasto->concepto = strtoupper(trim($request->concepto));
         $gasto->fecha = $request->fecha;

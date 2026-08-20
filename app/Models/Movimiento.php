@@ -118,6 +118,46 @@ class Movimiento extends Model
         ]);
     }
 
+    // Movimiento de tesorería espejo de un mantenimiento de camión: egreso en bolivianos
+    // por el costo del mantenimiento, desde la cuenta de empresa elegida en el formulario.
+    public static function registrarDeMantenimiento(Model $mantenimiento): self
+    {
+        return self::create([
+            'cuenta_empresa_id'  => $mantenimiento->cuenta_empresa_id,
+            'tipo'               => 'egreso',
+            'categoria'          => 'mantenimiento_camion',
+            'monto'              => $mantenimiento->costo,
+            'moneda'             => 'BOB',
+            'tipo_cambio'        => 1,
+            'fecha'              => $mantenimiento->fecha,
+            'concepto'           => 'Mantenimiento ' . $mantenimiento->tipo . ' - ' . ($mantenimiento->camion->placa ?? ''),
+            'origen_type'        => get_class($mantenimiento),
+            'origen_id'          => $mantenimiento->id,
+            'created_by'         => auth()->id(),
+            'updated_by'         => auth()->id(),
+        ]);
+    }
+
+    // Movimiento de tesorería espejo de un gasto extra ya marcado como PAGADO:
+    // egreso desde la cuenta de empresa elegida, en la moneda y monto del gasto.
+    public static function registrarDeGastoExtra(Model $gasto): self
+    {
+        return self::create([
+            'cuenta_empresa_id'  => $gasto->cuenta_empresa_id,
+            'tipo'               => 'egreso',
+            'categoria'          => 'gasto_extra',
+            'monto'              => $gasto->monto,
+            'moneda'             => $gasto->moneda,
+            'tipo_cambio'        => $gasto->tipo_cambio ?? 1,
+            'fecha'              => $gasto->fecha,
+            'concepto'           => 'Gasto Extra ' . $gasto->categoria . ' - ' . $gasto->concepto,
+            'origen_type'        => get_class($gasto),
+            'origen_id'          => $gasto->id,
+            'created_by'         => auth()->id(),
+            'updated_by'         => auth()->id(),
+        ]);
+    }
+
     public function cuentaEmpresa()
     {
         return $this->belongsTo(CuentaEmpresa::class, 'cuenta_empresa_id');
@@ -142,6 +182,7 @@ class Movimiento extends Model
             'pago_camion'        => 'Pago a Camión',
             'gasto_extra'        => 'Gasto Extra',
             'pago_sueldo'        => 'Pago de Sueldo',
+            'mantenimiento_camion' => 'Mantenimiento de Camión',
             'prestamo_otorgado'  => 'Préstamo Otorgado',
             'prestamo_recibido'  => 'Préstamo Recibido',
             'devolucion_prestamo'=> 'Devolución Préstamo',

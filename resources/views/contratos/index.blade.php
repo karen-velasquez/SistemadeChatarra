@@ -27,6 +27,9 @@
                     ]'>
                 <i class="bi bi-question-circle"></i>
             </button>
+            <button type="button" id="btnDescargarExcelContratos" class="btn btn-outline-success btn-sm" onclick="descargarExcelContratos()">
+                <i class="bi bi-file-earmark-excel"></i> Descargar Excel
+            </button>
             @can('contratos.create')
             <button type="button" id="btnNuevoContrato" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalContrato" onclick="resetModalContrato()">
                 <i class="bi bi-plus-lg"></i> Nuevo Contrato
@@ -82,7 +85,10 @@
                             </button>
                         </div>
                         <div class="col-auto ms-auto">
-                            <small class="text-muted">Mostrando <span id="lbl_count_contratos">{{ $contratos->count() }}</span> contrato(s)</small>
+                            <small class="text-muted">
+                                Mostrando <span id="lbl_count_contratos">{{ $contratos->count() }}</span> contrato(s)
+                                — generado el {{ now()->format('d/m/Y H:i') }}
+                            </small>
                         </div>
                     </div>
 
@@ -106,7 +112,7 @@
                             <tbody>
                                 @foreach($contratos as $c)
                                 @php $clientesEntregados = $c->clientes_entregados; @endphp
-                                <tr data-tipo="{{ $c->tipo_contrato }}" data-proveedor-id="{{ $c->proveedor_id }}" data-clientes-ids="{{ $clientesEntregados->pluck('id')->implode(',') }}">
+                                <tr data-tipo="{{ $c->tipo_contrato }}" data-proveedor-id="{{ $c->proveedor_id }}" data-clientes-ids="{{ $clientesEntregados->pluck('id')->implode(',') }}" data-numero-contrato="{{ $c->numero_contrato }}">
                                     <td style="white-space:nowrap;"><span class="fw-bold text-primary">{{ $c->numero_contrato }}</span></td>
                                     <td>
                                         @if($c->tipo_contrato === 'Nacional')
@@ -418,6 +424,174 @@
 
 @section('scripts')
 <script src="{{ asset('assets/js/tablas/basica.js') }}" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+    // ── Descargar lista de contratos en Excel (valores numéricos limpios para fórmulas) ──
+    const _contratosExcelData = @json($contratosExcelData);
+
+    function descargarExcelContratos() {
+        // Solo los contratos visibles según los filtros activos (Tipo/Proveedor/Cliente),
+        // igual que se ven en pantalla — no todos los contratos registrados.
+        const numerosVisibles = new Set(
+            tablaContratos.rows({ search: 'applied' }).nodes().toArray()
+                .map(tr => tr.dataset.numeroContrato)
+        );
+        const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
+
+        const cols = ['N° CONTRATO','TIPO','PROVEEDOR','CLIENTES','FECHA INICIO','FECHA FIN','TONELADAS CONTRATO','TONELADAS ENTREGADAS','TONELADAS EN TRANSITO','MONEDA','MONTO AL PROVEEDOR','FECHA REGISTRO','REGISTRADO POR','ÚLTIMA EDICIÓN','EDITADO POR'];
+        const dataRows = visibles.map(c => [
+            c.numero_contrato, c.tipo_contrato, c.proveedor, c.clientes, c.fecha_inicio, c.fecha_fin,
+            c.toneladas_contrato, c.toneladas_entregadas, c.toneladas_en_transito,
+            c.moneda, c.monto_total, c.fecha_registro, c.registrado_por, c.ultima_edicion, c.editado_por,
+        ]);
+        const tituloLineas = [
+            'REGISTRO DE CONTRATOS',
+            'Descargado por: {{ addslashes(auth()->user()->name ?? '') }}',
+            'Descargado el: {{ now()->format('d/m/Y H:i') }}',
+        ];
+        _exportarXlsx(cols, dataRows, 'Contratos', `contratos_{{ date('Ymd_His') }}.xlsx`, tituloLineas);
+    }
+
+    // ---- Generador XLSX con cabecera estilizada (fondo verde oscuro + texto blanco + negrita) ----
+    // tituloLineas (opcional): filas de texto libre antes de la cabecera de columnas
+    // (ej. título del reporte, quién y cuándo lo descargó).
+    function _exportarXlsx(headers, rows, sheetName, filename, tituloLineas) {
+        tituloLineas = tituloLineas || [];
+        const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+        const styleXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="3">
+    <font><sz val="11"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1A6B2F"/></patternFill></fill>
+  </fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="3">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+  </cellXfs>
+</styleSheet>`;
+
+        const colLetter = i => { let s='', n=i+1; while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26);} return s; };
+
+        const colWidths = headers.map(h => Math.max(14, h.length + 4));
+        let colsXml = '<cols>';
+        colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
+        colsXml += '</cols>';
+
+        let sheetData = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  ${colsXml}
+  <sheetData>`;
+
+        const ultimaCol = colLetter(headers.length - 1);
+        const mergesXml = [];
+
+        let filaActual = 1;
+        tituloLineas.forEach((linea, li) => {
+            // Solo la primera línea (el título del reporte) lleva estilo grande y
+            // combina sus celdas a lo ancho de la tabla; las siguientes van planas.
+            const esTitulo = li === 0;
+            if (esTitulo) {
+                // El fondo/estilo se aplica a TODAS las celdas del rango combinado
+                // (no solo a la "ancla" A), para que el verde cubra toda la fila.
+                sheetData += `<row r="${filaActual}">`;
+                sheetData += `<c r="A${filaActual}" t="inlineStr" s="2"><is><t>${esc(linea)}</t></is></c>`;
+                for (let ci = 1; ci < headers.length; ci++) {
+                    sheetData += `<c r="${colLetter(ci)}${filaActual}" s="2"/>`;
+                }
+                sheetData += `</row>`;
+                if (headers.length > 1) {
+                    mergesXml.push(`<mergeCell ref="A${filaActual}:${ultimaCol}${filaActual}"/>`);
+                }
+            } else {
+                sheetData += `<row r="${filaActual}"><c r="A${filaActual}" t="inlineStr"><is><t>${esc(linea)}</t></is></c></row>`;
+            }
+            filaActual++;
+        });
+
+        const filaCabecera = filaActual;
+        sheetData += `<row r="${filaCabecera}">`;
+        headers.forEach((h, ci) => {
+            sheetData += `<c r="${colLetter(ci)}${filaCabecera}" t="inlineStr" s="1"><is><t>${esc(h)}</t></is></c>`;
+        });
+        sheetData += `</row>`;
+        filaActual++;
+
+        rows.forEach((row) => {
+            sheetData += `<row r="${filaActual}">`;
+            row.forEach((val, ci) => {
+                if (typeof val === 'number') {
+                    sheetData += `<c r="${colLetter(ci)}${filaActual}"><v>${val}</v></c>`;
+                } else {
+                    sheetData += `<c r="${colLetter(ci)}${filaActual}" t="inlineStr"><is><t>${esc(val)}</t></is></c>`;
+                }
+            });
+            sheetData += `</row>`;
+            filaActual++;
+        });
+        sheetData += `</sheetData>`;
+        if (mergesXml.length) {
+            sheetData += `<mergeCells count="${mergesXml.length}">${mergesXml.join('')}</mergeCells>`;
+        }
+        sheetData += `</worksheet>`;
+
+        const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="${esc(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+
+        const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+        const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+        const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+        const zip = new JSZip();
+        zip.file('[Content_Types].xml', contentTypes);
+        zip.folder('_rels').file('.rels', rootRels);
+        const xl = zip.folder('xl');
+        xl.file('workbook.xml', wb);
+        xl.file('styles.xml', styleXml);
+        xl.folder('_rels').file('workbook.xml.rels', rels);
+        xl.folder('worksheets').file('sheet1.xml', sheetData);
+
+        zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+           .then(blob => {
+               const url = URL.createObjectURL(blob);
+               const a = document.createElement('a');
+               a.href = url; a.download = filename; a.click();
+               URL.revokeObjectURL(url);
+           });
+    }
+</script>
 <script>
     // ── Buscador en el select de Proveedor del filtro de la tabla ──
     $('#filtro_proveedor_contrato').select2({

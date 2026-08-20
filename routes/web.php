@@ -103,6 +103,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('unidades/plan/{uuid}/realizar',[App\Http\Controllers\UnidadPropiaController::class,'realizarPlan'])->name('unidades.plan.realizar')->middleware('permission:unidades.edit');
     Route::get('unidades/plan/{uuid}/destroy',[App\Http\Controllers\UnidadPropiaController::class,'destroyPlan'])->name('unidades.plan.destroy')->middleware('permission:unidades.destroy');
     Route::post('talleres/store',[App\Http\Controllers\UnidadPropiaController::class,'storeTaller'])->name('talleres.store')->middleware('permission:unidades.edit');
+    Route::post('talleres/store-ajax',[App\Http\Controllers\UnidadPropiaController::class,'storeTallerAjax'])->name('talleres.store.ajax')->middleware('permission:unidades.edit');
     Route::put('talleres/{uuid}',[App\Http\Controllers\UnidadPropiaController::class,'updateTaller'])->name('talleres.update')->middleware('permission:unidades.edit');
     Route::get('talleres/{uuid}/destroy',[App\Http\Controllers\UnidadPropiaController::class,'destroyTaller'])->name('talleres.destroy')->middleware('permission:unidades.destroy');
 

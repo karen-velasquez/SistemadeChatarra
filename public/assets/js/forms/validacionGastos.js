@@ -83,7 +83,7 @@ function restaurarCamposModalGasto() {
 
     const campos = [
         'contrato',
-        'cuenta_bancaria',
+        'cuenta_empresa',
         'categoria',
         'nueva_categoria',
         'concepto',
@@ -115,7 +115,7 @@ function ocultarCamposParaMarcarPagado() {
     restaurarCamposModalGasto();
     const camposQueNoSeEditan = [
         'contrato',
-        'cuenta_bancaria',
+        'cuenta_empresa',
         'categoria',
         'nueva_categoria',
         'concepto',
@@ -218,7 +218,7 @@ function editarGasto(gasto) {
     if (_tcdEdit) _tcdEdit.value = _tcEdit > 0 ? _fmtGasto(_tcEdit) : '';
     document.getElementById('nombre_titular').value = gasto.nombre_titular ?? '';
     document.getElementById('fecha').value = fechaSolo(gasto.fecha) === '-' ? '' : fechaSolo(gasto.fecha);
-    document.getElementById('cuenta_bancaria').value = gasto.cuenta_bancaria_id ?? '';
+    document.getElementById('cuenta_empresa').value = gasto.cuenta_empresa_id ?? '';
     document.getElementById('contrato').value = gasto.contrato_id ?? '';
     document.getElementById('metodo_pago').value = gasto.metodo_pago ?? '';
     if (document.getElementById('tipo_pago')) {
@@ -270,7 +270,7 @@ function marcarPagado(gasto) {
     if (_tcdMp) _tcdMp.value = _tcMp > 0 ? _fmtGasto(_tcMp) : '';
     document.getElementById('nombre_titular').value = gasto.nombre_titular ?? '';
     document.getElementById('fecha').value = fechaSolo(gasto.fecha) === '-' ? '' : fechaSolo(gasto.fecha);
-    document.getElementById('cuenta_bancaria').value = gasto.cuenta_bancaria_id ?? '';
+    document.getElementById('cuenta_empresa').value = gasto.cuenta_empresa_id ?? '';
     document.getElementById('contrato').value = gasto.contrato_id ?? '';
     document.getElementById('metodo_pago').value = gasto.metodo_pago ?? '';
     if (document.getElementById('tipo_pago')) {

@@ -75,6 +75,12 @@ class Parametro extends Model implements Auditable
                 'buscar_por' => 'descripcion', // busca por el campo descripcion del parámetro
                 'nombre' => 'cuenta(s) bancaria(s)',
             ],
+            'tipo_documento_camion' => [
+                'tabla' => 'camion_documentos',
+                'columna' => 'tipo',
+                'buscar_por' => 'valor',
+                'nombre' => 'documento(s) de camión',
+            ],
         ];
 
         // Verificar si existe una validación para este tipo

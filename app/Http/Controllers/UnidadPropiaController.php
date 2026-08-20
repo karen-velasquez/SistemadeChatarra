@@ -6,9 +6,12 @@ use App\Models\Camion;
 use App\Models\CamionDocumento;
 use App\Models\CamionMantenimiento;
 use App\Models\CamionPlanMantenimiento;
+use App\Models\CuentaEmpresa;
+use App\Models\Parametro;
 use App\Models\Taller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class UnidadPropiaController extends Controller
@@ -41,7 +44,7 @@ class UnidadPropiaController extends Controller
         $camion = Camion::with([
                 'marca', 'tipoVehiculo', 'placaPais', 'fotos', 'conductorActual.conductor',
                 'documentos' => fn($q) => $q->orderByDesc('created_at'),
-                'mantenimientos' => fn($q) => $q->with('taller')->orderByDesc('fecha'),
+                'mantenimientos' => fn($q) => $q->with(['taller', 'cuentaEmpresa'])->orderByDesc('fecha'),
                 'planMantenimientos',
             ])
             ->where('uuid', $uuid)
@@ -49,8 +52,10 @@ class UnidadPropiaController extends Controller
             ->firstOrFail();
 
         $talleres = Taller::whereNull('deleted_at')->orderBy('nombre')->get();
+        $cuentasEmpresa = CuentaEmpresa::whereNull('deleted_at')->where('activo', true)->orderBy('nombre_cuenta')->get();
+        $tiposDocumento = Parametro::where('tipo', 'tipo_documento_camion')->orderBy('descripcion')->get();
 
-        return view('unidades.show', compact('camion', 'talleres'));
+        return view('unidades.show', compact('camion', 'talleres', 'cuentasEmpresa', 'tiposDocumento'));
     }
 
     // Marcar un camión existente como unidad propia
@@ -65,6 +70,12 @@ class UnidadPropiaController extends Controller
     public function desmarcar($uuid)
     {
         $camion = Camion::where('uuid', $uuid)->firstOrFail();
+
+        if ($camion->documentos()->exists() || $camion->mantenimientos()->exists() || $camion->planMantenimientos()->exists()) {
+            Alert::error('Unidades Propias', 'No se puede quitar: el camión tiene documentación, mantenimientos o plan de mantenimiento registrados.');
+            return redirect()->route('unidades.index');
+        }
+
         $camion->update(['es_propio' => false]);
         Alert::success('Unidades Propias', 'El camión ya no figura como unidad propia.');
         return redirect()->route('unidades.index');
@@ -84,7 +95,7 @@ class UnidadPropiaController extends Controller
     {
         $camion = Camion::where('uuid', $uuid)->firstOrFail();
         $data = $request->validate([
-            'tipo'              => 'required|in:RUAT,CONTRATO,IMPUESTO,SEGURO,SOAT,OTRO',
+            'tipo'              => ['required', 'string', Rule::exists('parametros', 'valor')->where('tipo', 'tipo_documento_camion')],
             'descripcion'       => 'nullable|string|max:255',
             'archivo'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'fecha_emision'     => 'nullable|date',
@@ -128,7 +139,9 @@ class UnidadPropiaController extends Controller
     {
         $camion = Camion::where('uuid', $uuid)->firstOrFail();
         $data = $request->validate([
-            'taller_id'   => 'nullable|exists:talleres,id',
+            'taller_id'         => 'nullable|exists:talleres,id',
+            'cuenta_empresa_id' => 'nullable|exists:cuentas_empresa,id',
+            'categoria'         => 'required|in:preventivo,correctivo',
             'fecha'       => 'required|date',
             'tipo'        => 'required|string|max:100',
             'descripcion' => 'nullable|string',
@@ -209,7 +222,13 @@ class UnidadPropiaController extends Controller
     // ===== Talleres =====
     public function storeTaller(Request $request)
     {
-        $request->validate(['nombre' => 'required|string|max:150']);
+        $request->validate([
+            'nombre'        => 'required|string|max:150',
+            'especialidad'  => 'nullable|string|max:150',
+            'telefono'      => 'nullable|regex:/^[0-9]+$/|max:20',
+            'direccion'     => 'required|string',
+            'observaciones' => 'nullable|string|max:100',
+        ]);
         Taller::create($request->only(['nombre', 'especialidad', 'telefono', 'direccion', 'contacto', 'observaciones']));
         Alert::success('Talleres', 'Taller registrado con éxito.');
         return back();
@@ -217,7 +236,13 @@ class UnidadPropiaController extends Controller
 
     public function updateTaller(Request $request, $uuid)
     {
-        $request->validate(['nombre' => 'required|string|max:150']);
+        $request->validate([
+            'nombre'        => 'required|string|max:150',
+            'especialidad'  => 'nullable|string|max:150',
+            'telefono'      => 'nullable|regex:/^[0-9]+$/|max:20',
+            'direccion'     => 'required|string',
+            'observaciones' => 'nullable|string|max:100',
+        ]);
         $taller = Taller::where('uuid', $uuid)->firstOrFail();
         $taller->update($request->only(['nombre', 'especialidad', 'telefono', 'direccion', 'contacto', 'observaciones']));
         Alert::success('Talleres', 'Taller actualizado con éxito.');
@@ -226,8 +251,34 @@ class UnidadPropiaController extends Controller
 
     public function destroyTaller($uuid)
     {
-        Taller::where('uuid', $uuid)->firstOrFail()->delete();
+        $taller = Taller::where('uuid', $uuid)->firstOrFail();
+
+        if ($taller->mantenimientos()->exists()) {
+            Alert::error('Talleres', 'No se puede eliminar: el taller está siendo usado en un mantenimiento.');
+            return back();
+        }
+
+        $taller->delete();
         Alert::success('Talleres', 'Taller eliminado.');
         return back();
+    }
+
+    // Crea un taller desde el modal rápido del form de mantenimiento y devuelve JSON
+    // para inyectar la nueva opción en el <select> sin recargar la página.
+    public function storeTallerAjax(Request $request)
+    {
+        $request->validate([
+            'nombre'        => 'required|string|max:150',
+            'especialidad'  => 'nullable|string|max:150',
+            'telefono'      => 'nullable|regex:/^[0-9]+$/|max:20',
+            'direccion'     => 'required|string',
+            'observaciones' => 'nullable|string|max:100',
+        ]);
+        $taller = Taller::create($request->only(['nombre', 'especialidad', 'telefono', 'direccion', 'contacto', 'observaciones']));
+
+        return response()->json([
+            'ok'   => true,
+            'item' => ['id' => $taller->id, 'nombre' => $taller->nombre],
+        ]);
     }
 }
