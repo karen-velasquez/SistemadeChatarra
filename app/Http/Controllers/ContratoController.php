@@ -32,7 +32,9 @@ class ContratoController extends Controller
     {
         $contratos  = Contrato::with([
                             'proveedor.pais',
-                            'contratoCamiones.tramos',
+                            'contratoCamiones.tramos.tramosHijos',
+                            'contratoCamiones.tramos.cliente',
+                            'contratoCamiones.tramos.camion',
                             'usuarioCreador',
                             'usuarioActualizador',
                         ])
@@ -52,27 +54,122 @@ class ContratoController extends Controller
         $idempotencyToken = Str::uuid()->toString();
         session(['contrato_store_token' => $idempotencyToken]);
 
-        // Datos planos para el botón "Descargar Excel": números reales (no texto
-        // formateado), para que el equipo pueda aplicar fórmulas directamente.
-        $contratosExcelData = $contratos->map(function ($c) {
-            return [
-                'numero_contrato'       => $c->numero_contrato,
-                'tipo_contrato'         => $c->tipo_contrato,
-                'proveedor'             => $c->proveedor->nombre ?? '',
-                'clientes'              => $c->clientes_entregados->pluck('nombre')->implode(', '),
-                'fecha_inicio'          => $c->fecha_inicio?->format('Y-m-d') ?? '',
-                'fecha_fin'             => $c->fecha_fin?->format('Y-m-d') ?? '',
-                'toneladas_contrato'    => (float) $c->toneladas_contrato,
-                'toneladas_entregadas'  => (float) $c->toneladas_entregadas,
-                'toneladas_en_transito' => (float) $c->toneladas_en_transito,
-                'moneda'                => $c->moneda,
-                'monto_total'           => (float) $c->monto_total,
-                'fecha_registro'        => $c->created_at?->format('Y-m-d H:i') ?? '',
-                'registrado_por'        => $c->usuarioCreador->name ?? '',
-                'ultima_edicion'        => $c->updated_at?->format('Y-m-d H:i') ?? '',
-                'editado_por'           => $c->usuarioActualizador->name ?? '',
+        // Datos planos para el botón "Descargar Excel": una fila por cada entrega
+        // (tramo final entregado a un cliente, con su propio precio de venta y placa),
+        // más una fila de subtotal por contrato. Fórmula acordada con el cliente:
+        //   Total ventas   = Tn entregadas x Precio de venta
+        //   Importe compra = Tn entregadas x costo_unitario del contrato (prorrateo por tonelaje)
+        //   Utilidad Bruta = Total ventas - Importe compra
+        //   IT             = Total ventas x 3%
+        //   Comisión 1     = Total ventas x 3%
+        //   Comisión 2 ZPL = Total ventas x 1,1%
+        //   Utilidad Neta  = Utilidad Bruta - IT - Comisión 1 - Comisión 2
+        $contratosExcelData = collect();
+
+        foreach ($contratos as $c) {
+            $entregas = collect();
+            foreach ($c->contratoCamiones as $cc) {
+                foreach ($cc->tramos as $t) {
+                    if ($t->tramosHijos->isNotEmpty() || $t->estado !== 'Entregado') continue;
+                    $entregas->push([
+                        'placa'          => $cc->camion->placa ?? '',
+                        'cliente'        => $t->cliente->nombre ?? '',
+                        'tn_entregadas'  => (float) $t->peso_llegada,
+                        'precio_venta'   => (float) $t->precio_por_tonelada,
+                    ]);
+                }
+            }
+
+            $tnTotales = $entregas->sum('tn_entregadas');
+            $costoUnitario = (float) $c->costo_unitario;
+
+            $filaBase = [
+                'numero_contrato'  => $c->numero_contrato,
+                'tipo_contrato'    => $c->tipo_contrato,
+                'proveedor'        => $c->proveedor->nombre ?? '',
+                'moneda'           => $c->moneda,
             ];
-        })->values();
+
+            $sumaVentas = 0;
+            $sumaCompras = 0;
+            $sumaIt = 0;
+            $sumaCom1 = 0;
+            $sumaCom2 = 0;
+            $sumaUtilNeta = 0;
+
+            foreach ($entregas as $e) {
+                $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
+                $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
+                $utilidadBruta = round($totalVentas - $importeCompra, 2);
+                $it            = round($totalVentas * 0.03, 2);
+                $comision1     = round($totalVentas * 0.03, 2);
+                $comision2     = round($totalVentas * 0.011, 2);
+                $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2, 2);
+
+                $sumaVentas   += $totalVentas;
+                $sumaCompras  += $importeCompra;
+                $sumaIt       += $it;
+                $sumaCom1     += $comision1;
+                $sumaCom2     += $comision2;
+                $sumaUtilNeta += $utilidadNeta;
+
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => $e['placa'],
+                    'cliente'          => $e['cliente'],
+                    'tn_entregadas'    => $e['tn_entregadas'],
+                    'precio_venta'     => $e['precio_venta'],
+                    'total_ventas'     => $totalVentas,
+                    'importe_compra'   => $importeCompra,
+                    'utilidad_bruta'   => $utilidadBruta,
+                    'it_3'             => $it,
+                    'comision_1_3'     => $comision1,
+                    'comision_2_zpl'   => $comision2,
+                    'utilidad_neta'    => $utilidadNeta,
+                    'es_subtotal'      => false,
+                ]);
+            }
+
+            // Fila de subtotal del contrato (solo si tuvo alguna entrega).
+            // numero_contrato se mantiene real (el frontend filtra por él para
+            // saber qué contratos están visibles en pantalla); al armar el Excel
+            // esa columna se vacía y se combina con Tipo/Proveedor en una sola
+            // celda con el texto "SUBTOTAL {número}" (ver _exportarXlsx).
+            if ($entregas->isNotEmpty()) {
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => '',
+                    'cliente'          => 'SUBTOTAL ' . $c->numero_contrato,
+                    'tn_entregadas'    => $tnTotales,
+                    'precio_venta'     => '',
+                    'total_ventas'     => round($sumaVentas, 2),
+                    'importe_compra'   => round($sumaCompras, 2),
+                    'utilidad_bruta'   => round($sumaVentas - $sumaCompras, 2),
+                    'it_3'             => round($sumaIt, 2),
+                    'comision_1_3'     => round($sumaCom1, 2),
+                    'comision_2_zpl'   => round($sumaCom2, 2),
+                    'utilidad_neta'    => round($sumaUtilNeta, 2),
+                    'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos',
+                    'es_subtotal'      => true,
+                ]);
+            } else {
+                // Sin entregas registradas todavía: una fila informativa sin cálculos
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => '',
+                    'cliente'          => '',
+                    'tn_entregadas'    => 0,
+                    'precio_venta'     => '',
+                    'total_ventas'     => '',
+                    'importe_compra'   => '',
+                    'utilidad_bruta'   => '',
+                    'it_3'             => '',
+                    'comision_1_3'     => '',
+                    'comision_2_zpl'   => '',
+                    'utilidad_neta'    => '',
+                    'es_subtotal'      => false,
+                ]);
+            }
+        }
+
+        $contratosExcelData = $contratosExcelData->values();
 
         return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente', 'idempotencyToken', 'contratosExcelData'));
     }

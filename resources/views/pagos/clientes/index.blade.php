@@ -277,7 +277,7 @@
                                             @endif
                                             @if($cobrado == 0)
                                             <li>
-                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}', {{ $t->precio_por_tonelada ?? 'null' }}, {{ $t->peso_llegada ?? 'null' }})">
+                                                <button class="dropdown-item" onclick="abrirModalPrecio({{ $t->id }}, '{{ addslashes($t->cliente->nombre ?? '') }} — {{ addslashes($t->contratoCamion->camion->placa ?? '') }}', '{{ addslashes($t->contratoCamion->contrato->numero_contrato ?? '') }}', {{ $t->precio_por_tonelada ?? 'null' }}, {{ $t->peso_llegada ?? 'null' }}, '{{ $t->fecha_llegada ? $t->fecha_llegada->format('Y-m-d') : '' }}', {{ $t->empresa_facturadora_id ?? 'null' }})">
                                                     <i class="bi bi-pencil text-secondary me-2"></i> Editar precio/t
                                                 </button>
                                             </li>
@@ -362,6 +362,19 @@
                                 <span class="input-group-text">t</span>
                             </div>
                             <small class="text-muted">Corrige el peso registrado al llegar, si fue un error.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Fecha de llegada <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="fecha_llegada" id="precio_fecha_llegada" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Empresa que factura <span class="text-danger">*</span></label>
+                            <select class="form-select" name="empresa_facturadora_id" id="precio_empresa_facturadora" required>
+                                <option value="">Seleccione...</option>
+                                @foreach($empresas as $empresa)
+                                    <option value="{{ $empresa->id }}">{{ $empresa->nombre }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -897,7 +910,7 @@ function filtrarPorCliente(clienteId) {
 }
 
 // ===== Modal precio/tonelada =====
-function abrirModalPrecio(tramoId, label, contrato, precio, toneladas) {
+function abrirModalPrecio(tramoId, label, contrato, precio, toneladas, fechaLlegada, empresaFacturadoraId) {
     document.getElementById('precio_label').textContent    = label;
     document.getElementById('precio_contrato').textContent = 'Contrato: ' + contrato;
     document.getElementById('formPrecio').action = url_global + '/pagos/clientes/' + tramoId + '/precio';
@@ -920,6 +933,9 @@ function abrirModalPrecio(tramoId, label, contrato, precio, toneladas) {
         tnHidden.value = '';
         tnDisp.value   = '';
     }
+
+    document.getElementById('precio_fecha_llegada').value = fechaLlegada || '';
+    document.getElementById('precio_empresa_facturadora').value = empresaFacturadoraId || '';
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPrecio')).show();
 }

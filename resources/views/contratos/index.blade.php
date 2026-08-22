@@ -438,42 +438,67 @@
         );
         const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
 
-        const cols = ['N° CONTRATO','TIPO','PROVEEDOR','CLIENTES','FECHA INICIO','FECHA FIN','TONELADAS CONTRATO','TONELADAS ENTREGADAS','TONELADAS EN TRANSITO','MONEDA','MONTO AL PROVEEDOR','FECHA REGISTRO','REGISTRADO POR','ÚLTIMA EDICIÓN','EDITADO POR'];
-        const dataRows = visibles.map(c => [
-            c.numero_contrato, c.tipo_contrato, c.proveedor, c.clientes, c.fecha_inicio, c.fecha_fin,
-            c.toneladas_contrato, c.toneladas_entregadas, c.toneladas_en_transito,
-            c.moneda, c.monto_total, c.fecha_registro, c.registrado_por, c.ultima_edicion, c.editado_por,
-        ]);
+        const cols = ['N° CONTRATO','TIPO','PROVEEDOR','PLACA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TOTAL VENTAS','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1 (3%)','COMISIÓN 2 ZPL (1,1%)','UTILIDAD NETA','ESTADO ENVÍOS'];
+
+        // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
+        // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
+        // de envíos al final. Una fila en blanco después separa visualmente el
+        // subtotal del siguiente contrato.
+        const dataRows = [];
+        const rowStyles = [];
+        visibles.forEach(c => {
+            if (c.es_subtotal) {
+                dataRows.push([
+                    c.cliente, '', '', c.placa, '', c.moneda,
+                    c.tn_entregadas, c.precio_venta, c.total_ventas, c.importe_compra, c.utilidad_bruta,
+                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.utilidad_neta, c.estado_envios,
+                ]);
+                rowStyles.push('subtotal');
+                dataRows.push(cols.map(() => ''));
+                rowStyles.push(null);
+            } else {
+                dataRows.push([
+                    c.numero_contrato, c.tipo_contrato, c.proveedor, c.placa, c.cliente, c.moneda,
+                    c.tn_entregadas, c.precio_venta, c.total_ventas, c.importe_compra, c.utilidad_bruta,
+                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.utilidad_neta, '',
+                ]);
+                rowStyles.push(null);
+            }
+        });
+
         const tituloLineas = [
             'REGISTRO DE CONTRATOS',
             'Descargado por: {{ addslashes(auth()->user()->name ?? '') }}',
             'Descargado el: {{ now()->format('d/m/Y H:i') }}',
         ];
-        _exportarXlsx(cols, dataRows, 'Contratos', `contratos_{{ date('Ymd_His') }}.xlsx`, tituloLineas);
+        _exportarXlsx(cols, dataRows, 'Contratos', `contratos_{{ date('Ymd_His') }}.xlsx`, tituloLineas, rowStyles);
     }
 
     // ---- Generador XLSX con cabecera estilizada (fondo verde oscuro + texto blanco + negrita) ----
     // tituloLineas (opcional): filas de texto libre antes de la cabecera de columnas
     // (ej. título del reporte, quién y cuándo lo descargó).
-    function _exportarXlsx(headers, rows, sheetName, filename, tituloLineas) {
+    function _exportarXlsx(headers, rows, sheetName, filename, tituloLineas, rowStyles) {
         tituloLineas = tituloLineas || [];
+        rowStyles = rowStyles || [];
         const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
         const styleXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="3">
+  <fonts count="4">
     <font><sz val="11"/><name val="Calibri"/></font>
     <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
     <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><name val="Calibri"/></font>
   </fonts>
-  <fills count="3">
+  <fills count="4">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF1A6B2F"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF3B0"/></patternFill></fill>
   </fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="3">
+  <cellXfs count="4">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
       <alignment horizontal="center" vertical="center"/>
@@ -481,6 +506,7 @@
     <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
+    <xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
   </cellXfs>
 </styleSheet>`;
 
@@ -530,13 +556,14 @@
         sheetData += `</row>`;
         filaActual++;
 
-        rows.forEach((row) => {
+        rows.forEach((row, ri) => {
+            const s = rowStyles[ri] === 'subtotal' ? ' s="3"' : '';
             sheetData += `<row r="${filaActual}">`;
             row.forEach((val, ci) => {
                 if (typeof val === 'number') {
-                    sheetData += `<c r="${colLetter(ci)}${filaActual}"><v>${val}</v></c>`;
+                    sheetData += `<c r="${colLetter(ci)}${filaActual}"${s}><v>${val}</v></c>`;
                 } else {
-                    sheetData += `<c r="${colLetter(ci)}${filaActual}" t="inlineStr"><is><t>${esc(val)}</t></is></c>`;
+                    sheetData += `<c r="${colLetter(ci)}${filaActual}"${s} t="inlineStr"><is><t>${esc(val)}</t></is></c>`;
                 }
             });
             sheetData += `</row>`;

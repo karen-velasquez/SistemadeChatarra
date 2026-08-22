@@ -185,25 +185,31 @@ class PagoClienteController extends Controller
     {
         $tramo = Tramo::findOrFail($id);
         $request->validate([
-            'precio_por_tonelada' => 'required|numeric|min:0.0001',
-            'moneda_venta'        => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
-            'peso_llegada'        => 'required|numeric|min:0.001',
+            'precio_por_tonelada'     => 'required|numeric|min:0.0001',
+            'moneda_venta'            => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
+            'peso_llegada'            => 'required|numeric|min:0.001',
+            'fecha_llegada'           => 'required|date',
+            'empresa_facturadora_id'  => 'required|exists:empresas,id',
         ], [
             'precio_por_tonelada.required' => 'El precio por tonelada es obligatorio.',
             'precio_por_tonelada.min'      => 'El precio debe ser mayor a cero.',
             'moneda_venta.required'        => 'La moneda es obligatoria.',
             'peso_llegada.required'        => 'Las toneladas de llegada son obligatorias.',
             'peso_llegada.min'             => 'Las toneladas deben ser mayores a 0.',
+            'fecha_llegada.required'       => 'La fecha de llegada es obligatoria.',
+            'empresa_facturadora_id.required' => 'Debe seleccionar la empresa que facturará esta entrega.',
         ]);
 
         // Las toneladas solo se pueden corregir aquí mientras no haya ningún
         // cobro registrado (el botón que abre este modal ya lo garantiza:
         // solo aparece cuando $cobrado == 0).
         $tramo->update([
-            'precio_por_tonelada' => $request->precio_por_tonelada,
-            'moneda_venta'        => $request->moneda_venta,
-            'peso_llegada'        => $request->peso_llegada,
-            'updated_by'          => auth()->id(),
+            'precio_por_tonelada'    => $request->precio_por_tonelada,
+            'moneda_venta'           => $request->moneda_venta,
+            'peso_llegada'           => $request->peso_llegada,
+            'fecha_llegada'          => $request->fecha_llegada,
+            'empresa_facturadora_id' => $request->empresa_facturadora_id,
+            'updated_by'             => auth()->id(),
         ]);
 
         Alert::success('Éxito', 'Precio por tonelada registrado correctamente.');
