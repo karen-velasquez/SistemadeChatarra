@@ -25,7 +25,7 @@
                     {"element":"#lp-tabla","intro":"📋 La lista de lotes: fecha, tipo (proveedor o camión), cuenta de origen, método y los códigos.","position":"top"},
                     {"element":"#lp-tabla thead th:nth-child(5)","intro":"🔖 El <b>código provisional</b> lo genera el sistema al crear el lote. El <b>código real</b> es el que confirma el banco después.","position":"bottom"},
                     {"element":"#lp-tabla thead th:nth-child(7)","intro":"🚦 El <b>Estado</b>: <b>Pendiente</b> mientras no haya código real, <b>Confirmado</b> cuando lo registras.","position":"bottom"},
-                    {"element":"#lp-tabla tbody tr:first-child td:last-child","intro":"✏️ Con este botón <b>ingresas o editas el código real</b> del banco para ese lote.","position":"left"}
+                    {"element":"#lp-tabla tbody tr:first-child td:last-child","intro":"⚙️ El botón <b>Opciones</b> de cada lote: ver el Excel formato banco, ingresar/editar el código real, o eliminar el lote.","position":"left"}
                 ]'
                 @endif>
             <i class="bi bi-question-circle"></i>
@@ -105,20 +105,36 @@
                 <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pendiente</span>
               @endif
             </td>
-            <td class="text-nowrap">
-              @can('lotes_pago.edit')
-              <button class="btn btn-outline-primary btn-sm"
-                      onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? $lote->codigo_provisional ?? '' }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
-                <i class="bi bi-pencil-square me-1"></i>
-                {{ $lote->codigo_real ? 'Editar código' : 'Ingresar código' }}
-              </button>
-              @endcan
-              @can('lotes_pago.destroy')
-              <button class="btn btn-outline-danger btn-sm"
-                      onclick="abrirModalEliminarLote('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
-                <i class="bi bi-trash me-1"></i>Eliminar
-              </button>
-              @endcan
+            <td class="text-center">
+              <div class="dropdown">
+                <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <i class="bi bi-list-ul"></i> Opciones
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  @if($lote->tipo !== 'cliente')
+                  <li>
+                    <button class="dropdown-item" onclick="abrirModalExcelLote('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
+                      <i class="bi bi-file-earmark-excel text-success me-2"></i> Ver Excel
+                    </button>
+                  </li>
+                  @endif
+                  @can('lotes_pago.edit')
+                  <li>
+                    <button class="dropdown-item" onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? $lote->codigo_provisional ?? '' }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
+                      <i class="bi bi-pencil-square text-primary me-2"></i> {{ $lote->codigo_real ? 'Editar código' : 'Ingresar código' }}
+                    </button>
+                  </li>
+                  @endcan
+                  @can('lotes_pago.destroy')
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <button class="dropdown-item" onclick="abrirModalEliminarLote('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
+                      <i class="bi bi-trash text-danger me-2"></i> Eliminar
+                    </button>
+                  </li>
+                  @endcan
+                </ul>
+              </div>
             </td>
           </tr>
           @endforeach
@@ -197,9 +213,39 @@
   </div>
 </div>
 
+{{-- Modal de vista previa / descarga del Excel formato banco --}}
+<div class="modal fade" id="modalExcelLote" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-excel me-2"></i>Excel del lote</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-2" id="excel_lbl_info_lote"></p>
+        <div class="mb-3">
+          <button class="btn btn-outline-success btn-sm" id="btn_descargar_excel_lote" onclick="descargarExcelLote()" disabled>
+            <i class="bi bi-download me-1"></i>Descargar Excel
+          </button>
+        </div>
+        <div id="excel_body">
+          <div class="text-center text-muted py-3">
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando datos del lote...
+          </div>
+        </div>
+        <div class="mt-2 text-end" id="excel_lbl_total"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 @endsection
 
 @section('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 function abrirModalCodigo(uuid, codigoActual, tipo, fecha) {
     document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
@@ -279,6 +325,145 @@ function abrirModalEliminarLote(uuid, tipo, fecha) {
         .catch(() => {
             document.getElementById('del_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar el detalle del lote.</div>';
         });
+}
+
+// ===== Ver / descargar Excel formato banco de un lote (proveedor o camión) =====
+let _excelLoteCols  = [];
+let _excelLoteFilas = [];
+let _excelLoteNombre = '';
+
+function abrirModalExcelLote(uuid, tipo, fecha) {
+    document.getElementById('excel_lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
+    document.getElementById('excel_body').innerHTML = `
+        <div class="text-center text-muted py-3">
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando datos del lote...
+        </div>`;
+    document.getElementById('excel_lbl_total').textContent = '';
+    document.getElementById('btn_descargar_excel_lote').disabled = true;
+    _excelLoteNombre = `lote_${tipo.toLowerCase()}_${fecha.replace(/\//g, '')}`;
+
+    new bootstrap.Modal(document.getElementById('modalExcelLote')).show();
+
+    fetch(`${url_global}/api/lotes-pago/${uuid}/excel`)
+        .then(r => r.json())
+        .then(d => {
+            _excelLoteCols  = d.cols;
+            _excelLoteFilas = d.filas;
+
+            let html = `<div class="table-responsive"><table class="table table-bordered table-sm" style="font-size:.8rem">
+                <thead><tr style="background:#1d7a3a;color:#fff;white-space:nowrap">`;
+            d.cols.forEach(c => html += `<th>${c}</th>`);
+            html += `</tr></thead><tbody>`;
+            d.filas.forEach(fila => {
+                html += '<tr>' + fila.map(v => `<td>${v ?? ''}</td>`).join('') + '</tr>';
+            });
+            html += `</tbody></table></div>`;
+
+            document.getElementById('excel_body').innerHTML = html;
+            document.getElementById('excel_lbl_total').innerHTML = `<strong>Total: <span class="text-success">${_fmtLote(d.total, d.moneda)}</span></strong>`;
+            document.getElementById('btn_descargar_excel_lote').disabled = d.filas.length === 0;
+        })
+        .catch(() => {
+            document.getElementById('excel_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar el Excel del lote.</div>';
+        });
+}
+
+function descargarExcelLote() {
+    _exportarXlsxLote(_excelLoteCols, _excelLoteFilas, 'Hoja 1', `${_excelLoteNombre}.xlsx`);
+}
+
+// ---- Generador XLSX con cabecera estilizada (fondo verde oscuro + texto blanco + negrita) ----
+function _exportarXlsxLote(headers, rows, sheetName, filename) {
+    const esc = v => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    const styleXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2">
+    <font><sz val="11"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="3">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1A6B2F"/></patternFill></fill>
+  </fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="2">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+  </cellXfs>
+</styleSheet>`;
+
+    const colLetter = i => { let s='', n=i+1; while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26);} return s; };
+
+    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 19.0, 25.9, 25.9, 25.9];
+    let colsXml = '<cols>';
+    colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
+    colsXml += '</cols>';
+
+    let sheetData = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  ${colsXml}
+  <sheetData>
+    <row r="1">`;
+    headers.forEach((h, ci) => {
+        sheetData += `<c r="${colLetter(ci)}1" t="inlineStr" s="1"><is><t>${esc(h)}</t></is></c>`;
+    });
+    sheetData += `</row>`;
+    rows.forEach((row, ri) => {
+        sheetData += `<row r="${ri+2}">`;
+        row.forEach((val, ci) => {
+            sheetData += `<c r="${colLetter(ci)}${ri+2}" t="inlineStr"><is><t>${esc(val)}</t></is></c>`;
+        });
+        sheetData += `</row>`;
+    });
+    sheetData += `</sheetData></worksheet>`;
+
+    const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="${esc(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+
+    const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+    const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+    const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', contentTypes);
+    zip.folder('_rels').file('.rels', rootRels);
+    const xl = zip.folder('xl');
+    xl.file('workbook.xml', wb);
+    xl.file('styles.xml', styleXml);
+    xl.folder('_rels').file('workbook.xml.rels', rels);
+    xl.folder('worksheets').file('sheet1.xml', sheetData);
+
+    zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+       .then(blob => {
+           const url = URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url; a.download = filename; a.click();
+           URL.revokeObjectURL(url);
+       });
 }
 </script>
 @endsection

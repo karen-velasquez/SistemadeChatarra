@@ -138,6 +138,62 @@ class LotePagoController extends Controller
         ]);
     }
 
+    /**
+     * Reconstruye el Excel formato banco (mismas 16 columnas del pop-up de
+     * Pago Masivo) a partir de los pagos ya guardados del lote, usando la
+     * cuenta bancaria de destino (cuenta_destino_id) tal como quedó en cada
+     * pago al momento de registrarlo. Solo aplica a lotes 'proveedor' y
+     * 'camion' — cobro masivo a clientes nunca generó este formato.
+     */
+    public function excel($uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        abort_if($lote->tipo === 'cliente', 404);
+
+        $pagos = $lote->tipo === 'proveedor'
+            ? $lote->pagosProveedor()->with(['contrato', 'cuentaDestino.banco'])->orderBy('id')->get()
+            : $lote->pagosCamion()->with(['receptor', 'cuentaDestino.banco'])->orderBy('id')->get();
+
+        $filas = $pagos->values()->map(function ($p, $i) use ($lote) {
+            $cta        = $p->cuentaDestino;
+            $banco      = $cta?->banco?->nombre ?? '';
+            $esGanadero = $banco === 'Banco Ganadero';
+            $nombre     = $lote->tipo === 'proveedor'
+                ? ($cta?->nombre_titular ?: ($p->contrato?->proveedor?->nombre ?? ''))
+                : ($cta?->nombre_titular ?: ($p->receptor?->nombre ?? ''));
+            $glosa      = $lote->tipo === 'proveedor'
+                ? 'Pago proveedor ' . ($p->contrato?->numero_contrato ?? '#' . $p->contrato_id)
+                : '';
+
+            return [
+                $i + 1,
+                0,
+                $cta?->numero_cuenta ?? '',
+                $nombre,
+                $cta?->nro_documento ?? '',
+                number_format((float) $p->monto, 2, ',', ''),
+                $p->fecha_pago->format('d/m/Y'),
+                $esGanadero ? 1 : 3,
+                $esGanadero ? 0 : ($p->moneda_pago === 'USD' ? 2 : 1),
+                $esGanadero ? 0 : ($cta?->banco?->codigo_banco ?? ''),
+                $esGanadero ? 0 : ($cta?->sucursal_departamento ?? ''),
+                $glosa,
+                '',
+                $cta?->email_notificacion ?? '',
+                '',
+                '',
+            ];
+        });
+
+        return response()->json([
+            'cols' => ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'],
+            'filas' => $filas,
+            'total' => round($pagos->sum('monto'), 2),
+            'moneda' => $pagos->first()?->moneda_pago ?? 'BOB',
+        ]);
+    }
+
     private function modeloDelLote(LotePago $lote): string
     {
         return match ($lote->tipo) {

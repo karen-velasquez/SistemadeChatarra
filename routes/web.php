@@ -197,6 +197,7 @@ use Illuminate\Support\Facades\Route;
     Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:lotes_pago.edit');
     Route::delete('lotes-pago/{uuid}', [App\Http\Controllers\LotePagoController::class, 'destroy'])->name('lotes_pago.destroy')->middleware('permission:lotes_pago.destroy');
     Route::get('api/lotes-pago/{uuid}/detalle', [App\Http\Controllers\LotePagoController::class, 'detalle'])->name('lotes_pago.detalle')->middleware('permission:lotes_pago.index');
+    Route::get('api/lotes-pago/{uuid}/excel', [App\Http\Controllers\LotePagoController::class, 'excel'])->name('lotes_pago.excel')->middleware('permission:lotes_pago.index');
 
     // Lotes de entrega semanal por proveedor
     Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:lotes_entrega.index');
