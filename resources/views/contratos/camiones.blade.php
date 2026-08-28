@@ -548,7 +548,7 @@
                                         <select class="form-select" name="empresa_facturadora_id" id="sel_empresa_factura">
                                             <option value="">-- Seleccione empresa --</option>
                                             @foreach($empresas as $emp)
-                                                <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                                <option value="{{ $emp->id }}" data-ultimo-precio="{{ $emp->precio_referencia ?? '' }}">{{ $emp->nombre }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -638,7 +638,7 @@
                                                     <select class="form-select" name="empresa_facturadora_id" id="sel_empresa_factura_div">
                                                         <option value="">-- Seleccione empresa --</option>
                                                         @foreach($empresas as $emp)
-                                                            <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                                            <option value="{{ $emp->id }}" data-ultimo-precio="{{ $emp->precio_referencia ?? '' }}">{{ $emp->nombre }}</option>
                                                         @endforeach
                                                     </select>
                                                 </div>
@@ -1001,6 +1001,31 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <a id="modalToggleTramo_btn" href="#" class="btn">Confirmar</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ===== MODAL DESHACER LLEGADA ===== --}}
+<div class="modal fade" id="modalDeshacerLlegada" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise"></i> Deshacer Llegada</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>El tramo volverá a estado <strong>"En ruta"</strong> y se borrarán los datos de la entrega (peso de llegada, fecha, cliente, precio, empresa facturadora). Podrás registrar la llegada de nuevo.</p>
+                <div class="border rounded p-2 bg-light">
+                    <small class="text-muted">Tramo:</small> <strong id="modalDeshacerLlegada_ruta"></strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="modalDeshacerLlegada_form" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-warning">Sí, deshacer llegada</button>
+                </form>
             </div>
         </div>
     </div>
@@ -1543,6 +1568,22 @@ function confirmarToggleTramo(url, placa, ruta, activo) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalToggleTramo')).show();
 }
 
+function confirmarDeshacerLlegada(url, ruta) {
+    document.getElementById('modalDeshacerLlegada_ruta').textContent = ruta;
+    document.getElementById('modalDeshacerLlegada_form').action = url;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDeshacerLlegada')).show();
+}
+
+// Prellena el precio por tonelada con el último cobrado a ese cliente
+// (data-ultimo-precio en la opción, calculado en el controller). Se
+// actualiza cada vez que cambia el cliente.
+function precargarUltimoPrecio(opt, displayId, hiddenId) {
+    const precio = opt ? parseFloat(opt.dataset.ultimoPrecio) : NaN;
+    document.getElementById(hiddenId).value = precio || '';
+    document.getElementById(displayId).value = precio ? window.formatearCajero(precio) : '';
+    calcTotalVenta();
+}
+
 function calcTotalVenta() {
     const accion = document.querySelector('#formLlegada input[name="accion"]:checked')?.value;
     const fmt    = v => new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
@@ -1645,6 +1686,18 @@ function calcTotalVenta() {
             const opt = this.options[this.selectedIndex];
             document.getElementById('inp_direccion_entrega_div').value = opt ? (opt.dataset.direccion ?? '') : '';
             validarFormLlegada();
+        });
+
+        // Precio de venta sugerido según la empresa que facturará (Entregado)
+        document.getElementById('sel_empresa_factura')?.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            precargarUltimoPrecio(opt, 'inp_precio_ton_display', 'inp_precio_ton');
+        });
+
+        // Precio de venta sugerido según la empresa que facturará (Div. Carga)
+        document.getElementById('sel_empresa_factura_div')?.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            precargarUltimoPrecio(opt, 'inp_precio_ton_div_display', 'inp_precio_ton_div');
         });
 
         // Precio por tonelada (Entregado)

@@ -101,6 +101,43 @@ class LotePagoController extends Controller
         }
     }
 
+    /**
+     * Detalle de los pagos que se eliminarían junto con el lote — se
+     * muestra en el modal de confirmación antes de borrar.
+     */
+    public function detalle($uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        $pagos = match ($lote->tipo) {
+            'proveedor' => $lote->pagosProveedor()->with('contrato.proveedor')->get()->map(fn($p) => [
+                'referencia' => $p->contrato?->proveedor?->nombre ?? ('Contrato #' . $p->contrato_id),
+                'monto'      => (float) $p->monto,
+                'moneda'     => $p->moneda_pago,
+                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+            ]),
+            'cliente' => $lote->pagosCliente()->with('tramo.cliente')->get()->map(fn($p) => [
+                'referencia' => $p->tramo?->cliente?->nombre ?? ('Tramo #' . $p->tramo_id),
+                'monto'      => (float) $p->monto,
+                'moneda'     => $p->moneda_pago,
+                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+            ]),
+            default => $lote->pagosCamion()->with('receptor')->get()->map(fn($p) => [
+                'referencia' => $p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'),
+                'monto'      => (float) $p->monto,
+                'moneda'     => $p->moneda_pago,
+                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+            ]),
+        };
+
+        return response()->json([
+            'tipo'        => $lote->tipo,
+            'total_pagos' => $pagos->count(),
+            'total_monto' => round($pagos->sum('monto'), 2),
+            'pagos'       => $pagos->values(),
+        ]);
+    }
+
     private function modeloDelLote(LotePago $lote): string
     {
         return match ($lote->tipo) {
@@ -108,5 +145,32 @@ class LotePagoController extends Controller
             'cliente'   => PagoCliente::class,
             default     => PagoCamion::class,
         };
+    }
+
+    /**
+     * Elimina el lote completo: todos sus pagos y los movimientos de
+     * tesorería asociados. Mismo patrón que el destroy de un pago
+     * individual (PagoProveedorController/PagoClienteController/
+     * PagoCamionController), pero iterado a todos los pagos del lote.
+     * El delete() de cada Movimiento dispara su hook que revierte el
+     * saldo de la cuenta empresa afectada.
+     */
+    public function destroy($uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        DB::transaction(function () use ($lote) {
+            Movimiento::where('lote_pago_id', $lote->id)
+                ->each(fn($m) => $m->delete());
+
+            $this->modeloDelLote($lote)::where('lote_pago_id', $lote->id)
+                ->get()
+                ->each(fn($pago) => $pago->delete());
+
+            $lote->delete();
+        });
+
+        Alert::success('Éxito', 'Lote eliminado: todos sus pagos y movimientos en tesorería fueron revertidos.');
+        return redirect()->route('lotes_pago.index');
     }
 }

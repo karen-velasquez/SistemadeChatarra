@@ -762,36 +762,12 @@
             <div class="modal-body">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
-                        <select class="form-select" id="ec_tipo">
-                            <option value="adelanto">Adelanto</option>
-                            <option value="pago_final">Pago Final</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
                         <label class="form-label fw-semibold">Monto <span class="text-danger">*</span></label>
                         <input type="number" step="0.01" min="0.01" class="form-control" id="ec_monto">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="ec_fecha">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Método <span class="text-danger">*</span></label>
-                        <select class="form-select" id="ec_metodo">
-                            <option value="efectivo">Efectivo</option>
-                            <option value="transferencia">Transferencia</option>
-                            <option value="qr">QR</option>
-                            <option value="cheque">Cheque</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-semibold">Código de referencia</label>
-                        <input type="text" class="form-control" id="ec_codigo" maxlength="100">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Observaciones</label>
-                        <textarea class="form-control" id="ec_obs" rows="2" maxlength="500"></textarea>
                     </div>
                     <div class="col-12">
                         <div class="alert alert-warning small py-2 mb-0">
@@ -949,6 +925,11 @@ function _fmtC4(n) {
 }
 function _parseFmtC(v) {
     return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+function _escP(s) {
+    const d = document.createElement('div');
+    d.textContent = s ?? '';
+    return d.innerHTML;
 }
 
 function _setCamposCobro(habilitado) {
@@ -1230,7 +1211,13 @@ function verDetalle(tramoId) {
                         : '';
                     const acciones = p.anulado
                         ? `<span class="text-muted small"><i class="bi bi-slash-circle me-1"></i>Anulado</span>`
-                        : voucherBtn + (canDeleteCobro
+                        : voucherBtn + (canEditCobro
+                            ? `<button type="button" class="btn btn-sm btn-outline-primary btn-editar-cobro"
+                                   title="Editar"
+                                   data-uuid="${p.uuid}" data-monto="${p.monto}" data-fecha="${p.fecha_raw}">
+                                   <i class="bi bi-pencil"></i>
+                                </button>`
+                            : '') + (canDeleteCobro
                             ? `<a href="/pagos/clientes/${p.uuid}/destroy"
                                    class="btn btn-sm btn-outline-danger"
                                    onclick="return confirm('¿Anular este cobro? Se revertirá el movimiento en tesorería.')">
@@ -1257,15 +1244,7 @@ function verDetalle(tramoId) {
             // Event listeners con data attributes — evita problemas con caracteres especiales
             document.querySelectorAll('.btn-editar-cobro').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    abrirEditarCobro(
-                        btn.dataset.uuid,
-                        btn.dataset.tipo,
-                        btn.dataset.monto,
-                        btn.dataset.fecha,
-                        btn.dataset.metodo,
-                        btn.dataset.codigo,
-                        btn.dataset.obs
-                    );
+                    abrirEditarCobro(btn.dataset.uuid, btn.dataset.monto, btn.dataset.fecha);
                 });
             });
 
@@ -1459,14 +1438,12 @@ function actualizarResumenMasivo() {
 
 let _editarCobroUuid = null;
 
-function abrirEditarCobro(uuid, tipo, monto, fecha, metodo, codigo, obs) {
+// Solo monto y fecha son editables: tipo, método, código y observaciones
+// quedan fijos y no se muestran en este modal.
+function abrirEditarCobro(uuid, monto, fecha) {
     _editarCobroUuid = uuid;
-    document.getElementById('ec_tipo').value   = tipo;
-    document.getElementById('ec_monto').value  = monto;
-    document.getElementById('ec_fecha').value  = fecha;
-    document.getElementById('ec_metodo').value = metodo;
-    document.getElementById('ec_codigo').value = codigo;
-    document.getElementById('ec_obs').value    = obs;
+    document.getElementById('ec_monto').value = monto;
+    document.getElementById('ec_fecha').value = fecha;
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCobro')).show();
 }
 
@@ -1494,24 +1471,22 @@ function guardarEditarCobro() {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
         },
         body: JSON.stringify({
-            tipo_pago:          document.getElementById('ec_tipo').value,
-            monto:              document.getElementById('ec_monto').value,
-            fecha_pago:         document.getElementById('ec_fecha').value,
-            metodo_pago:        document.getElementById('ec_metodo').value,
-            codigo_seguimiento: document.getElementById('ec_codigo').value,
-            observaciones:      document.getElementById('ec_obs').value,
+            monto:      document.getElementById('ec_monto').value,
+            fecha_pago: document.getElementById('ec_fecha').value,
         }),
     })
-    .then(r => r.json())
-    .then(d => {
-        if (d.ok) {
+    .then(async r => {
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.ok) {
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCobro')).hide();
             verDetalle(_detalleTramoId);
         } else {
-            alert('Error al guardar los cambios.');
+            const msg = d.errors ? Object.values(d.errors).flat().join('\n') : (d.message || 'Error al guardar los cambios.');
+            alert(msg);
         }
     })
     .catch(() => alert('Error de conexión.'))

@@ -106,6 +106,19 @@
                         </button>
                     @endif
 
+                    {{-- Deshacer llegada: solo entrega simple, sin hijos, sin cobros ni pagos de flete --}}
+                    @if($tramo->estado === 'Entregado' && !$tramo->tramosHijos()->exists()
+                        && !$tramo->pagosCliente()->whereNull('deleted_at')->exists()
+                        && !$tramo->contratoCamion->pagos()->whereNull('deleted_at')->exists())
+                        <button class="btn btn-sm btn-outline-warning"
+                            onclick="confirmarDeshacerLlegada(
+                                '{{ route('tramo.deshacer_llegada', $tramo->uuid) }}',
+                                '{{ addslashes($tramo->origen) }} → {{ addslashes($tramo->destino) }} ({{ $tramo->camion->placa }})'
+                            )">
+                            <i class="bi bi-arrow-counterclockwise"></i> Deshacer llegada
+                        </button>
+                    @endif
+
                     {{-- Botón agregar transbordo: si está transbordando (aún quedan toneladas) --}}
                     @if($tramo->estado === 'Transbordando')
                         @php

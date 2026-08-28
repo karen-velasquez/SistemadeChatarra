@@ -50,6 +50,7 @@ class EmpresaController extends Controller
         $request->validate([
             'nombre'      => 'required|string|max:150',
             'nit'         => 'required|digits_between:1,15',
+            'precio_referencia' => 'nullable|numeric|min:0',
             'razon_social'=> 'required|string|max:200',
             'direccion'   => 'nullable|string|max:255',
             'telefono'    => 'nullable|digits_between:8,11',
@@ -66,6 +67,7 @@ class EmpresaController extends Controller
         Empresa::create([
             'nombre'       => strtoupper($request->nombre),
             'nit'          => $request->nit,
+            'precio_referencia' => $request->precio_referencia,
             'razon_social' => $request->razon_social,
             'direccion'    => $request->direccion,
             'telefono'     => $request->telefono,
@@ -88,6 +90,7 @@ class EmpresaController extends Controller
         $request->validate([
             'nombre'      => 'required|string|max:150',
             'nit'         => 'required|digits_between:1,15',
+            'precio_referencia' => 'nullable|numeric|min:0',
             'razon_social'=> 'required|string|max:200',
             'direccion'   => 'nullable|string|max:255',
             'telefono'    => 'nullable|digits_between:8,11',
@@ -103,6 +106,7 @@ class EmpresaController extends Controller
         $empresa->update([
             'nombre'       => strtoupper($request->nombre),
             'nit'          => $request->nit,
+            'precio_referencia' => $request->precio_referencia,
             'razon_social' => $request->razon_social,
             'direccion'    => $request->direccion,
             'telefono'     => $request->telefono,

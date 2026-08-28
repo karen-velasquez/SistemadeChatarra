@@ -438,7 +438,7 @@
         );
         const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
 
-        const cols = ['N° CONTRATO','TIPO','PROVEEDOR','PLACA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TOTAL VENTAS','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1 (3%)','COMISIÓN 2 ZPL (1,1%)','UTILIDAD NETA','ESTADO ENVÍOS'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE VENTA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1 (3%)','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA DE REGISTRO','ÚLTIMO EDITOR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -446,25 +446,52 @@
         // subtotal del siguiente contrato.
         const dataRows = [];
         const rowStyles = [];
+        const ventasEntregas = [];
         visibles.forEach(c => {
             if (c.es_subtotal) {
                 dataRows.push([
-                    c.cliente, '', '', c.placa, '', c.moneda,
-                    c.tn_entregadas, c.precio_venta, c.total_ventas, c.importe_compra, c.utilidad_bruta,
-                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.utilidad_neta, c.estado_envios,
+                    c.cliente, c.fecha_contrato, '', '', c.placa, '', c.moneda,
+                    c.tn_entregadas, c.precio_venta, '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
+                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, c.estado_envios,
+                    c.monto_cobrado_cliente, c.codigo_cobro_cliente, c.fecha_cobro_cliente,
+                    c.monto_pagado_proveedor, c.codigo_pago_proveedor, c.fecha_pago_proveedor,
+                    c.fecha_registro, c.ultimo_editor,
                 ]);
-                rowStyles.push('subtotal');
+                rowStyles.push(
+                    c.estado_envios === 'Envíos cerrados' ? 'subtotal_cerrado' :
+                    (c.estado_envios && c.estado_envios.includes('SIN ENVIOS') ? 'subtotal_sin_envios' : 'subtotal_abierto')
+                );
                 dataRows.push(cols.map(() => ''));
                 rowStyles.push(null);
             } else {
                 dataRows.push([
-                    c.numero_contrato, c.tipo_contrato, c.proveedor, c.placa, c.cliente, c.moneda,
-                    c.tn_entregadas, c.precio_venta, c.total_ventas, c.importe_compra, c.utilidad_bruta,
-                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.utilidad_neta, '',
+                    c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.cliente, c.moneda,
+                    c.tn_entregadas, c.precio_venta, c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
+                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, '', '', '', '', '', '', '',
+                    c.fecha_registro, c.ultimo_editor,
                 ]);
                 rowStyles.push(null);
+                if (typeof c.total_ventas === 'number') ventasEntregas.push(c.total_ventas);
             }
         });
+
+        // Filas finales: total y promedio de Total Ventas de todas las entregas visibles
+        if (ventasEntregas.length > 0) {
+            const totalVentasGeneral = ventasEntregas.reduce((a, b) => a + b, 0);
+            const promedioVentas     = totalVentasGeneral / ventasEntregas.length;
+
+            const filaTotal = cols.map(() => '');
+            filaTotal[5]  = 'TOTAL VENTAS GENERAL';
+            filaTotal[11] = Math.round(totalVentasGeneral * 100) / 100;
+            dataRows.push(filaTotal);
+            rowStyles.push('subtotal_cerrado');
+
+            const filaPromedio = cols.map(() => '');
+            filaPromedio[5]  = 'PROMEDIO TOTAL VENTAS';
+            filaPromedio[11] = Math.round(promedioVentas * 100) / 100;
+            dataRows.push(filaPromedio);
+            rowStyles.push('subtotal_cerrado');
+        }
 
         const tituloLineas = [
             'REGISTRO DE CONTRATOS',
@@ -490,15 +517,17 @@
     <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
     <font><b/><sz val="11"/><name val="Calibri"/></font>
   </fonts>
-  <fills count="4">
+  <fills count="6">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF1A6B2F"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FFFFF3B0"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFC6E7C6"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/></patternFill></fill>
   </fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="4">
+  <cellXfs count="6">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
       <alignment horizontal="center" vertical="center"/>
@@ -507,6 +536,8 @@
       <alignment horizontal="center" vertical="center"/>
     </xf>
     <xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
+    <xf numFmtId="0" fontId="3" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
+    <xf numFmtId="0" fontId="3" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
   </cellXfs>
 </styleSheet>`;
 
@@ -557,7 +588,9 @@
         filaActual++;
 
         rows.forEach((row, ri) => {
-            const s = rowStyles[ri] === 'subtotal' ? ' s="3"' : '';
+            const s = rowStyles[ri] === 'subtotal_cerrado' ? ' s="4"' :
+                (rowStyles[ri] === 'subtotal_abierto' ? ' s="3"' :
+                (rowStyles[ri] === 'subtotal_sin_envios' ? ' s="5"' : ''));
             sheetData += `<row r="${filaActual}">`;
             row.forEach((val, ci) => {
                 if (typeof val === 'number') {

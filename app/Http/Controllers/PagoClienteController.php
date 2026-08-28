@@ -212,6 +212,11 @@ class PagoClienteController extends Controller
             'updated_by'             => auth()->id(),
         ]);
 
+        \App\Models\Empresa::actualizarPrecioReferencia(
+            (int) $request->empresa_facturadora_id,
+            (float) $request->precio_por_tonelada
+        );
+
         Alert::success('Éxito', 'Precio por tonelada registrado correctamente.');
         return redirect()->route('pagos.clientes.index');
     }
@@ -404,16 +409,8 @@ class PagoClienteController extends Controller
         $pago = PagoCliente::where('uuid', $uuid)->firstOrFail();
 
         $request->validate([
-            'tipo_pago'   => 'required|in:adelanto,pago_final',
-            'monto'       => 'required|numeric|min:0.01',
-            'fecha_pago'  => 'required|date',
-            'metodo_pago' => 'required|in:efectivo,transferencia,qr,cheque',
-            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) use ($pago) {
-                if (!$this->codigoDisponible($value, $pago->id, PagoCliente::class)) {
-                    $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
-                }
-            }],
-            'observaciones'      => 'nullable|string|max:500',
+            'monto'      => 'required|numeric|min:0.01',
+            'fecha_pago' => 'required|date',
         ]);
 
         $montoAnterior = $pago->monto;
@@ -421,13 +418,9 @@ class PagoClienteController extends Controller
 
         DB::transaction(function () use ($request, $pago, $montoAnterior, $diferencia) {
             $pago->update([
-                'tipo_pago'          => $request->tipo_pago,
-                'monto'              => $request->monto,
-                'fecha_pago'         => $request->fecha_pago,
-                'metodo_pago'        => $request->metodo_pago,
-                'codigo_seguimiento' => $request->codigo_seguimiento ?: $pago->codigo_seguimiento,
-                'observaciones'      => $request->observaciones,
-                'updated_by'         => auth()->id(),
+                'monto'      => $request->monto,
+                'fecha_pago' => $request->fecha_pago,
+                'updated_by' => auth()->id(),
             ]);
 
             // Ajuste en tesorería solo si el monto cambió
@@ -458,6 +451,7 @@ class PagoClienteController extends Controller
                         'monto_bolivianos'  => abs($diferencia) * $pago->tipo_cambio,
                         'fecha'             => now()->toDateString(),
                         'concepto'          => 'Ajuste cobro cliente — ' . ($pago->codigo_seguimiento ?? 'uuid:' . $pago->uuid),
+                        'codigo_seguimiento'=> $pago->codigo_seguimiento,
                         'observaciones'     => 'Monto anterior: ' . $pago->moneda_pago . ' ' . number_format($montoAnterior, 2) . ' → nuevo: ' . $pago->moneda_pago . ' ' . number_format($request->monto, 2),
                         'origen_type'       => PagoCliente::class,
                         'origen_id'         => $pago->id,

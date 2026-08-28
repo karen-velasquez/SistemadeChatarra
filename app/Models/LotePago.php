@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LotePago extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'lotes_pago';
 
     protected $fillable = [

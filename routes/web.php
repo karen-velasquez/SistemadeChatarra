@@ -141,6 +141,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('tramo/{uuid}/edit',[App\Http\Controllers\TramoController::class,'edit'])->name('tramo.edit')->middleware('permission:contratos.edit');
     Route::put('tramo/{uuid}',[App\Http\Controllers\TramoController::class,'update'])->name('tramo.update')->middleware('permission:contratos.edit');
     Route::post('tramo/{uuid}/llegada',[App\Http\Controllers\TramoController::class,'registrarLlegada'])->name('tramo.llegada')->middleware('permission:contratos.edit');
+    Route::post('tramo/{uuid}/deshacer-llegada',[App\Http\Controllers\TramoController::class,'deshacerLlegada'])->name('tramo.deshacer_llegada')->middleware('permission:contratos.edit');
     Route::get('tramo/{uuid}/toggle-activo',[App\Http\Controllers\TramoController::class,'toggleActivo'])->name('tramo.toggle-activo')->middleware('permission:contratos.edit');
     Route::get('tramo/{uuid}/nota-entrega',[App\Http\Controllers\TramoController::class,'notaEntrega'])->name('tramo.nota-entrega')->middleware('permission:contratos.index');
     Route::get('tramo/{uuid}/documento-entrega',[App\Http\Controllers\TramoController::class,'verDocumentoEntrega'])->name('tramo.documento-entrega')->middleware('permission:contratos.index');
@@ -194,6 +195,8 @@ use Illuminate\Support\Facades\Route;
     Route::get('lotes-pago', [App\Http\Controllers\LotePagoController::class, 'index'])->name('lotes_pago.index')->middleware('permission:pagos_camiones.index');
     Route::get('api/lotes-pago/verificar-codigo', [App\Http\Controllers\LotePagoController::class, 'verificarCodigo'])->name('lotes_pago.verificar_codigo')->middleware('permission:pagos_camiones.index');
     Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:pagos_camiones.create');
+    Route::delete('lotes-pago/{uuid}', [App\Http\Controllers\LotePagoController::class, 'destroy'])->name('lotes_pago.destroy')->middleware('permission:pagos_camiones.destroy');
+    Route::get('api/lotes-pago/{uuid}/detalle', [App\Http\Controllers\LotePagoController::class, 'detalle'])->name('lotes_pago.detalle')->middleware('permission:pagos_camiones.destroy');
 
     // Lotes de entrega semanal por proveedor
     Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:lotes_entrega.index');

@@ -13,7 +13,7 @@ class Empresa extends Model
     protected $table = 'empresas';
 
     protected $fillable = [
-        'uuid', 'nombre', 'nit', 'razon_social', 'direccion',
+        'uuid', 'nombre', 'nit', 'precio_referencia', 'razon_social', 'direccion',
         'telefono', 'email', 'logo', 'activo', 'created_by', 'updated_by',
     ];
 
@@ -49,5 +49,18 @@ class Empresa extends Model
             ->exists();
 
         return !$tieneCuentasConMovimientos;
+    }
+
+    // Precio sugerido por empresa facturadora: se autoactualiza cuando se
+    // registra/edita una entrega con un precio distinto al guardado, para
+    // que la próxima sugerencia ya refleje el precio más reciente facturado.
+    public static function actualizarPrecioReferencia(?int $empresaId, ?float $precio): void
+    {
+        if (!$empresaId || !$precio) return;
+        static::where('id', $empresaId)
+            ->where(function ($q) use ($precio) {
+                $q->whereNull('precio_referencia')->orWhere('precio_referencia', '!=', $precio);
+            })
+            ->update(['precio_referencia' => $precio]);
     }
 }

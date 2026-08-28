@@ -1186,7 +1186,7 @@
                                         <select class="form-select" name="empresa_facturadora_id" id="seg_sel_empresa_factura">
                                             <option value="">-- Seleccione empresa --</option>
                                             @foreach($empresas as $emp)
-                                                <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                                <option value="{{ $emp->id }}" data-ultimo-precio="{{ $emp->precio_referencia ?? '' }}">{{ $emp->nombre }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -1270,7 +1270,7 @@
                                                     <select class="form-select" name="empresa_facturadora_id" id="seg_sel_empresa_factura_div">
                                                         <option value="">-- Seleccione empresa --</option>
                                                         @foreach($empresas as $emp)
-                                                            <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                                                            <option value="{{ $emp->id }}" data-ultimo-precio="{{ $emp->precio_referencia ?? '' }}">{{ $emp->nombre }}</option>
                                                         @endforeach
                                                     </select>
                                                 </div>
@@ -1989,6 +1989,16 @@ function abrirModalFlete(ccUuid, label) {
         document.getElementById('seg_aviso_peso_requerido').style.display = tiene ? 'none' : '';
     }
 
+    // Prellena el precio por tonelada con el último cobrado a ese cliente
+    // (data-ultimo-precio en la opción, calculado en el controller). Se
+    // actualiza cada vez que cambia el cliente.
+    function segPrecargarUltimoPrecio(opt, displayId, hiddenId) {
+        var precio = opt ? parseFloat(opt.dataset.ultimoPrecio) : NaN;
+        document.getElementById(hiddenId).value = precio || '';
+        document.getElementById(displayId).value = precio ? formatear(precio) : '';
+        segCalcTotalVenta();
+    }
+
     function segCalcTotalVenta() {
         // La moneda va en el texto porque su selector está oculto (siempre BOB)
         // Los inputs *_hidden ya son números planos (ej. "3528.72"): usar parseFloat,
@@ -2035,6 +2045,17 @@ function abrirModalFlete(ccUuid, label) {
             var opt = this.options[this.selectedIndex];
             document.getElementById('seg_inp_direccion_entrega_div').value = opt ? (opt.dataset.direccion ?? '') : '';
             validarFormLlegadaSeg();
+        });
+
+        // Precio de venta sugerido según la empresa que facturará (entregado)
+        document.getElementById('seg_sel_empresa_factura').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            segPrecargarUltimoPrecio(opt, 'seg_inp_precio_ton_display', 'seg_inp_precio_ton');
+        });
+        // Precio de venta sugerido según la empresa que facturará (div. carga)
+        document.getElementById('seg_sel_empresa_factura_div').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            segPrecargarUltimoPrecio(opt, 'seg_inp_precio_ton_div_display', 'seg_inp_precio_ton_div');
         });
 
         var modal = document.getElementById('modalLlegada');

@@ -105,12 +105,18 @@
                 <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pendiente</span>
               @endif
             </td>
-            <td>
+            <td class="text-nowrap">
               @can('pagos_camiones.create')
               <button class="btn btn-outline-primary btn-sm"
                       onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? $lote->codigo_provisional ?? '' }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
                 <i class="bi bi-pencil-square me-1"></i>
                 {{ $lote->codigo_real ? 'Editar código' : 'Ingresar código' }}
+              </button>
+              @endcan
+              @can('pagos_camiones.destroy')
+              <button class="btn btn-outline-danger btn-sm"
+                      onclick="abrirModalEliminarLote('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
+                <i class="bi bi-trash me-1"></i>Eliminar
               </button>
               @endcan
             </td>
@@ -153,6 +159,40 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+{{-- Modal de confirmación para eliminar lote --}}
+<div class="modal fade" id="modalEliminarLote" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Eliminar lote de pago</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2" id="del_lbl_info_lote"></p>
+        <div id="del_body">
+          <div class="text-center text-muted py-3">
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
+          </div>
+        </div>
+        <div class="alert alert-warning small py-2 mb-0 mt-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Se eliminarán todos los pagos listados y se revertirán sus movimientos en tesorería. Esta acción no se puede deshacer desde aquí.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <form id="form_eliminar_lote" method="POST">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="btn btn-danger" id="btn_confirmar_eliminar_lote">
+            <i class="bi bi-trash me-1"></i>Sí, eliminar lote
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </div>
@@ -204,5 +244,41 @@ document.getElementById('form_codigo').addEventListener('submit', async function
             this.submit();
         });
 });
+
+// ===== Eliminar lote: modal con detalle de pagos antes de confirmar =====
+const _fmtLote = (n, mon) => `${mon} ${new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)}`;
+
+function abrirModalEliminarLote(uuid, tipo, fecha) {
+    document.getElementById('del_lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
+    document.getElementById('form_eliminar_lote').action = `${url_global}/lotes-pago/${uuid}`;
+    document.getElementById('del_body').innerHTML = `
+        <div class="text-center text-muted py-3">
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
+        </div>`;
+    document.getElementById('btn_confirmar_eliminar_lote').disabled = true;
+
+    new bootstrap.Modal(document.getElementById('modalEliminarLote')).show();
+
+    fetch(`${url_global}/api/lotes-pago/${uuid}/detalle`)
+        .then(r => r.json())
+        .then(d => {
+            let html = `<p class="small text-muted mb-2">Se eliminarán <strong>${d.total_pagos}</strong> pago(s):</p>`;
+            if (d.pagos.length > 0) {
+                html += `<div class="table-responsive" style="max-height:300px;overflow-y:auto;">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="table-light"><tr><th>Referencia</th><th class="text-end">Monto</th><th>Fecha</th></tr></thead>
+                        <tbody>`;
+                d.pagos.forEach(p => {
+                    html += `<tr><td>${p.referencia}</td><td class="text-end">${_fmtLote(p.monto, p.moneda)}</td><td>${p.fecha}</td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+            }
+            document.getElementById('del_body').innerHTML = html;
+            document.getElementById('btn_confirmar_eliminar_lote').disabled = false;
+        })
+        .catch(() => {
+            document.getElementById('del_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar el detalle del lote.</div>';
+        });
+}
 </script>
 @endsection

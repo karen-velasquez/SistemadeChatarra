@@ -484,6 +484,12 @@
                         </div>
 
                         <div class="col-md-6">
+                            <label class="form-label">Precio de referencia (BOB/t)</label>
+                            <input type="number" step="0.01" min="0" name="precio_referencia" id="precio_referencia" class="form-control" placeholder="Ej. 3500.00">
+                            <small class="text-muted">Precio por tonelada sugerido al registrar una entrega facturada por esta empresa. Se actualiza solo si se factura con un precio distinto.</small>
+                        </div>
+
+                        <div class="col-md-6">
                             <label class="form-label">Teléfono</label>
                             <div class="input-group">
                                 <select id="tel_pais" class="form-select flex-grow-0" style="width:115px; min-width:115px; max-width:115px;"
@@ -902,6 +908,7 @@ function editarEmpresa(uuid) {
             document.getElementById('nit').value                = e.nit ?? '';
             document.getElementById('nit_contador').textContent = (e.nit ?? '').length + ' / 15';
             document.getElementById('razon_social').value       = e.razon_social ?? '';
+            document.getElementById('precio_referencia').value  = e.precio_referencia ?? '';
             document.getElementById('telefono').value           = e.telefono ?? '';
             document.getElementById('email').value              = e.email ?? '';
             document.getElementById('direccion').value          = e.direccion ?? '';

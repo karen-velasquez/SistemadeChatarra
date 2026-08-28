@@ -35,6 +35,8 @@ class ContratoController extends Controller
                             'contratoCamiones.tramos.tramosHijos',
                             'contratoCamiones.tramos.cliente',
                             'contratoCamiones.tramos.camion',
+                            'contratoCamiones.tramos.pagosCliente',
+                            'pagosProveedor',
                             'usuarioCreador',
                             'usuarioActualizador',
                         ])
@@ -63,11 +65,16 @@ class ContratoController extends Controller
         //   IT             = Total ventas x 3%
         //   Comisión 1     = Total ventas x 3%
         //   Comisión 2 ZPL = Total ventas x 1,1%
-        //   Utilidad Neta  = Utilidad Bruta - IT - Comisión 1 - Comisión 2
+        //   Costo adicional Minxin = 25 USD x 6.96 = 174 Bs por tramo entregado a Minxin
+        //   Utilidad Neta  = Utilidad Bruta - IT - Comisión 1 - Comisión 2 - Costo adicional
+        $costoAdicionalMinxin = 174; // 25 USD x 6.96
         $contratosExcelData = collect();
 
         foreach ($contratos as $c) {
             $entregas = collect();
+            $montoCobradoCliente = 0;
+            $codigosCobroCliente = [];
+            $fechasCobroCliente = [];
             foreach ($c->contratoCamiones as $cc) {
                 foreach ($cc->tramos as $t) {
                     if ($t->tramosHijos->isNotEmpty() || $t->estado !== 'Entregado') continue;
@@ -76,8 +83,24 @@ class ContratoController extends Controller
                         'cliente'        => $t->cliente->nombre ?? '',
                         'tn_entregadas'  => (float) $t->peso_llegada,
                         'precio_venta'   => (float) $t->precio_por_tonelada,
+                        'fecha_entrega'  => $t->fecha_llegada?->format('d/m/Y') ?? '',
                     ]);
+                    foreach ($t->pagosCliente as $p) {
+                        if ($p->deleted_at) continue;
+                        $montoCobradoCliente += (float) $p->monto;
+                        if ($p->codigo_seguimiento) $codigosCobroCliente[] = $p->codigo_seguimiento;
+                        if ($p->fecha_pago) $fechasCobroCliente[] = $p->fecha_pago->format('d/m/Y');
+                    }
                 }
+            }
+            $montoPagadoProveedor = 0;
+            $codigosPagoProveedor = [];
+            $fechasPagoProveedor = [];
+            foreach ($c->pagosProveedor as $p) {
+                if ($p->deleted_at) continue;
+                $montoPagadoProveedor += (float) $p->monto;
+                if ($p->codigo_seguimiento) $codigosPagoProveedor[] = $p->codigo_seguimiento;
+                if ($p->fecha_pago) $fechasPagoProveedor[] = $p->fecha_pago->format('d/m/Y');
             }
 
             $tnTotales = $entregas->sum('tn_entregadas');
@@ -85,9 +108,12 @@ class ContratoController extends Controller
 
             $filaBase = [
                 'numero_contrato'  => $c->numero_contrato,
+                'fecha_contrato'   => $c->fecha_inicio?->format('d/m/Y') ?? '',
                 'tipo_contrato'    => $c->tipo_contrato,
                 'proveedor'        => $c->proveedor->nombre ?? '',
                 'moneda'           => $c->moneda,
+                'fecha_registro'   => $c->created_at?->format('d/m/Y H:i') ?? '',
+                'ultimo_editor'    => $c->usuarioActualizador->name ?? ($c->usuarioCreador->name ?? ''),
             ];
 
             $sumaVentas = 0;
@@ -95,6 +121,7 @@ class ContratoController extends Controller
             $sumaIt = 0;
             $sumaCom1 = 0;
             $sumaCom2 = 0;
+            $sumaCostoAdicional = 0;
             $sumaUtilNeta = 0;
 
             foreach ($entregas as $e) {
@@ -104,13 +131,15 @@ class ContratoController extends Controller
                 $it            = round($totalVentas * 0.03, 2);
                 $comision1     = round($totalVentas * 0.03, 2);
                 $comision2     = round($totalVentas * 0.011, 2);
-                $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2, 2);
+                $costoAdicional = stripos($e['cliente'], 'Minxin') !== false ? $costoAdicionalMinxin : 0;
+                $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2 - $costoAdicional, 2);
 
                 $sumaVentas   += $totalVentas;
                 $sumaCompras  += $importeCompra;
                 $sumaIt       += $it;
                 $sumaCom1     += $comision1;
                 $sumaCom2     += $comision2;
+                $sumaCostoAdicional += $costoAdicional;
                 $sumaUtilNeta += $utilidadNeta;
 
                 $contratosExcelData->push($filaBase + [
@@ -118,18 +147,21 @@ class ContratoController extends Controller
                     'cliente'          => $e['cliente'],
                     'tn_entregadas'    => $e['tn_entregadas'],
                     'precio_venta'     => $e['precio_venta'],
+                    'fecha_entrega'    => $e['fecha_entrega'],
                     'total_ventas'     => $totalVentas,
+                    'precio_compra'    => $costoUnitario,
                     'importe_compra'   => $importeCompra,
                     'utilidad_bruta'   => $utilidadBruta,
                     'it_3'             => $it,
                     'comision_1_3'     => $comision1,
                     'comision_2_zpl'   => $comision2,
+                    'costo_adicional'  => $costoAdicional,
                     'utilidad_neta'    => $utilidadNeta,
                     'es_subtotal'      => false,
                 ]);
             }
 
-            // Fila de subtotal del contrato (solo si tuvo alguna entrega).
+            // Fila de subtotal del contrato (siempre, tenga o no entregas).
             // numero_contrato se mantiene real (el frontend filtra por él para
             // saber qué contratos están visibles en pantalla); al armar el Excel
             // esa columna se vacía y se combina con Tipo/Proveedor en una sola
@@ -141,30 +173,66 @@ class ContratoController extends Controller
                     'tn_entregadas'    => $tnTotales,
                     'precio_venta'     => '',
                     'total_ventas'     => round($sumaVentas, 2),
+                    'precio_compra'    => '',
                     'importe_compra'   => round($sumaCompras, 2),
                     'utilidad_bruta'   => round($sumaVentas - $sumaCompras, 2),
                     'it_3'             => round($sumaIt, 2),
                     'comision_1_3'     => round($sumaCom1, 2),
                     'comision_2_zpl'   => round($sumaCom2, 2),
+                    'costo_adicional'  => round($sumaCostoAdicional, 2),
                     'utilidad_neta'    => round($sumaUtilNeta, 2),
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos',
+                    'monto_cobrado_cliente'   => round($montoCobradoCliente, 2),
+                    'codigo_cobro_cliente'    => implode(', ', $codigosCobroCliente),
+                    'fecha_cobro_cliente'     => implode(', ', $fechasCobroCliente),
+                    'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
+                    'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
+                    'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
                     'es_subtotal'      => true,
                 ]);
             } else {
-                // Sin entregas registradas todavía: una fila informativa sin cálculos
+                // Sin entregas registradas todavía: primero una fila normal con
+                // los datos del contrato (Tipo/Proveedor visibles), y debajo su
+                // SUBTOTAL en 0, igual que los contratos que sí tuvieron entregas.
                 $contratosExcelData->push($filaBase + [
                     'placa'            => '',
                     'cliente'          => '',
                     'tn_entregadas'    => 0,
                     'precio_venta'     => '',
+                    'fecha_entrega'    => '',
                     'total_ventas'     => '',
+                    'precio_compra'    => '',
                     'importe_compra'   => '',
                     'utilidad_bruta'   => '',
                     'it_3'             => '',
                     'comision_1_3'     => '',
                     'comision_2_zpl'   => '',
+                    'costo_adicional'  => '',
                     'utilidad_neta'    => '',
                     'es_subtotal'      => false,
+                ]);
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => '',
+                    'cliente'          => 'SUBTOTAL ' . $c->numero_contrato,
+                    'tn_entregadas'    => 0,
+                    'precio_venta'     => '',
+                    'total_ventas'     => 0,
+                    'precio_compra'    => '',
+                    'importe_compra'   => 0,
+                    'utilidad_bruta'   => 0,
+                    'it_3'             => 0,
+                    'comision_1_3'     => 0,
+                    'comision_2_zpl'   => 0,
+                    'costo_adicional'  => 0,
+                    'utilidad_neta'    => 0,
+                    'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos - SIN ENVIOS',
+                    'monto_cobrado_cliente'   => round($montoCobradoCliente, 2),
+                    'codigo_cobro_cliente'    => implode(', ', $codigosCobroCliente),
+                    'fecha_cobro_cliente'     => implode(', ', $fechasCobroCliente),
+                    'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
+                    'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
+                    'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
+                    'es_subtotal'      => true,
                 ]);
             }
         }

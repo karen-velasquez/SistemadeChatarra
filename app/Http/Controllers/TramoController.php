@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tramo;
 use App\Models\ContratoCamion;
+use App\Models\Empresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -119,6 +120,13 @@ class TramoController extends Controller
             'lote_entrega_id'        => $request->lote_entrega_id,
         ]);
 
+        if ($nuevoEstado === 'Entregado') {
+            Empresa::actualizarPrecioReferencia(
+                $request->empresa_facturadora_id ?: null,
+                $request->precio_por_tonelada ? (float) $request->precio_por_tonelada : null
+            );
+        }
+
         // División de carga: generar dos hijos automáticamente
         if ($esDivision) {
             $tnCliente1 = (float) $request->tn_parcial;
@@ -156,6 +164,11 @@ class TramoController extends Controller
                 'created_by'             => auth()->id(),
                 'updated_by'             => auth()->id(),
             ]);
+
+            Empresa::actualizarPrecioReferencia(
+                $request->empresa_facturadora_id ?: null,
+                $request->precio_por_tonelada ? (float) $request->precio_por_tonelada : null
+            );
 
             // Hijo 2 — nuevo CC propio con flete vacío (el usuario lo confirmará después)
             $cc2 = ContratoCamion::create([
@@ -236,6 +249,62 @@ class TramoController extends Controller
         return $desdeSegimiento
             ? redirect()->route('seguimiento.index')
             : redirect()->route('contratos.camiones', $contratoUuidLlegada);
+    }
+
+    // Deshacer una llegada ya registrada, volviendo el tramo a "En ruta" para
+    // corregir datos. Solo se permite en el caso simple: sin cobro al cliente,
+    // sin pago de flete en su ContratoCamion, y sin haber dividido la carga
+    // (Div. Carga genera tramos/CC hijos con vida propia — no es revertible
+    // de forma segura desde aquí).
+    public function deshacerLlegada($uuid)
+    {
+        $tramo = Tramo::where('uuid', $uuid)->firstOrFail();
+        $desdeSegimiento = request('origen') === 'seguimiento';
+        $contratoUuid = $tramo->contratoCamion->contrato->uuid;
+        $rutaRetorno = $desdeSegimiento
+            ? redirect()->route('seguimiento.index')
+            : redirect()->route('contratos.camiones', $contratoUuid);
+
+        if ($tramo->estado !== 'Entregado') {
+            Alert::error('No permitido', 'Solo se puede deshacer la llegada de un tramo Entregado.');
+            return $rutaRetorno;
+        }
+
+        if ($tramo->tramosHijos()->exists()) {
+            Alert::error('No permitido', 'Este tramo tiene sub-tramos generados (división de carga o transbordo). No se puede deshacer desde aquí.');
+            return $rutaRetorno;
+        }
+
+        if ($tramo->pagosCliente()->whereNull('deleted_at')->exists()) {
+            Alert::error('No permitido', 'Este tramo ya tiene cobros registrados al cliente. No se puede deshacer la llegada.');
+            return $rutaRetorno;
+        }
+
+        $cc = $tramo->contratoCamion;
+        if ($cc->pagos()->whereNull('deleted_at')->exists()) {
+            Alert::error('No permitido', 'Ya hay pagos de flete registrados para este camión. No se puede deshacer la llegada.');
+            return $rutaRetorno;
+        }
+
+        $tramo->update([
+            'estado'                 => 'En ruta',
+            'peso_llegada'           => null,
+            'fecha_llegada'          => null,
+            'cliente_id'             => null,
+            'direccion_entrega'      => null,
+            'empresa_facturadora_id' => null,
+            'precio_por_tonelada'    => null,
+            'moneda_venta'           => null,
+            'descuento_porcentaje'   => null,
+            'observaciones_llegada'  => null,
+        ]);
+
+        if ($cc->estado_entrega === 'Entregado') {
+            $cc->update(['estado_entrega' => 'Pendiente']);
+        }
+
+        Alert::success('Deshecho', 'La llegada fue revertida. El camión vuelve a estar "En ruta" para registrar la llegada de nuevo.');
+        return $rutaRetorno;
     }
 
     // Crear tramo hijo (transbordo desde un tramo en frontera)
