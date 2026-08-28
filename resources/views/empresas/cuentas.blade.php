@@ -26,7 +26,7 @@
                     ]'>
                 <i class="bi bi-question-circle"></i>
             </button>
-            @can('empresas.create')
+            @can('cuentas_bancarias.create')
             <button id="btnNuevaCuentaEmp" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCuenta">
                 <i class="bi bi-plus-lg"></i> Nueva Cuenta
             </button>

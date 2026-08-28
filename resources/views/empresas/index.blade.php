@@ -132,7 +132,7 @@
                                         <i class="bi bi-graph-up-arrow me-2"></i> Ver Movimientos
                                     </a>
                                 </li>
-                                @can('empresas.create')
+                                @can('cuentas_bancarias.create')
                                 <li>
                                     <button class="dropdown-item" onclick="abrirModalCuenta('{{ $empresa->uuid }}', '{{ addslashes($empresa->nombre) }}')">
                                         <i class="bi bi-plus-circle me-2 text-success"></i> Nueva Cuenta
@@ -241,7 +241,7 @@
                                         @endif
                                     </div>
                                     <div class="d-flex flex-column gap-1">
-                                        @can('empresas.edit')
+                                        @can('cuentas_bancarias.edit')
                                         <button class="btn btn-outline-secondary btn-sm p-0 px-1"
                                                 onclick="editarCuenta('{{ $cuenta->uuid }}')"
                                                 title="Editar cuenta"
@@ -249,7 +249,7 @@
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         @endcan
-                                        @can('empresas.destroy')
+                                        @can('cuentas_bancarias.destroy')
                                             @if($cuenta->puedeEliminar())
                                             <a class="btn btn-outline-danger btn-sm p-0 px-1"
                                                href="{{ route('empresas.cuenta.destroy', $cuenta->uuid) }}"
@@ -275,7 +275,7 @@
                     <div class="text-center text-muted py-3 flex-grow-1 d-flex flex-column align-items-center justify-content-center">
                         <i class="bi bi-wallet2 fs-3 mb-1"></i>
                         <div class="small">Sin cuentas registradas</div>
-                        @can('empresas.create')
+                        @can('cuentas_bancarias.create')
                         <button class="btn btn-sm btn-outline-primary mt-2"
                             onclick="abrirModalCuenta('{{ $empresa->uuid }}', '{{ addslashes($empresa->nombre) }}')">
                             <i class="bi bi-plus-lg"></i> Agregar cuenta

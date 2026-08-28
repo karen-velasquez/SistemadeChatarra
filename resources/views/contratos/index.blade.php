@@ -453,7 +453,7 @@
                     c.cliente, c.fecha_contrato, '', '', c.placa, '', c.moneda,
                     c.tn_entregadas, c.precio_venta, '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, c.estado_envios,
-                    c.monto_cobrado_cliente, c.codigo_cobro_cliente, c.fecha_cobro_cliente,
+                    '', '', '',
                     c.monto_pagado_proveedor, c.codigo_pago_proveedor, c.fecha_pago_proveedor,
                     c.fecha_registro, c.ultimo_editor,
                 ]);
@@ -467,7 +467,9 @@
                 dataRows.push([
                     c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.cliente, c.moneda,
                     c.tn_entregadas, c.precio_venta, c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
-                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, '', '', '', '', '', '', '',
+                    c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, '',
+                    c.monto_cobrado_cliente, c.codigo_cobro_cliente, c.fecha_cobro_cliente,
+                    '', '', '',
                     c.fecha_registro, c.ultimo_editor,
                 ]);
                 rowStyles.push(null);

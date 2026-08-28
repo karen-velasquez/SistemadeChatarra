@@ -106,14 +106,14 @@
               @endif
             </td>
             <td class="text-nowrap">
-              @can('pagos_camiones.create')
+              @can('lotes_pago.edit')
               <button class="btn btn-outline-primary btn-sm"
                       onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? $lote->codigo_provisional ?? '' }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
                 <i class="bi bi-pencil-square me-1"></i>
                 {{ $lote->codigo_real ? 'Editar código' : 'Ingresar código' }}
               </button>
               @endcan
-              @can('pagos_camiones.destroy')
+              @can('lotes_pago.destroy')
               <button class="btn btn-outline-danger btn-sm"
                       onclick="abrirModalEliminarLote('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
                 <i class="bi bi-trash me-1"></i>Eliminar

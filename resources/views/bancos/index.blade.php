@@ -30,6 +30,8 @@
             <button id="btnNuevoBanco" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalBanco" onclick="resetModalBanco()">
                 <i class="bi bi-plus-lg"></i> Nuevo Banco
             </button>
+            @endcan
+            @can('bancos_cuentas.create')
             <button id="btnNuevaCuenta" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalCuenta" onclick="resetModalCuenta()">
                 <i class="bi bi-plus-lg"></i> Nueva Cuenta
             </button>
@@ -188,7 +190,7 @@
                                     <td><span class="badge bg-light text-dark border">{{ $cuenta->moneda }}</span></td>
                                     <td>{{ $cuenta->alias ?? '—' }}</td>
                                                     <td class="text-center">
-                                        @can('bancos.edit')
+                                        @can('bancos_cuentas.edit')
                                         <button class="btn btn-sm btn-outline-secondary"
                                             onclick="editarCuenta(
                                                 '{{ $cuenta->uuid }}',
@@ -209,7 +211,7 @@
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         @endcan
-                                        @can('bancos.destroy')
+                                        @can('bancos_cuentas.destroy')
                                         <a href="{{ route('bancos.cuenta.destroy', $cuenta->uuid) }}"
                                             class="btn btn-sm btn-outline-danger"
                                             onclick="return confirm('¿Eliminar esta cuenta bancaria?')">

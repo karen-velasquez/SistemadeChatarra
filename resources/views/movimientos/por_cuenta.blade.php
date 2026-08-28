@@ -27,7 +27,7 @@
                     ]'>
                 <i class="bi bi-question-circle"></i>
             </button>
-            @can('empresas.create')
+            @can('tesoreria.create')
             <button id="btnRegistrarMov" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMovimiento">
                 <i class="bi bi-plus-lg"></i> Registrar Movimiento
             </button>

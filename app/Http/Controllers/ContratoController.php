@@ -72,25 +72,31 @@ class ContratoController extends Controller
 
         foreach ($contratos as $c) {
             $entregas = collect();
-            $montoCobradoCliente = 0;
-            $codigosCobroCliente = [];
-            $fechasCobroCliente = [];
             foreach ($c->contratoCamiones as $cc) {
                 foreach ($cc->tramos as $t) {
                     if ($t->tramosHijos->isNotEmpty() || $t->estado !== 'Entregado') continue;
+
+                    // El cobro es por envío (tramo_id), no por contrato completo.
+                    $montoCobradoEnvio = 0;
+                    $codigosCobroEnvio = [];
+                    $fechasCobroEnvio = [];
+                    foreach ($t->pagosCliente as $p) {
+                        if ($p->deleted_at) continue;
+                        $montoCobradoEnvio += (float) $p->monto;
+                        if ($p->codigo_seguimiento) $codigosCobroEnvio[] = $p->codigo_seguimiento;
+                        if ($p->fecha_pago) $fechasCobroEnvio[] = $p->fecha_pago->format('d/m/Y');
+                    }
+
                     $entregas->push([
                         'placa'          => $cc->camion->placa ?? '',
                         'cliente'        => $t->cliente->nombre ?? '',
                         'tn_entregadas'  => (float) $t->peso_llegada,
                         'precio_venta'   => (float) $t->precio_por_tonelada,
                         'fecha_entrega'  => $t->fecha_llegada?->format('d/m/Y') ?? '',
+                        'monto_cobrado_cliente' => round($montoCobradoEnvio, 2),
+                        'codigo_cobro_cliente'  => implode(', ', $codigosCobroEnvio),
+                        'fecha_cobro_cliente'   => implode(', ', $fechasCobroEnvio),
                     ]);
-                    foreach ($t->pagosCliente as $p) {
-                        if ($p->deleted_at) continue;
-                        $montoCobradoCliente += (float) $p->monto;
-                        if ($p->codigo_seguimiento) $codigosCobroCliente[] = $p->codigo_seguimiento;
-                        if ($p->fecha_pago) $fechasCobroCliente[] = $p->fecha_pago->format('d/m/Y');
-                    }
                 }
             }
             $montoPagadoProveedor = 0;
@@ -157,6 +163,9 @@ class ContratoController extends Controller
                     'comision_2_zpl'   => $comision2,
                     'costo_adicional'  => $costoAdicional,
                     'utilidad_neta'    => $utilidadNeta,
+                    'monto_cobrado_cliente' => $e['monto_cobrado_cliente'],
+                    'codigo_cobro_cliente'  => $e['codigo_cobro_cliente'],
+                    'fecha_cobro_cliente'   => $e['fecha_cobro_cliente'],
                     'es_subtotal'      => false,
                 ]);
             }
@@ -182,9 +191,6 @@ class ContratoController extends Controller
                     'costo_adicional'  => round($sumaCostoAdicional, 2),
                     'utilidad_neta'    => round($sumaUtilNeta, 2),
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos',
-                    'monto_cobrado_cliente'   => round($montoCobradoCliente, 2),
-                    'codigo_cobro_cliente'    => implode(', ', $codigosCobroCliente),
-                    'fecha_cobro_cliente'     => implode(', ', $fechasCobroCliente),
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
@@ -209,6 +215,9 @@ class ContratoController extends Controller
                     'comision_2_zpl'   => '',
                     'costo_adicional'  => '',
                     'utilidad_neta'    => '',
+                    'monto_cobrado_cliente' => '',
+                    'codigo_cobro_cliente'  => '',
+                    'fecha_cobro_cliente'   => '',
                     'es_subtotal'      => false,
                 ]);
                 $contratosExcelData->push($filaBase + [
@@ -226,9 +235,6 @@ class ContratoController extends Controller
                     'costo_adicional'  => 0,
                     'utilidad_neta'    => 0,
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos - SIN ENVIOS',
-                    'monto_cobrado_cliente'   => round($montoCobradoCliente, 2),
-                    'codigo_cobro_cliente'    => implode(', ', $codigosCobroCliente),
-                    'fecha_cobro_cliente'     => implode(', ', $fechasCobroCliente),
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),

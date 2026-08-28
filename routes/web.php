@@ -131,18 +131,18 @@ use Illuminate\Support\Facades\Route;
     Route::get('contrato/{uuid}/descerrar-envios',[App\Http\Controllers\ContratoController::class,'descerrarEnvios'])->name('contratos.descerrar')->middleware('permission:contratos.cerrar');
 
     //Contrato Camiones
-    Route::post('contrato-camion/store',[App\Http\Controllers\ContratoCamionController::class,'store'])->name('contrato-camion.store')->middleware('permission:contratos.edit');
-    Route::get('contrato-camion/{uuid}/toggle-entrega',[App\Http\Controllers\ContratoCamionController::class,'toggleEntrega'])->name('contrato-camion.toggle-entrega')->middleware('permission:contratos.edit');
-    Route::get('contrato-camion/{uuid}/toggle-activo',[App\Http\Controllers\ContratoCamionController::class,'toggleActivo'])->name('contrato-camion.toggle-activo')->middleware('permission:contratos.edit');
-    Route::post('contrato-camion/{uuid}/flete',[App\Http\Controllers\ContratoCamionController::class,'actualizarFlete'])->name('contrato-camion.flete')->middleware('permission:contratos.edit');
+    Route::post('contrato-camion/store',[App\Http\Controllers\ContratoCamionController::class,'store'])->name('contrato-camion.store')->middleware('permission:contrato_camion.create');
+    Route::get('contrato-camion/{uuid}/toggle-entrega',[App\Http\Controllers\ContratoCamionController::class,'toggleEntrega'])->name('contrato-camion.toggle-entrega')->middleware('permission:contrato_camion.edit');
+    Route::get('contrato-camion/{uuid}/toggle-activo',[App\Http\Controllers\ContratoCamionController::class,'toggleActivo'])->name('contrato-camion.toggle-activo')->middleware('permission:contrato_camion.edit');
+    Route::post('contrato-camion/{uuid}/flete',[App\Http\Controllers\ContratoCamionController::class,'actualizarFlete'])->name('contrato-camion.flete')->middleware('permission:contrato_camion.edit');
 
     //Tramos de transporte
-    Route::post('tramo/store',[App\Http\Controllers\TramoController::class,'store'])->name('tramo.store')->middleware('permission:contratos.edit');
-    Route::get('tramo/{uuid}/edit',[App\Http\Controllers\TramoController::class,'edit'])->name('tramo.edit')->middleware('permission:contratos.edit');
-    Route::put('tramo/{uuid}',[App\Http\Controllers\TramoController::class,'update'])->name('tramo.update')->middleware('permission:contratos.edit');
-    Route::post('tramo/{uuid}/llegada',[App\Http\Controllers\TramoController::class,'registrarLlegada'])->name('tramo.llegada')->middleware('permission:contratos.edit');
-    Route::post('tramo/{uuid}/deshacer-llegada',[App\Http\Controllers\TramoController::class,'deshacerLlegada'])->name('tramo.deshacer_llegada')->middleware('permission:contratos.edit');
-    Route::get('tramo/{uuid}/toggle-activo',[App\Http\Controllers\TramoController::class,'toggleActivo'])->name('tramo.toggle-activo')->middleware('permission:contratos.edit');
+    Route::post('tramo/store',[App\Http\Controllers\TramoController::class,'store'])->name('tramo.store')->middleware('permission:tramo.create');
+    Route::get('tramo/{uuid}/edit',[App\Http\Controllers\TramoController::class,'edit'])->name('tramo.edit')->middleware('permission:tramo.edit');
+    Route::put('tramo/{uuid}',[App\Http\Controllers\TramoController::class,'update'])->name('tramo.update')->middleware('permission:tramo.edit');
+    Route::post('tramo/{uuid}/llegada',[App\Http\Controllers\TramoController::class,'registrarLlegada'])->name('tramo.llegada')->middleware('permission:tramo.edit');
+    Route::post('tramo/{uuid}/deshacer-llegada',[App\Http\Controllers\TramoController::class,'deshacerLlegada'])->name('tramo.deshacer_llegada')->middleware('permission:tramo.edit');
+    Route::get('tramo/{uuid}/toggle-activo',[App\Http\Controllers\TramoController::class,'toggleActivo'])->name('tramo.toggle-activo')->middleware('permission:tramo.edit');
     Route::get('tramo/{uuid}/nota-entrega',[App\Http\Controllers\TramoController::class,'notaEntrega'])->name('tramo.nota-entrega')->middleware('permission:contratos.index');
     Route::get('tramo/{uuid}/documento-entrega',[App\Http\Controllers\TramoController::class,'verDocumentoEntrega'])->name('tramo.documento-entrega')->middleware('permission:contratos.index');
 
@@ -160,9 +160,9 @@ use Illuminate\Support\Facades\Route;
     // Bancos y cuentas bancarias (rutas estáticas de cuentas ANTES que las dinámicas de banco)
     Route::get('bancos',[App\Http\Controllers\BancoController::class,'index'])->name('bancos.index')->middleware('permission:bancos.index');
     Route::post('bancos',[App\Http\Controllers\BancoController::class,'store'])->name('bancos.store')->middleware('permission:bancos.create');
-    Route::post('bancos/cuentas',[App\Http\Controllers\BancoController::class,'storeCuenta'])->name('bancos.cuenta.store')->middleware('permission:bancos.create');
-    Route::put('bancos/cuentas/{uuid}',[App\Http\Controllers\BancoController::class,'updateCuenta'])->name('bancos.cuenta.update')->middleware('permission:bancos.edit');
-    Route::get('bancos/cuentas/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroyCuenta'])->name('bancos.cuenta.destroy')->middleware('permission:bancos.destroy');
+    Route::post('bancos/cuentas',[App\Http\Controllers\BancoController::class,'storeCuenta'])->name('bancos.cuenta.store')->middleware('permission:bancos_cuentas.create');
+    Route::put('bancos/cuentas/{uuid}',[App\Http\Controllers\BancoController::class,'updateCuenta'])->name('bancos.cuenta.update')->middleware('permission:bancos_cuentas.edit');
+    Route::get('bancos/cuentas/{uuid}/destroy',[App\Http\Controllers\BancoController::class,'destroyCuenta'])->name('bancos.cuenta.destroy')->middleware('permission:bancos_cuentas.destroy');
     Route::get('bancos/nuevo-token-banco',[App\Http\Controllers\BancoController::class,'nuevoTokenBanco'])->name('bancos.nuevo-token-banco');
     Route::get('bancos/nuevo-token-cuenta',[App\Http\Controllers\BancoController::class,'nuevoTokenCuenta'])->name('bancos.nuevo-token-cuenta');
     Route::put('bancos/{uuid}',[App\Http\Controllers\BancoController::class,'update'])->name('bancos.update')->middleware('permission:bancos.edit');
@@ -192,11 +192,11 @@ use Illuminate\Support\Facades\Route;
     Route::get('api/pagos/cuentas-proveedor',[App\Http\Controllers\PagoProveedorController::class,'cuentasProveedor'])->name('pagos.cuentas-proveedor');
 
     // Lotes de pago masivo
-    Route::get('lotes-pago', [App\Http\Controllers\LotePagoController::class, 'index'])->name('lotes_pago.index')->middleware('permission:pagos_camiones.index');
-    Route::get('api/lotes-pago/verificar-codigo', [App\Http\Controllers\LotePagoController::class, 'verificarCodigo'])->name('lotes_pago.verificar_codigo')->middleware('permission:pagos_camiones.index');
-    Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:pagos_camiones.create');
-    Route::delete('lotes-pago/{uuid}', [App\Http\Controllers\LotePagoController::class, 'destroy'])->name('lotes_pago.destroy')->middleware('permission:pagos_camiones.destroy');
-    Route::get('api/lotes-pago/{uuid}/detalle', [App\Http\Controllers\LotePagoController::class, 'detalle'])->name('lotes_pago.detalle')->middleware('permission:pagos_camiones.destroy');
+    Route::get('lotes-pago', [App\Http\Controllers\LotePagoController::class, 'index'])->name('lotes_pago.index')->middleware('permission:lotes_pago.index');
+    Route::get('api/lotes-pago/verificar-codigo', [App\Http\Controllers\LotePagoController::class, 'verificarCodigo'])->name('lotes_pago.verificar_codigo')->middleware('permission:lotes_pago.index');
+    Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:lotes_pago.edit');
+    Route::delete('lotes-pago/{uuid}', [App\Http\Controllers\LotePagoController::class, 'destroy'])->name('lotes_pago.destroy')->middleware('permission:lotes_pago.destroy');
+    Route::get('api/lotes-pago/{uuid}/detalle', [App\Http\Controllers\LotePagoController::class, 'detalle'])->name('lotes_pago.detalle')->middleware('permission:lotes_pago.index');
 
     // Lotes de entrega semanal por proveedor
     Route::get('lotes-entrega', [App\Http\Controllers\LoteEntregaController::class, 'index'])->name('lotes_entrega.index')->middleware('permission:lotes_entrega.index');
@@ -253,20 +253,20 @@ use Illuminate\Support\Facades\Route;
     Route::get('empresas/nuevo-token',[App\Http\Controllers\EmpresaController::class,'nuevoToken'])->name('empresas.nuevo-token');
     Route::get('empresas/nuevo-token-cuenta',[App\Http\Controllers\EmpresaController::class,'nuevoTokenCuenta'])->name('empresas.nuevo-token-cuenta');
     Route::post('empresas/store', [App\Http\Controllers\EmpresaController::class, 'store'])->name('empresas.store')->middleware('permission:empresas.create');
-    Route::get('empresas/cuenta/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'editCuenta'])->name('empresas.cuenta.edit')->middleware('permission:empresas.edit');
-    Route::put('empresas/cuenta/{uuid}', [App\Http\Controllers\EmpresaController::class, 'updateCuenta'])->name('empresas.cuenta.update')->middleware('permission:empresas.edit');
-    Route::get('empresas/cuenta/{uuid}/destroy', [App\Http\Controllers\EmpresaController::class, 'destroyCuenta'])->name('empresas.cuenta.destroy')->middleware('permission:empresas.destroy');
+    Route::get('empresas/cuenta/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'editCuenta'])->name('empresas.cuenta.edit')->middleware('permission:cuentas_bancarias.edit');
+    Route::put('empresas/cuenta/{uuid}', [App\Http\Controllers\EmpresaController::class, 'updateCuenta'])->name('empresas.cuenta.update')->middleware('permission:cuentas_bancarias.edit');
+    Route::get('empresas/cuenta/{uuid}/destroy', [App\Http\Controllers\EmpresaController::class, 'destroyCuenta'])->name('empresas.cuenta.destroy')->middleware('permission:cuentas_bancarias.destroy');
     Route::get('empresas/{uuid}/edit', [App\Http\Controllers\EmpresaController::class, 'edit'])->name('empresas.edit')->middleware('permission:empresas.edit');
     Route::put('empresas/{uuid}', [App\Http\Controllers\EmpresaController::class, 'update'])->name('empresas.update')->middleware('permission:empresas.edit');
     Route::get('empresas/{uuid}/destroy', [App\Http\Controllers\EmpresaController::class, 'destroy'])->name('empresas.destroy')->middleware('permission:empresas.destroy');
-    Route::get('empresas/{uuid}/cuentas', [App\Http\Controllers\EmpresaController::class, 'cuentas'])->name('empresas.cuentas')->middleware('permission:empresas.index');
-    Route::post('empresas/{uuid}/cuentas/store', [App\Http\Controllers\EmpresaController::class, 'storeCuenta'])->name('empresas.cuentas.store')->middleware('permission:empresas.create');
+    Route::get('empresas/{uuid}/cuentas', [App\Http\Controllers\EmpresaController::class, 'cuentas'])->name('empresas.cuentas')->middleware('permission:cuentas_bancarias.index');
+    Route::post('empresas/{uuid}/cuentas/store', [App\Http\Controllers\EmpresaController::class, 'storeCuenta'])->name('empresas.cuentas.store')->middleware('permission:cuentas_bancarias.create');
 
     // Movimientos (tesorería)
-    Route::get('tesoreria', [App\Http\Controllers\MovimientoController::class, 'index'])->name('tesoreria.index')->middleware('permission:empresas.index');
-    Route::get('tesoreria/cuenta/{uuid}', [App\Http\Controllers\MovimientoController::class, 'porCuenta'])->name('tesoreria.cuenta')->middleware('permission:empresas.index');
-    Route::post('tesoreria/movimiento/store', [App\Http\Controllers\MovimientoController::class, 'store'])->name('tesoreria.movimiento.store')->middleware('permission:empresas.create');
-    Route::get('tesoreria/movimiento/{uuid}/destroy', [App\Http\Controllers\MovimientoController::class, 'destroy'])->name('tesoreria.movimiento.destroy')->middleware('permission:empresas.destroy');
+    Route::get('tesoreria', [App\Http\Controllers\MovimientoController::class, 'index'])->name('tesoreria.index')->middleware('permission:tesoreria.index');
+    Route::get('tesoreria/cuenta/{uuid}', [App\Http\Controllers\MovimientoController::class, 'porCuenta'])->name('tesoreria.cuenta')->middleware('permission:tesoreria.index');
+    Route::post('tesoreria/movimiento/store', [App\Http\Controllers\MovimientoController::class, 'store'])->name('tesoreria.movimiento.store')->middleware('permission:tesoreria.create');
+    Route::get('tesoreria/movimiento/{uuid}/destroy', [App\Http\Controllers\MovimientoController::class, 'destroy'])->name('tesoreria.movimiento.destroy')->middleware('permission:tesoreria.destroy');
 
     // Créditos y Adquisiciones (bienes por crédito bancario o capital, plan de pagos)
     Route::get('adquisiciones',[App\Http\Controllers\AdquisicionController::class,'index'])->name('adquisiciones.index')->middleware('permission:adquisiciones.index');
@@ -286,9 +286,9 @@ use Illuminate\Support\Facades\Route;
     Route::post('adquisiciones/{uuid}/facturas',[App\Http\Controllers\AdquisicionController::class,'storeFactura'])->name('adquisiciones.facturas.store')->middleware('permission:adquisiciones.edit');
 
     // Préstamos internos
-    Route::get('prestamos-internos', [App\Http\Controllers\PrestamoInternoController::class, 'index'])->name('prestamos_internos.index')->middleware('permission:empresas.index');
-    Route::post('prestamos-internos/store', [App\Http\Controllers\PrestamoInternoController::class, 'store'])->name('prestamos_internos.store')->middleware('permission:empresas.create');
-    Route::post('prestamos-internos/{uuid}/devolver', [App\Http\Controllers\PrestamoInternoController::class, 'devolver'])->name('prestamos_internos.devolver')->middleware('permission:empresas.create');
+    Route::get('prestamos-internos', [App\Http\Controllers\PrestamoInternoController::class, 'index'])->name('prestamos_internos.index')->middleware('permission:prestamos_internos.index');
+    Route::post('prestamos-internos/store', [App\Http\Controllers\PrestamoInternoController::class, 'store'])->name('prestamos_internos.store')->middleware('permission:prestamos_internos.create');
+    Route::post('prestamos-internos/{uuid}/devolver', [App\Http\Controllers\PrestamoInternoController::class, 'devolver'])->name('prestamos_internos.devolver')->middleware('permission:prestamos_internos.create');
 
     // Parámetros
     Route::get('parametros', [App\Http\Controllers\ParametroController::class, 'index'])->name('parametros.index')->middleware('permission:parametros.index');

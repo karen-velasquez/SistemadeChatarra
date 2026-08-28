@@ -211,7 +211,7 @@
                 </td>
                 @if($mostrarEliminar)
                 <td class="text-center">
-                    @can('empresas.destroy')
+                    @can('tesoreria.destroy')
                     @if($anulado)
                         <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled"
                               title="Este movimiento ya fue anulado.">

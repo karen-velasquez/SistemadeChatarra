@@ -178,7 +178,7 @@
       @endif
 
       {{-- TESORERÍA --}}
-      @can('empresas.index')
+      @if(auth()->user()->canAny(['tesoreria.index','empresas.index','prestamos_internos.index','lotes_pago.index','adquisiciones.index']))
       @php $enTesoreria = request()->routeIs(['tesoreria.*','empresas.*','prestamos_internos.*','lotes_pago.*','adquisiciones.*']); @endphp
       <li class="nav-item">
         <a class="nav-link {{ $enTesoreria ? '' : 'collapsed' }}"
@@ -189,30 +189,38 @@
         </a>
         <ul id="menu-tesoreria"
             class="nav-content sidebar-submenu {{ $enTesoreria ? 'submenu-open' : '' }}">
+          @can('tesoreria.index')
           <li>
             <a href="{{ route('tesoreria.index') }}"
                class="{{ isActiveRoute(['tesoreria.index','tesoreria.cuenta']) ? 'active' : '' }}">
               <i class="bi bi-cash-stack"></i><span>Movimientos</span>
             </a>
           </li>
+          @endcan
+          @can('empresas.index')
           <li>
             <a href="{{ route('empresas.index') }}"
                class="{{ isActiveRoute(['empresas.index','empresas.cuentas']) ? 'active' : '' }}">
               <i class="bi bi-building"></i><span>Empresas y Cuentas</span>
             </a>
           </li>
+          @endcan
+          @can('prestamos_internos.index')
           <li>
             <a href="{{ route('prestamos_internos.index') }}"
                class="{{ isActiveRoute(['prestamos_internos.index']) ? 'active' : '' }}">
               <i class="bi bi-arrow-left-right"></i><span>Préstamos Internos</span>
             </a>
           </li>
+          @endcan
+          @can('lotes_pago.index')
           <li>
             <a href="{{ route('lotes_pago.index') }}"
                class="{{ isActiveRoute(['lotes_pago.index']) ? 'active' : '' }}">
               <i class="bi bi-collection"></i><span>Lotes de Pago</span>
             </a>
           </li>
+          @endcan
           @can('adquisiciones.index')
           <li>
             <a href="{{ route('adquisiciones.index') }}"
@@ -223,7 +231,7 @@
           @endcan
         </ul>
       </li>
-      @endcan
+      @endif
 
       {{-- Bancos y Cuentas --}}
       @can('bancos.index')

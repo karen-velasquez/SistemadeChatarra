@@ -170,6 +170,7 @@
               <td>
                 <span class="fw-semibold small">{{ $c->numero_contrato ?? '#'.$c->id }}</span>
                 <small class="text-muted d-block">{{ $c->fecha_inicio?->format('d/m/Y') }} — {{ $c->fecha_fin?->format('d/m/Y') ?? 'sin fin' }}</small>
+                <small class="text-muted d-block">{{ number_format($c->toneladas_entregadas, 2, ',', '.') }} t &nbsp;·&nbsp; {{ $moneda }} {{ number_format($c->costo_unitario, 2, ',', '.') }}/t</small>
               </td>
               <td class="text-end">
                 <span class="small">{{ $moneda }} {{ number_format($c->monto_total, 2, ',', '.') }}</span>

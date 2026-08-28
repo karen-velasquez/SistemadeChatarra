@@ -27,7 +27,7 @@
                     ]'>
                 <i class="bi bi-question-circle"></i>
             </button>
-            @can('empresas.create')
+            @can('prestamos_internos.create')
             <button id="btnNuevoPrestamo" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalPrestamo">
                 <i class="bi bi-plus-lg"></i> Nuevo Préstamo
             </button>
@@ -93,7 +93,7 @@
                             <th class="text-end">Devuelto</th>
                             <th class="text-end">Pendiente</th>
                             <th class="text-center">Estado</th>
-                            @can('empresas.create')
+                            @can('prestamos_internos.create')
                             <th class="text-center">Acción</th>
                             @endcan
                         </tr>
@@ -129,7 +129,7 @@
                                     <span class="badge bg-danger">Pendiente</span>
                                 @endif
                             </td>
-                            @can('empresas.create')
+                            @can('prestamos_internos.create')
                             <td class="text-center">
                                 @if($p->estado !== 'pagado')
                                 <button class="btn btn-sm btn-outline-success"

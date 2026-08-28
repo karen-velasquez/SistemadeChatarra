@@ -45,6 +45,11 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'contratos.destroy',    'descripcion' => 'Eliminar Contratos',           'grupo' => 'CONTRATOS'],
             ['name' => 'contratos.cerrar',     'descripcion' => 'Cerrar envíos de Contratos',   'grupo' => 'CONTRATOS'],
             ['name' => 'contratos.liquidacion','descripcion' => 'Ver liquidación de Contratos', 'grupo' => 'CONTRATOS'],
+            // Camiones asignados a un Contrato y sus Tramos de transporte
+            ['name' => 'contrato_camion.create',  'descripcion' => 'Asignar Camiones a Contratos',        'grupo' => 'CONTRATO_CAMION'],
+            ['name' => 'contrato_camion.edit',    'descripcion' => 'Editar Asignación y Flete de Camión', 'grupo' => 'CONTRATO_CAMION'],
+            ['name' => 'tramo.create',  'descripcion' => 'Registrar Tramos y Llegadas',        'grupo' => 'CONTRATO_CAMION'],
+            ['name' => 'tramo.edit',    'descripcion' => 'Editar Tramos y Deshacer Llegadas',  'grupo' => 'CONTRATO_CAMION'],
             // Conductores
             ['name' => 'conductores.index',   'descripcion' => 'Ver asignaciones de conductores',      'grupo' => 'CONDUCTORES'],
             ['name' => 'conductores.create',  'descripcion' => 'Asignar conductores a camiones',       'grupo' => 'CONDUCTORES'],
@@ -57,16 +62,20 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'empleados.create',  'descripcion' => 'Agregar Empleados',       'grupo' => 'EMPLEADOS'],
             ['name' => 'empleados.edit',    'descripcion' => 'Editar Empleados',        'grupo' => 'EMPLEADOS'],
             ['name' => 'empleados.destroy', 'descripcion' => 'Eliminar Empleados',      'grupo' => 'EMPLEADOS'],
-            // Bancos
-            ['name' => 'bancos.index',   'descripcion' => 'Ver bancos y cuentas bancarias', 'grupo' => 'BANCOS'],
-            ['name' => 'bancos.create',  'descripcion' => 'Agregar bancos y cuentas',       'grupo' => 'BANCOS'],
-            ['name' => 'bancos.edit',    'descripcion' => 'Editar bancos y cuentas',        'grupo' => 'BANCOS'],
-            ['name' => 'bancos.destroy', 'descripcion' => 'Eliminar bancos y cuentas',      'grupo' => 'BANCOS'],
-            // Cuentas bancarias
-            ['name' => 'cuentas_bancarias.index',   'descripcion' => 'Ver Cuentas Bancarias',      'grupo' => 'CUENTAS_BANCARIAS'],
-            ['name' => 'cuentas_bancarias.create',  'descripcion' => 'Agregar Cuentas Bancarias',  'grupo' => 'CUENTAS_BANCARIAS'],
-            ['name' => 'cuentas_bancarias.edit',    'descripcion' => 'Editar Cuentas Bancarias',   'grupo' => 'CUENTAS_BANCARIAS'],
-            ['name' => 'cuentas_bancarias.destroy', 'descripcion' => 'Eliminar Cuentas Bancarias', 'grupo' => 'CUENTAS_BANCARIAS'],
+            // Bancos (catálogo)
+            ['name' => 'bancos.index',   'descripcion' => 'Ver Bancos',      'grupo' => 'BANCOS'],
+            ['name' => 'bancos.create',  'descripcion' => 'Agregar Bancos',  'grupo' => 'BANCOS'],
+            ['name' => 'bancos.edit',    'descripcion' => 'Editar Bancos',   'grupo' => 'BANCOS'],
+            ['name' => 'bancos.destroy', 'descripcion' => 'Eliminar Bancos', 'grupo' => 'BANCOS'],
+            // Cuentas dentro de un Banco (catálogo de cuentas por banco)
+            ['name' => 'bancos_cuentas.create',  'descripcion' => 'Agregar Cuentas de Banco',  'grupo' => 'BANCOS'],
+            ['name' => 'bancos_cuentas.edit',    'descripcion' => 'Editar Cuentas de Banco',   'grupo' => 'BANCOS'],
+            ['name' => 'bancos_cuentas.destroy', 'descripcion' => 'Eliminar Cuentas de Banco', 'grupo' => 'BANCOS'],
+            // Cuentas bancarias de una Empresa (con saldo y movimientos reales)
+            ['name' => 'cuentas_bancarias.index',   'descripcion' => 'Ver Cuentas Bancarias de Empresas',      'grupo' => 'CUENTAS_BANCARIAS'],
+            ['name' => 'cuentas_bancarias.create',  'descripcion' => 'Agregar Cuentas Bancarias de Empresas',  'grupo' => 'CUENTAS_BANCARIAS'],
+            ['name' => 'cuentas_bancarias.edit',    'descripcion' => 'Editar Cuentas Bancarias de Empresas',   'grupo' => 'CUENTAS_BANCARIAS'],
+            ['name' => 'cuentas_bancarias.destroy', 'descripcion' => 'Eliminar Cuentas Bancarias de Empresas', 'grupo' => 'CUENTAS_BANCARIAS'],
             // Pagos a clientes
             ['name' => 'pagos_clientes.index',   'descripcion' => 'Ver Pagos de Clientes',       'grupo' => 'PAGOS_CLIENTES'],
             ['name' => 'pagos_clientes.create',  'descripcion' => 'Registrar Pagos de Clientes', 'grupo' => 'PAGOS_CLIENTES'],
@@ -108,10 +117,17 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'roles.edit',    'descripcion' => 'Editar Roles',        'grupo' => 'ROLES'],
             ['name' => 'roles.destroy', 'descripcion' => 'Eliminar Roles',      'grupo' => 'ROLES'],
             // Empresas / Tesorería
-            ['name' => 'empresas.index',   'descripcion' => 'Ver Empresas y Tesorería',         'grupo' => 'EMPRESAS'],
-            ['name' => 'empresas.create',  'descripcion' => 'Registrar Empresas y Movimientos', 'grupo' => 'EMPRESAS'],
-            ['name' => 'empresas.edit',    'descripcion' => 'Editar Empresas',                   'grupo' => 'EMPRESAS'],
-            ['name' => 'empresas.destroy', 'descripcion' => 'Eliminar Empresas',                 'grupo' => 'EMPRESAS'],
+            ['name' => 'empresas.index',   'descripcion' => 'Ver Empresas',      'grupo' => 'EMPRESAS'],
+            ['name' => 'empresas.create',  'descripcion' => 'Registrar Empresas', 'grupo' => 'EMPRESAS'],
+            ['name' => 'empresas.edit',    'descripcion' => 'Editar Empresas',    'grupo' => 'EMPRESAS'],
+            ['name' => 'empresas.destroy', 'descripcion' => 'Eliminar Empresas',  'grupo' => 'EMPRESAS'],
+            // Tesorería (movimientos de cuentas)
+            ['name' => 'tesoreria.index',   'descripcion' => 'Ver Movimientos de Tesorería',      'grupo' => 'TESORERIA'],
+            ['name' => 'tesoreria.create',  'descripcion' => 'Registrar Movimientos de Tesorería', 'grupo' => 'TESORERIA'],
+            ['name' => 'tesoreria.destroy', 'descripcion' => 'Eliminar Movimientos de Tesorería',  'grupo' => 'TESORERIA'],
+            // Préstamos internos entre empresas
+            ['name' => 'prestamos_internos.index',  'descripcion' => 'Ver Préstamos Internos',       'grupo' => 'PRESTAMOS_INTERNOS'],
+            ['name' => 'prestamos_internos.create', 'descripcion' => 'Registrar Préstamos Internos', 'grupo' => 'PRESTAMOS_INTERNOS'],
             // Créditos y Adquisiciones
             ['name' => 'adquisiciones.index',   'descripcion' => 'Ver Créditos y Adquisiciones',               'grupo' => 'ADQUISICIONES'],
             ['name' => 'adquisiciones.create',  'descripcion' => 'Registrar Adquisiciones',                    'grupo' => 'ADQUISICIONES'],
@@ -121,6 +137,10 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'lotes_entrega.index',  'descripcion' => 'Ver Lotes de Entrega',          'grupo' => 'LOTES_ENTREGA'],
             ['name' => 'lotes_entrega.cerrar', 'descripcion' => 'Cerrar Lotes de Entrega',        'grupo' => 'LOTES_ENTREGA'],
             ['name' => 'lotes_entrega.pago',   'descripcion' => 'Registrar Pagos Extra en Lote',  'grupo' => 'LOTES_ENTREGA'],
+            // Lotes de pago
+            ['name' => 'lotes_pago.index',   'descripcion' => 'Ver Lotes de Pago',                     'grupo' => 'LOTES_PAGO'],
+            ['name' => 'lotes_pago.edit',    'descripcion' => 'Editar Código Real de Lotes de Pago',   'grupo' => 'LOTES_PAGO'],
+            ['name' => 'lotes_pago.destroy', 'descripcion' => 'Eliminar Lotes de Pago y sus pagos',    'grupo' => 'LOTES_PAGO'],
             // Parámetros
             ['name' => 'parametros.index',   'descripcion' => 'Ver Parámetros',      'grupo' => 'PARAMETROS'],
             ['name' => 'parametros.create',  'descripcion' => 'Agregar Parámetros',  'grupo' => 'PARAMETROS'],
