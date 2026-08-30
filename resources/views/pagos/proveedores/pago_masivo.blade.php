@@ -570,6 +570,9 @@ function onCheckContrato(contratoId, checked) {
             cuentaDestinoId: null,
             cuentaDestinoLabel: null,
         };
+        // Por defecto se paga el 100% del saldo; el usuario puede ajustarlo.
+        pctInput.value = 100;
+        calcularMonto(contratoId);
     } else {
         pctInput.disabled   = true;
         pctInput.value      = '';

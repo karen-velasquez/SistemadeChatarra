@@ -30,75 +30,64 @@ class LotePagoController extends Controller
     }
 
     /**
-     * Verificación AJAX al hacer clic en Guardar (no en cada tecla), igual
-     * patrón que Cobros a Clientes: evita saturar de consultas y solo avisa
-     * cuando el usuario ya decidió confirmar el código.
+     * El código provisional del lote sigue siendo el identificador que agrupa
+     * los pagos como "un mismo pago masivo". El código real, en cambio, lo da
+     * el banco por CADA transferencia individual — así que se edita pago por
+     * pago, no de una sola vez para todo el lote.
+     *
+     * Espera 'codigos' => [ ['pago_uuid' => ..., 'codigo_real' => ...], ... ].
+     * Filas con codigo_real vacío se ignoran (ese pago queda pendiente).
      */
-    public function verificarCodigo(Request $request)
-    {
-        $codigo = trim((string) $request->query('codigo'));
-        if ($codigo === '') {
-            return response()->json(['disponible' => true]);
-        }
-
-        $loteUuid = $request->query('lote_uuid');
-        $exceptoLoteId = $loteUuid ? LotePago::where('uuid', $loteUuid)->value('id') : null;
-
-        return response()->json(['disponible' => $this->codigoDisponible($codigo, null, null, $exceptoLoteId)]);
-    }
-
     public function actualizarCodigo(Request $request, $uuid)
     {
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+        $modeloClase = $this->modeloDelLote($lote);
 
         $request->validate([
-            'codigo_real' => ['required', 'string', 'max:100', function ($attr, $value, $fail) use ($lote) {
-                if (!$this->codigoDisponible($value, null, null, $lote->id)) {
-                    $fail('Ese código ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
-                }
-            }],
-        ], [
-            'codigo_real.required' => 'El código de transferencia real es obligatorio.',
+            'codigos'                 => ['required', 'array', 'min:1'],
+            'codigos.*.pago_uuid'     => ['required', 'string'],
+            'codigos.*.codigo_real'   => ['nullable', 'string', 'max:100'],
         ]);
 
-        $codigoReal = $request->codigo_real;
-        $codigoAnterior = $lote->codigo_real ?? $lote->codigo_provisional;
+        $filas = collect($request->input('codigos'))->filter(fn($f) => filled($f['codigo_real'] ?? null));
 
-        $lote->update(['codigo_real' => $codigoReal]);
-
-        // Actualizar en todos los pagos del lote
-        $this->modeloDelLote($lote)::where('lote_pago_id', $lote->id)
-            ->update(['codigo_seguimiento' => $codigoReal]);
-
-        // Actualizar en todos los movimientos del lote
-        Movimiento::where('lote_pago_id', $lote->id)
-            ->update(['codigo_seguimiento' => $codigoReal]);
-
-        // Las observaciones del pago masivo mencionan el código del lote:
-        // deben reflejar el código nuevo, no el provisional ya reemplazado.
-        if ($codigoAnterior && $codigoAnterior !== $codigoReal) {
-            $this->reemplazarCodigoEnObservaciones($lote, $codigoAnterior, $codigoReal);
+        if ($filas->isEmpty()) {
+            Alert::error('Nada que guardar', 'No ingresaste ningún código.');
+            return back();
         }
 
-        Alert::success('Éxito', "Código actualizado en todos los registros del lote.");
+        $pagos = $modeloClase::where('lote_pago_id', $lote->id)
+            ->whereIn('uuid', $filas->pluck('pago_uuid'))
+            ->get()
+            ->keyBy('uuid');
+
+        foreach ($filas as $fila) {
+            $pago = $pagos->get($fila['pago_uuid']);
+            if (!$pago) continue;
+
+            $codigoReal = trim($fila['codigo_real']);
+            if (!$this->codigoDisponible($codigoReal, $pago->id, $modeloClase)) {
+                Alert::error('Código en uso', "El código \"{$codigoReal}\" ya está en uso por otro pago o lote. Verifique e intente de nuevo.");
+                return back();
+            }
+        }
+
+        DB::transaction(function () use ($filas, $pagos, $modeloClase) {
+            foreach ($filas as $fila) {
+                $pago = $pagos->get($fila['pago_uuid']);
+                if (!$pago) continue;
+
+                $codigoReal = trim($fila['codigo_real']);
+                $pago->update(['codigo_seguimiento' => $codigoReal]);
+
+                Movimiento::where('origen_type', $modeloClase)
+                    ->where('origen_id', $pago->id)
+                    ->update(['codigo_seguimiento' => $codigoReal]);
+            }
+        });
+
+        Alert::success('Éxito', 'Código real actualizado en ' . $filas->count() . ' pago(s).');
         return back();
-    }
-
-    /**
-     * Sustituye el código del lote dentro del texto de las observaciones.
-     * Se usa REPLACE de SQL para tocar solo esa parte y conservar cualquier
-     * nota que el usuario haya escrito junto a ella.
-     */
-    private function reemplazarCodigoEnObservaciones(LotePago $lote, string $anterior, string $nuevo): void
-    {
-        foreach ([$this->modeloDelLote($lote), Movimiento::class] as $clase) {
-            $clase::where('lote_pago_id', $lote->id)
-                ->whereNotNull('observaciones')
-                ->where('observaciones', 'like', '%' . $anterior . '%')
-                ->update([
-                    'observaciones' => DB::raw('REPLACE(observaciones, ' . DB::getPdo()->quote($anterior) . ', ' . DB::getPdo()->quote($nuevo) . ')'),
-                ]);
-        }
     }
 
     /**
@@ -111,22 +100,28 @@ class LotePagoController extends Controller
 
         $pagos = match ($lote->tipo) {
             'proveedor' => $lote->pagosProveedor()->with('contrato.proveedor')->get()->map(fn($p) => [
-                'referencia' => $p->contrato?->proveedor?->nombre ?? ('Contrato #' . $p->contrato_id),
-                'monto'      => (float) $p->monto,
-                'moneda'     => $p->moneda_pago,
-                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+                'uuid'        => $p->uuid,
+                'referencia'  => $p->contrato?->proveedor?->nombre ?? ('Contrato #' . $p->contrato_id),
+                'monto'       => (float) $p->monto,
+                'moneda'      => $p->moneda_pago,
+                'fecha'       => $p->fecha_pago->format('d/m/Y'),
+                'codigo'      => $p->codigo_seguimiento,
             ]),
             'cliente' => $lote->pagosCliente()->with('tramo.cliente')->get()->map(fn($p) => [
-                'referencia' => $p->tramo?->cliente?->nombre ?? ('Tramo #' . $p->tramo_id),
-                'monto'      => (float) $p->monto,
-                'moneda'     => $p->moneda_pago,
-                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+                'uuid'        => $p->uuid,
+                'referencia'  => $p->tramo?->cliente?->nombre ?? ('Tramo #' . $p->tramo_id),
+                'monto'       => (float) $p->monto,
+                'moneda'      => $p->moneda_pago,
+                'fecha'       => $p->fecha_pago->format('d/m/Y'),
+                'codigo'      => $p->codigo_seguimiento,
             ]),
             default => $lote->pagosCamion()->with('receptor')->get()->map(fn($p) => [
-                'referencia' => $p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'),
-                'monto'      => (float) $p->monto,
-                'moneda'     => $p->moneda_pago,
-                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+                'uuid'        => $p->uuid,
+                'referencia'  => $p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'),
+                'monto'       => (float) $p->monto,
+                'moneda'      => $p->moneda_pago,
+                'fecha'       => $p->fecha_pago->format('d/m/Y'),
+                'codigo'      => $p->codigo_seguimiento,
             ]),
         };
 
@@ -179,7 +174,7 @@ class LotePagoController extends Controller
                 $esGanadero ? 0 : ($cta?->banco?->codigo_banco ?? ''),
                 $esGanadero ? 0 : ($cta?->sucursal_departamento ?? ''),
                 $glosa,
-                '',
+                $p->codigo_seguimiento ?? '',
                 $cta?->email_notificacion ?? '',
                 '',
                 '',

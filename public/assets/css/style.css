@@ -792,6 +792,29 @@ h6 {
     color: #fff;
 }
 
+/* Hover del botón padre: mismo tono que su submenú, para que el color se
+   reconozca desde antes de desplegar. */
+.sidebar-nav .nav-link[data-sidebar-target="menu-contratos"]:hover     { background: #1e4976; }
+.sidebar-nav .nav-link[data-sidebar-target="menu-proveedores"]:hover   { background: #5a3d1e; }
+.sidebar-nav .nav-link[data-sidebar-target="menu-transporte"]:hover    { background: #1e5a3d; }
+.sidebar-nav .nav-link[data-sidebar-target="menu-clientes"]:hover      { background: #4a1e5a; }
+.sidebar-nav .nav-link[data-sidebar-target="menu-tesoreria"]:hover     { background: #5a1e2e; }
+.sidebar-nav .nav-link[data-sidebar-target="menu-reportes"]:hover      { background: #1e3d5a; }
+.sidebar-nav .nav-link[data-sidebar-target="menu-admin"]:hover         { background: #3d3d3d; }
+
+/* Ítems sin submenú: cada uno con su propio color, distinto del celeste
+   genérico que usa el resto del menú. */
+.sidebar-nav .nav-link[href$="/home"]:hover,
+.sidebar-nav .nav-link[href$="/home"].menu-activo             { background: #4a4a1e; }
+.sidebar-nav .nav-link[href$="/bancos"]:hover,
+.sidebar-nav .nav-link[href$="/bancos"].menu-activo           { background: #1e5a5a; }
+.sidebar-nav .nav-link[href$="/empleados"]:hover,
+.sidebar-nav .nav-link[href$="/empleados"].menu-activo        { background: #5a2e1e; }
+.sidebar-nav .nav-link[href$="/gastos_extras"]:hover,
+.sidebar-nav .nav-link[href$="/gastos_extras"].menu-activo    { background: #2e1e5a; }
+.sidebar-nav .nav-link[href$="/parametros"]:hover,
+.sidebar-nav .nav-link[href$="/parametros"].menu-activo       { background: #1e2e5a; }
+
 .sidebar-nav .nav-link .bi-chevron-down {
     margin-right: 0;
     transition: transform 0.2s ease-in-out;
@@ -857,6 +880,43 @@ h6 {
     color: #38bdf8;
     background-color: transparent;
 }
+
+/* Color propio por módulo: cada submenú tiene su tono de hover/activo para
+   que el usuario identifique en qué sección está de un vistazo. */
+#menu-contratos a:hover     { background: #1e4976; }
+#menu-contratos a:hover i   { color: #7dd3fc; }
+#menu-contratos a.active    { background: #164e6e; border-left-color: #38bdf8; }
+#menu-contratos a.active i  { color: #38bdf8; }
+
+#menu-proveedores a:hover    { background: #5a3d1e; }
+#menu-proveedores a:hover i  { color: #fbbf24; }
+#menu-proveedores a.active   { background: #4a3117; border-left-color: #f59e0b; }
+#menu-proveedores a.active i { color: #f59e0b; }
+
+#menu-transporte a:hover     { background: #1e5a3d; }
+#menu-transporte a:hover i   { color: #6ee7b7; }
+#menu-transporte a.active    { background: #174a31; border-left-color: #10b981; }
+#menu-transporte a.active i  { color: #10b981; }
+
+#menu-clientes a:hover     { background: #4a1e5a; }
+#menu-clientes a:hover i   { color: #d8b4fe; }
+#menu-clientes a.active    { background: #3d1749; border-left-color: #a855f7; }
+#menu-clientes a.active i  { color: #a855f7; }
+
+#menu-tesoreria a:hover     { background: #5a1e2e; }
+#menu-tesoreria a:hover i   { color: #fca5a5; }
+#menu-tesoreria a.active    { background: #4a1725; border-left-color: #ef4444; }
+#menu-tesoreria a.active i  { color: #ef4444; }
+
+#menu-reportes a:hover     { background: #1e3d5a; }
+#menu-reportes a:hover i   { color: #93c5fd; }
+#menu-reportes a.active    { background: #17314a; border-left-color: #3b82f6; }
+#menu-reportes a.active i  { color: #3b82f6; }
+
+#menu-admin a:hover     { background: #3d3d3d; }
+#menu-admin a:hover i   { color: #d1d5db; }
+#menu-admin a.active    { background: #2e2e2e; border-left-color: #9ca3af; }
+#menu-admin a.active i  { color: #9ca3af; }
 
 
 /*--------------------------------------------------------------

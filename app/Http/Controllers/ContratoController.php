@@ -119,7 +119,9 @@ class ContratoController extends Controller
                 'proveedor'        => $c->proveedor->nombre ?? '',
                 'moneda'           => $c->moneda,
                 'fecha_registro'   => $c->created_at?->format('d/m/Y H:i') ?? '',
-                'ultimo_editor'    => $c->usuarioActualizador->name ?? ($c->usuarioCreador->name ?? ''),
+                'registrado_por'   => $c->usuarioCreador->name ?? '',
+                'fecha_edicion'    => $c->updated_at && !$c->updated_at->equalTo($c->created_at) ? $c->updated_at->format('d/m/Y H:i') : '',
+                'editado_por'      => $c->updated_at && !$c->updated_at->equalTo($c->created_at) ? ($c->usuarioActualizador->name ?? '') : '',
             ];
 
             $sumaVentas = 0;

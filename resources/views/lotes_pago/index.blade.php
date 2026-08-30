@@ -21,10 +21,10 @@
                 ]'
                 @else
                 data-steps='[
-                    {"intro":"📦 Cada <b>lote</b> agrupa los pagos de un pago masivo. Aquí registras el <b>código real</b> que te da el banco cuando confirma la transferencia, y se aplica a todos los pagos del lote."},
+                    {"intro":"📦 Cada <b>lote</b> agrupa los pagos de un pago masivo. El banco da un <b>código real</b> distinto por cada transferencia, así que lo registras pago por pago desde las Opciones del lote."},
                     {"element":"#lp-tabla","intro":"📋 La lista de lotes: fecha, tipo (proveedor o camión), cuenta de origen, método y los códigos.","position":"top"},
-                    {"element":"#lp-tabla thead th:nth-child(5)","intro":"🔖 El <b>código provisional</b> lo genera el sistema al crear el lote. El <b>código real</b> es el que confirma el banco después.","position":"bottom"},
-                    {"element":"#lp-tabla thead th:nth-child(7)","intro":"🚦 El <b>Estado</b>: <b>Pendiente</b> mientras no haya código real, <b>Confirmado</b> cuando lo registras.","position":"bottom"},
+                    {"element":"#lp-tabla thead th:nth-child(5)","intro":"🔖 El <b>código provisional</b> lo genera el sistema al crear el lote y agrupa sus pagos. La columna <b>código real</b> muestra cuántos pagos del lote ya tienen el código que dio el banco.","position":"bottom"},
+                    {"element":"#lp-tabla thead th:nth-child(7)","intro":"🚦 El <b>Estado</b>: <b>Pendiente</b> si ningún pago tiene código, <b>Parcial</b> si solo algunos, <b>Confirmado</b> cuando todos los pagos del lote ya tienen su código real.","position":"bottom"},
                     {"element":"#lp-tabla tbody tr:first-child td:last-child","intro":"⚙️ El botón <b>Opciones</b> de cada lote: ver el Excel formato banco, ingresar/editar el código real, o eliminar el lote.","position":"left"}
                 ]'
                 @endif>
@@ -92,15 +92,17 @@
             <td><small>{{ ucfirst($lote->metodo_pago) }}</small></td>
             <td><code class="small text-muted">{{ $lote->codigo_provisional }}</code></td>
             <td>
-              @if($lote->codigo_real)
-                <code class="small text-success fw-bold">{{ $lote->codigo_real }}</code>
+              @if($lote->con_codigo_real > 0)
+                <span class="small text-success fw-bold">{{ $lote->con_codigo_real }}/{{ $lote->total_pagos }} pago(s) con código</span>
               @else
                 <span class="text-muted small">—</span>
               @endif
             </td>
             <td>
-              @if($lote->codigo_real)
+              @if($lote->estado_codigo === 'confirmado')
                 <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Confirmado</span>
+              @elseif($lote->estado_codigo === 'parcial')
+                <span class="badge bg-info text-dark"><i class="bi bi-hourglass-split me-1"></i>Parcial ({{ $lote->con_codigo_real }}/{{ $lote->total_pagos }})</span>
               @else
                 <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pendiente</span>
               @endif
@@ -120,8 +122,8 @@
                   @endif
                   @can('lotes_pago.edit')
                   <li>
-                    <button class="dropdown-item" onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $lote->codigo_real ?? $lote->codigo_provisional ?? '' }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
-                      <i class="bi bi-pencil-square text-primary me-2"></i> {{ $lote->codigo_real ? 'Editar código' : 'Ingresar código' }}
+                    <button class="dropdown-item" onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
+                      <i class="bi bi-pencil-square text-primary me-2"></i> Códigos reales por pago
                     </button>
                   </li>
                   @endcan
@@ -149,28 +151,32 @@
 </div>
 </section>
 
-{{-- Modal para ingresar/editar código real --}}
+{{-- Modal para ingresar/editar el código real por cada pago del lote --}}
 <div class="modal fade" id="modalCodigo" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-hash me-2"></i>Código de transferencia</h5>
+        <h5 class="modal-title"><i class="bi bi-hash me-2"></i>Códigos reales del banco</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="form_codigo" method="POST">
         @csrf
-        <input type="hidden" id="input_lote_uuid" value="">
         <div class="modal-body">
           <p class="small text-muted mb-2" id="lbl_info_lote"></p>
-          <label class="form-label fw-semibold">Código real del banco</label>
-          <input type="text" class="form-control" name="codigo_real" id="input_codigo_real"
-                 placeholder="Ej: TRF-2026052500123" required maxlength="100">
-          <div class="invalid-feedback d-block" id="codigo_real_feedback" style="display:none !important;"></div>
-          <small class="text-muted">Este código reemplazará el provisional en todos los registros del lote.</small>
+          <p class="small text-muted mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            El banco entrega un código distinto por cada transferencia. Ingresa el que corresponda a cada pago;
+            los que dejes vacíos quedan pendientes y puedes completarlos después.
+          </p>
+          <div id="codigo_body">
+            <div class="text-center text-muted py-3">
+              <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btn_guardar_codigo">
+          <button type="submit" class="btn btn-primary" id="btn_guardar_codigo" disabled>
             <i class="bi bi-save me-1"></i>Guardar
           </button>
         </div>
@@ -247,48 +253,52 @@
 @section('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-function abrirModalCodigo(uuid, codigoActual, tipo, fecha) {
+function abrirModalCodigo(uuid, tipo, fecha) {
     document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
-    document.getElementById('input_lote_uuid').value = uuid;
-    document.getElementById('input_codigo_real').value = codigoActual;
-    document.getElementById('input_codigo_real').classList.remove('is-invalid');
-    document.getElementById('codigo_real_feedback').style.display = 'none';
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
+    document.getElementById('codigo_body').innerHTML = `
+        <div class="text-center text-muted py-3">
+            <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
+        </div>`;
+    document.getElementById('btn_guardar_codigo').disabled = true;
+
     new bootstrap.Modal(document.getElementById('modalCodigo')).show();
-    setTimeout(() => document.getElementById('input_codigo_real').focus(), 400);
-}
 
-// Verificar código duplicado al hacer clic en Guardar (no en cada tecla,
-// para no saturar de consultas), y solo entonces enviar el formulario.
-document.getElementById('form_codigo').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const btn      = document.getElementById('btn_guardar_codigo');
-    const input    = document.getElementById('input_codigo_real');
-    const feedback = document.getElementById('codigo_real_feedback');
-    const codigo   = input.value.trim();
-
-    input.classList.remove('is-invalid');
-    feedback.style.display = 'none';
-
-    if (!codigo) return;
-
-    btn.disabled = true;
-    const loteUuid = document.getElementById('input_lote_uuid').value;
-    const params = new URLSearchParams({ codigo, lote_uuid: loteUuid });
-
-    fetch(`${url_global}/api/lotes-pago/verificar-codigo?${params}`)
+    fetch(`${url_global}/api/lotes-pago/${uuid}/detalle`)
         .then(r => r.json())
         .then(d => {
-            if (!d.disponible) {
-                input.classList.add('is-invalid');
-                feedback.textContent = 'Este código ya está en uso por otro pago o lote. Ingresa uno distinto.';
-                feedback.style.display = 'block';
-                btn.disabled = false;
+            if (d.pagos.length === 0) {
+                document.getElementById('codigo_body').innerHTML = '<div class="alert alert-info py-2 mb-0">Este lote no tiene pagos.</div>';
                 return;
             }
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-            this.submit();
+            let html = `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
+                <thead class="table-light"><tr><th>Referencia</th><th class="text-end">Monto</th><th>Fecha</th><th style="width:220px">Código real</th></tr></thead>
+                <tbody>`;
+            d.pagos.forEach((p, i) => {
+                html += `<tr>
+                    <td>${p.referencia}</td>
+                    <td class="text-end">${_fmtLote(p.monto, p.moneda)}</td>
+                    <td>${p.fecha}</td>
+                    <td>
+                        <input type="hidden" name="codigos[${i}][pago_uuid]" value="${p.uuid}">
+                        <input type="text" class="form-control form-control-sm" name="codigos[${i}][codigo_real]"
+                               value="${p.codigo ?? ''}" placeholder="Ej: TRF-2026052500123" maxlength="100">
+                    </td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+            document.getElementById('codigo_body').innerHTML = html;
+            document.getElementById('btn_guardar_codigo').disabled = false;
+        })
+        .catch(() => {
+            document.getElementById('codigo_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar los pagos del lote.</div>';
         });
+}
+
+document.getElementById('form_codigo').addEventListener('submit', function () {
+    const btn = document.getElementById('btn_guardar_codigo');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 });
 
 // ===== Eliminar lote: modal con detalle de pagos antes de confirmar =====

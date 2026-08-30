@@ -438,7 +438,7 @@
         );
         const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
 
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE VENTA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1 (3%)','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA DE REGISTRO','ÚLTIMO EDITOR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE VENTA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1 (3%)','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -455,7 +455,7 @@
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, c.estado_envios,
                     '', '', '',
                     c.monto_pagado_proveedor, c.codigo_pago_proveedor, c.fecha_pago_proveedor,
-                    c.fecha_registro, c.ultimo_editor,
+                    c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
                 ]);
                 rowStyles.push(
                     c.estado_envios === 'Envíos cerrados' ? 'subtotal_cerrado' :
@@ -470,7 +470,7 @@
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, '',
                     c.monto_cobrado_cliente, c.codigo_cobro_cliente, c.fecha_cobro_cliente,
                     '', '', '',
-                    c.fecha_registro, c.ultimo_editor,
+                    c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
                 ]);
                 rowStyles.push(null);
                 if (typeof c.total_ventas === 'number') ventasEntregas.push(c.total_ventas);
@@ -519,17 +519,20 @@
     <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
     <font><b/><sz val="11"/><name val="Calibri"/></font>
   </fonts>
-  <fills count="6">
+  <fills count="9">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF1A6B2F"/></patternFill></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF3B0"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFCCE9F5"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FFC6E7C6"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF17A2B8"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF808080"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE8730E"/></patternFill></fill>
   </fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="6">
+  <cellXfs count="9">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
       <alignment horizontal="center" vertical="center"/>
@@ -540,6 +543,15 @@
     <xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
     <xf numFmtId="0" fontId="3" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
     <xf numFmtId="0" fontId="3" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
+    <xf numFmtId="0" fontId="1" fillId="6" borderId="0" xfId="0" applyFont="1" applyFill="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="1" fillId="7" borderId="0" xfId="0" applyFont="1" applyFill="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="1" fillId="8" borderId="0" xfId="0" applyFont="1" applyFill="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
   </cellXfs>
 </styleSheet>`;
 
@@ -581,10 +593,17 @@
             filaActual++;
         });
 
+        // Columnas con color de cabecera distinto al verde estándar (s="1"):
+        // celeste = IT/comisiones/costo adicional, plomo = cobro cliente, naranja = pago proveedor.
+        const colsCeleste = [15, 16, 17, 18];
+        const colsPlomo   = [21, 22, 23];
+        const colsNaranja = [24, 25, 26];
+
         const filaCabecera = filaActual;
         sheetData += `<row r="${filaCabecera}">`;
         headers.forEach((h, ci) => {
-            sheetData += `<c r="${colLetter(ci)}${filaCabecera}" t="inlineStr" s="1"><is><t>${esc(h)}</t></is></c>`;
+            const s = colsCeleste.includes(ci) ? '6' : colsPlomo.includes(ci) ? '7' : colsNaranja.includes(ci) ? '8' : '1';
+            sheetData += `<c r="${colLetter(ci)}${filaCabecera}" t="inlineStr" s="${s}"><is><t>${esc(h)}</t></is></c>`;
         });
         sheetData += `</row>`;
         filaActual++;

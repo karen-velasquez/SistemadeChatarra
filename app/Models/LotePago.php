@@ -71,4 +71,29 @@ class LotePago extends Model
             default     => $this->pagosCamion()->count(),
         };
     }
+
+    private function pagosRelacion()
+    {
+        return match ($this->tipo) {
+            'proveedor' => $this->pagosProveedor(),
+            'cliente'   => $this->pagosCliente(),
+            default     => $this->pagosCamion(),
+        };
+    }
+
+    // El banco da un código real por cada pago individual, no uno solo para
+    // todo el lote: el estado refleja cuántos de esos pagos ya lo tienen.
+    public function getConCodigoRealAttribute(): int
+    {
+        return $this->pagosRelacion()->whereNotNull('codigo_seguimiento')->where('codigo_seguimiento', '!=', '')->count();
+    }
+
+    public function getEstadoCodigoAttribute(): string
+    {
+        $total = $this->total_pagos;
+        if ($total === 0) return 'pendiente';
+        $conCodigo = $this->con_codigo_real;
+        if ($conCodigo === 0) return 'pendiente';
+        return $conCodigo === $total ? 'confirmado' : 'parcial';
+    }
 }
