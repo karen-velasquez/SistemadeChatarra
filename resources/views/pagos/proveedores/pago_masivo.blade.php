@@ -42,6 +42,17 @@
     </div>
 </div>
 
+@if($errors->any())
+<div class="alert alert-danger">
+    <strong><i class="bi bi-exclamation-triangle me-1"></i>No se pudo registrar el pago masivo:</strong>
+    <ul class="mb-0">
+        @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
+
 <section class="section">
 <div class="row">
 <div class="col-12">

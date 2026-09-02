@@ -297,4 +297,12 @@ use Illuminate\Support\Facades\Route;
     Route::get('parametros/{uuid}/edit', [App\Http\Controllers\ParametroController::class, 'edit'])->name('parametros.edit')->middleware('permission:parametros.edit');
     Route::put('parametros/{uuid}', [App\Http\Controllers\ParametroController::class, 'update'])->name('parametros.update')->middleware('permission:parametros.edit');
     Route::get('parametros/{uuid}/destroy', [App\Http\Controllers\ParametroController::class, 'destroy'])->name('parametros.destroy')->middleware('permission:parametros.destroy');
+
+    // Reglas de comisión (Comisión 1 especial por cliente + empresa facturadora)
+    Route::get('reglas-comision', [App\Http\Controllers\ReglaComisionController::class, 'index'])->name('reglas_comision.index')->middleware('permission:reglas_comision.index');
+    Route::post('reglas-comision', [App\Http\Controllers\ReglaComisionController::class, 'store'])->name('reglas_comision.store')->middleware('permission:reglas_comision.create');
+    Route::get('reglas-comision/{uuid}/edit', [App\Http\Controllers\ReglaComisionController::class, 'edit'])->name('reglas_comision.edit')->middleware('permission:reglas_comision.edit');
+    Route::put('reglas-comision/{uuid}', [App\Http\Controllers\ReglaComisionController::class, 'update'])->name('reglas_comision.update')->middleware('permission:reglas_comision.edit');
+    Route::post('reglas-comision/{uuid}/toggle-activo', [App\Http\Controllers\ReglaComisionController::class, 'toggleActivo'])->name('reglas_comision.toggle_activo')->middleware('permission:reglas_comision.edit');
+    Route::get('reglas-comision/{uuid}/destroy', [App\Http\Controllers\ReglaComisionController::class, 'destroy'])->name('reglas_comision.destroy')->middleware('permission:reglas_comision.destroy');
    });

@@ -146,6 +146,11 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'parametros.create',  'descripcion' => 'Agregar Parámetros',  'grupo' => 'PARAMETROS'],
             ['name' => 'parametros.edit',    'descripcion' => 'Editar Parámetros',   'grupo' => 'PARAMETROS'],
             ['name' => 'parametros.destroy', 'descripcion' => 'Eliminar Parámetros', 'grupo' => 'PARAMETROS'],
+            // Reglas de comisión
+            ['name' => 'reglas_comision.index',   'descripcion' => 'Ver Reglas de Comisión',      'grupo' => 'REGLAS_COMISION'],
+            ['name' => 'reglas_comision.create',  'descripcion' => 'Agregar Reglas de Comisión',  'grupo' => 'REGLAS_COMISION'],
+            ['name' => 'reglas_comision.edit',    'descripcion' => 'Editar Reglas de Comisión',   'grupo' => 'REGLAS_COMISION'],
+            ['name' => 'reglas_comision.destroy', 'descripcion' => 'Eliminar Reglas de Comisión', 'grupo' => 'REGLAS_COMISION'],
         ];
 
         foreach ($permisos as $p) {

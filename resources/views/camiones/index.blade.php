@@ -1667,8 +1667,8 @@
         fotos.forEach(function(foto) {
             viewer.innerHTML += `
                 <div class="col-6 col-md-4">
-                    <a href="/storage/${foto.ruta}" target="_blank">
-                        <img src="/storage/${foto.ruta}"
+                    <a href="${url_global}/storage/${foto.ruta}" target="_blank">
+                        <img src="${url_global}/storage/${foto.ruta}"
                             class="img-fluid rounded border"
                             style="width:100%;height:180px;object-fit:cover;"
                             title="Ver foto completa">

@@ -92,6 +92,11 @@ class Tramo extends Model
         return $this->belongsTo(Cliente::class, 'cliente_id');
     }
 
+    public function empresaFacturadora()
+    {
+        return $this->belongsTo(Empresa::class, 'empresa_facturadora_id');
+    }
+
     public function pagosCliente()
     {
         return $this->hasMany(PagoCliente::class, 'tramo_id');

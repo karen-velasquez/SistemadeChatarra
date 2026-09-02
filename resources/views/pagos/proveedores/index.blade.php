@@ -1093,7 +1093,7 @@ function verDetalle(contratoId) {
                                 ${destLine}
                             </div>
                             <div class="d-flex flex-column gap-1">
-                                ${p.tiene_voucher ? `<a href="/pagos/proveedores/${p.uuid}/voucher" target="_blank"
+                                ${p.tiene_voucher ? `<a href="${url_global}/pagos/proveedores/${p.uuid}/voucher" target="_blank"
                                     class="btn btn-sm btn-outline-secondary border-0" title="Ver voucher">
                                     <i class="bi bi-paperclip"></i>
                                 </a>` : ''}
@@ -1102,7 +1102,7 @@ function verDetalle(contratoId) {
                                     title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>` : ''}
-                                ${canDeletePago ? `<a href="/pagos/proveedores/${p.uuid}/destroy"
+                                ${canDeletePago ? `<a href="${url_global}/pagos/proveedores/${p.uuid}/destroy"
                                    class="btn btn-sm btn-outline-danger border-0"
                                    onclick="return confirm('¿Eliminar este pago?')" title="Eliminar">
                                    <i class="bi bi-trash"></i>

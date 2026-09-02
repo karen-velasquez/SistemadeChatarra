@@ -306,9 +306,9 @@ class PagoProveedorController extends Controller
             'contrato_ids'     => 'required|array|min:1',
             'contrato_ids.*'   => 'exists:contratos,id',
             'porcentaje'       => 'required|array',
-            'porcentaje.*'     => 'numeric|min:0.01|max:100',
+            'porcentaje.*'     => 'nullable|numeric|min:0|max:100',
             'cuenta_destino'   => 'required|array',
-            'cuenta_destino.*' => 'exists:cuentas_bancarias,id',
+            'cuenta_destino.*' => 'nullable|exists:cuentas_bancarias,id',
             'vouchers'         => 'nullable|array',
             'vouchers.*'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);

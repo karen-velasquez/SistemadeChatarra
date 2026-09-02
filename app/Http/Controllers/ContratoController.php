@@ -14,6 +14,7 @@ use App\Models\OperadorTransporte;
 use App\Models\Empresa;
 use App\Models\LoteEntrega;
 use App\Models\Parametro;
+use App\Models\ReglaComision;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use App\Http\Requests\ContratoRequest;
@@ -36,6 +37,7 @@ class ContratoController extends Controller
                             'contratoCamiones.tramos.cliente',
                             'contratoCamiones.tramos.camion',
                             'contratoCamiones.tramos.pagosCliente',
+                            'contratoCamiones.tramos.empresaFacturadora',
                             'pagosProveedor',
                             'usuarioCreador',
                             'usuarioActualizador',
@@ -63,7 +65,10 @@ class ContratoController extends Controller
         //   Importe compra = Tn entregadas x costo_unitario del contrato (prorrateo por tonelaje)
         //   Utilidad Bruta = Total ventas - Importe compra
         //   IT             = Total ventas x 3%
-        //   Comisión 1     = Total ventas x 3%
+        //   Comisión 1     = Total ventas x 3%, salvo dos excepciones por
+        //                    cliente + empresa facturadora (ambas a la vez):
+        //                    Minxin + Daniel   => 350 x Tn entregadas
+        //                    Minxin + Mustamet => 200 x Tn entregadas
         //   Comisión 2 ZPL = Total ventas x 1,1%
         //   Costo adicional Minxin = 25 USD x 6.96 = 174 Bs por tramo entregado a Minxin
         //   Utilidad Neta  = Utilidad Bruta - IT - Comisión 1 - Comisión 2 - Costo adicional
@@ -90,6 +95,8 @@ class ContratoController extends Controller
                     $entregas->push([
                         'placa'          => $cc->camion->placa ?? '',
                         'cliente'        => $t->cliente->nombre ?? '',
+                        'cliente_id'     => $t->cliente_id,
+                        'empresa_facturadora_id' => $t->empresa_facturadora_id,
                         'tn_entregadas'  => (float) $t->peso_llegada,
                         'precio_venta'   => (float) $t->precio_por_tonelada,
                         'fecha_entrega'  => $t->fecha_llegada?->format('d/m/Y') ?? '',
@@ -136,10 +143,13 @@ class ContratoController extends Controller
                 $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
                 $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
                 $utilidadBruta = round($totalVentas - $importeCompra, 2);
-                $it            = round($totalVentas * 0.03, 2);
-                $comision1     = round($totalVentas * 0.03, 2);
-                $comision2     = round($totalVentas * 0.011, 2);
-                $costoAdicional = stripos($e['cliente'], 'Minxin') !== false ? $costoAdicionalMinxin : 0;
+                $it              = round($totalVentas * 0.03, 2);
+                $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id']);
+                $comision1       = $montoRegla !== null
+                    ? round($e['tn_entregadas'] * $montoRegla, 2)
+                    : round($totalVentas * 0.03, 2);
+                $comision2       = round($totalVentas * 0.011, 2);
+                $costoAdicional  = stripos($e['cliente'], 'Minxin') !== false ? $costoAdicionalMinxin : 0;
                 $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2 - $costoAdicional, 2);
 
                 $sumaVentas   += $totalVentas;

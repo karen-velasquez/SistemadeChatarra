@@ -313,6 +313,16 @@
       </li>
       @endcan
 
+      {{-- Reglas de Comisión --}}
+      @can('reglas_comision.index')
+      <li class="nav-item">
+        <a class="nav-link {{ isActiveRoute(['reglas_comision.index']) }}" href="{{ route('reglas_comision.index') }}">
+          <i class="bi bi-percent"></i>
+          <span>Reglas de Comisión</span>
+        </a>
+      </li>
+      @endcan
+
       {{-- ADMINISTRACIÓN --}}
       @if(auth()->user()->can('permisos.index') || auth()->user()->can('roles.index') || auth()->user()->can('users.index'))
       @php $enAdmin = request()->routeIs(['permisos.*','roles.*','users.*']); @endphp
