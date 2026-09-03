@@ -263,8 +263,8 @@
       @endcan
 
        {{-- REPORTES --}}
-      @php $enReportes = request()->routeIs(['newReports.index','reportes.index','reportes.capital_utilidad']); @endphp
-      @if(auth()->user()->can('reportes.index'))
+      @php $enReportes = request()->routeIs(['newReports.index','reportes.index','reportes.capital_utilidad','reglas_comision.index','reglas_costo_adicional.index']); @endphp
+      @if(auth()->user()->can('reportes.index') || auth()->user()->can('reglas_comision.index') || auth()->user()->can('reglas_costo_adicional.index'))
       <li class="nav-item">
         <a class="nav-link {{ $enReportes ? '' : 'collapsed' }}"
            data-sidebar-target="menu-reportes" href="#">
@@ -290,7 +290,7 @@
               <i class="bi bi-person-lines-fill"></i><span>Reportes Generales</span>
             </a>
           </li>
-          @endcan 
+          @endcan
           @can('reportes_capital.index')
           <li>
             <a href="{{ route('reportes.capital_utilidad') }}"
@@ -299,6 +299,24 @@
             </a>
           </li>
           @endcan -->
+
+          @can('reglas_comision.index')
+          <li>
+            <a href="{{ route('reglas_comision.index') }}"
+               class="{{ isActiveRoute(['reglas_comision.index']) ? 'active' : '' }}">
+              <i class="bi bi-percent"></i><span>Reglas de Comisión</span>
+            </a>
+          </li>
+          @endcan
+
+          @can('reglas_costo_adicional.index')
+          <li>
+            <a href="{{ route('reglas_costo_adicional.index') }}"
+               class="{{ isActiveRoute(['reglas_costo_adicional.index']) ? 'active' : '' }}">
+              <i class="bi bi-cash-coin"></i><span>Reglas de Costo Adicional</span>
+            </a>
+          </li>
+          @endcan
         </ul>
       </li>
       @endif
@@ -309,26 +327,6 @@
         <a class="nav-link {{ isActiveRoute(['parametros.index']) }}" href="{{ route('parametros.index') }}">
           <i class="bi bi-sliders"></i>
           <span>Parámetros</span>
-        </a>
-      </li>
-      @endcan
-
-      {{-- Reglas de Comisión --}}
-      @can('reglas_comision.index')
-      <li class="nav-item">
-        <a class="nav-link {{ isActiveRoute(['reglas_comision.index']) }}" href="{{ route('reglas_comision.index') }}">
-          <i class="bi bi-percent"></i>
-          <span>Reglas de Comisión</span>
-        </a>
-      </li>
-      @endcan
-
-      {{-- Reglas de Costo Adicional --}}
-      @can('reglas_costo_adicional.index')
-      <li class="nav-item">
-        <a class="nav-link {{ isActiveRoute(['reglas_costo_adicional.index']) }}" href="{{ route('reglas_costo_adicional.index') }}">
-          <i class="bi bi-cash-coin"></i>
-          <span>Reglas de Costo Adicional</span>
         </a>
       </li>
       @endcan
