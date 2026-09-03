@@ -323,6 +323,16 @@
       </li>
       @endcan
 
+      {{-- Reglas de Costo Adicional --}}
+      @can('reglas_costo_adicional.index')
+      <li class="nav-item">
+        <a class="nav-link {{ isActiveRoute(['reglas_costo_adicional.index']) }}" href="{{ route('reglas_costo_adicional.index') }}">
+          <i class="bi bi-cash-coin"></i>
+          <span>Reglas de Costo Adicional</span>
+        </a>
+      </li>
+      @endcan
+
       {{-- ADMINISTRACIÓN --}}
       @if(auth()->user()->can('permisos.index') || auth()->user()->can('roles.index') || auth()->user()->can('users.index'))
       @php $enAdmin = request()->routeIs(['permisos.*','roles.*','users.*']); @endphp

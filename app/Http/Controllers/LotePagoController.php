@@ -26,7 +26,52 @@ class LotePagoController extends Controller
             ->orderByDesc('created_at')
             ->paginate(30);
 
+        // Resumen de a qué contratos/referencias y montos corresponde cada
+        // lote, para mostrarlo directo en la tabla sin abrir el detalle.
+        $lotes->getCollection()->transform(function ($lote) {
+            $pagos = $this->pagosDelLote($lote);
+            $lote->resumen_referencias = $pagos->pluck('referencia')->unique()->values();
+            $lote->resumen_monto       = round($pagos->sum('monto'), 2);
+            $lote->resumen_moneda      = $pagos->first()['moneda'] ?? 'BOB';
+            return $lote;
+        });
+
         return view('lotes_pago.index', compact('lotes'));
+    }
+
+    /**
+     * Pagos del lote con su referencia (a qué contrato/proveedor/cliente
+     * corresponde) y monto. Fuente única para el resumen de la tabla y
+     * para el modal de detalle.
+     */
+    private function pagosDelLote(LotePago $lote)
+    {
+        return match ($lote->tipo) {
+            'proveedor' => $lote->pagosProveedor()->with('contrato.proveedor')->get()->map(fn($p) => [
+                'uuid'       => $p->uuid,
+                'referencia' => trim(($p->contrato?->numero_contrato ?? ('#' . $p->contrato_id)) . ' — ' . ($p->contrato?->proveedor?->nombre ?? '')),
+                'monto'      => (float) $p->monto,
+                'moneda'     => $p->moneda_pago,
+                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+                'codigo'     => $p->codigo_seguimiento,
+            ]),
+            'cliente' => $lote->pagosCliente()->with('tramo.cliente', 'tramo.contratoCamion.contrato')->get()->map(fn($p) => [
+                'uuid'       => $p->uuid,
+                'referencia' => trim(($p->tramo?->contratoCamion?->contrato?->numero_contrato ?? ('Tramo #' . $p->tramo_id)) . ' — ' . ($p->tramo?->cliente?->nombre ?? '')),
+                'monto'      => (float) $p->monto,
+                'moneda'     => $p->moneda_pago,
+                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+                'codigo'     => $p->codigo_seguimiento,
+            ]),
+            default => $lote->pagosCamion()->with('receptor', 'contratoCamion.contrato')->get()->map(fn($p) => [
+                'uuid'       => $p->uuid,
+                'referencia' => trim(($p->contratoCamion?->contrato?->numero_contrato ?? '') . ' — ' . ($p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'))),
+                'monto'      => (float) $p->monto,
+                'moneda'     => $p->moneda_pago,
+                'fecha'      => $p->fecha_pago->format('d/m/Y'),
+                'codigo'     => $p->codigo_seguimiento,
+            ]),
+        };
     }
 
     /**
@@ -96,34 +141,8 @@ class LotePagoController extends Controller
      */
     public function detalle($uuid)
     {
-        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
-
-        $pagos = match ($lote->tipo) {
-            'proveedor' => $lote->pagosProveedor()->with('contrato.proveedor')->get()->map(fn($p) => [
-                'uuid'        => $p->uuid,
-                'referencia'  => $p->contrato?->proveedor?->nombre ?? ('Contrato #' . $p->contrato_id),
-                'monto'       => (float) $p->monto,
-                'moneda'      => $p->moneda_pago,
-                'fecha'       => $p->fecha_pago->format('d/m/Y'),
-                'codigo'      => $p->codigo_seguimiento,
-            ]),
-            'cliente' => $lote->pagosCliente()->with('tramo.cliente')->get()->map(fn($p) => [
-                'uuid'        => $p->uuid,
-                'referencia'  => $p->tramo?->cliente?->nombre ?? ('Tramo #' . $p->tramo_id),
-                'monto'       => (float) $p->monto,
-                'moneda'      => $p->moneda_pago,
-                'fecha'       => $p->fecha_pago->format('d/m/Y'),
-                'codigo'      => $p->codigo_seguimiento,
-            ]),
-            default => $lote->pagosCamion()->with('receptor')->get()->map(fn($p) => [
-                'uuid'        => $p->uuid,
-                'referencia'  => $p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'),
-                'monto'       => (float) $p->monto,
-                'moneda'      => $p->moneda_pago,
-                'fecha'       => $p->fecha_pago->format('d/m/Y'),
-                'codigo'      => $p->codigo_seguimiento,
-            ]),
-        };
+        $lote  = LotePago::where('uuid', $uuid)->firstOrFail();
+        $pagos = $this->pagosDelLote($lote);
 
         return response()->json([
             'tipo'        => $lote->tipo,

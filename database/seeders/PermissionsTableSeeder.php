@@ -151,6 +151,12 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'reglas_comision.create',  'descripcion' => 'Agregar Reglas de Comisión',  'grupo' => 'REGLAS_COMISION'],
             ['name' => 'reglas_comision.edit',    'descripcion' => 'Editar Reglas de Comisión',   'grupo' => 'REGLAS_COMISION'],
             ['name' => 'reglas_comision.destroy', 'descripcion' => 'Eliminar Reglas de Comisión', 'grupo' => 'REGLAS_COMISION'],
+
+            // Reglas de costo adicional
+            ['name' => 'reglas_costo_adicional.index',   'descripcion' => 'Ver Reglas de Costo Adicional',      'grupo' => 'REGLAS_COSTO_ADICIONAL'],
+            ['name' => 'reglas_costo_adicional.create',  'descripcion' => 'Agregar Reglas de Costo Adicional',  'grupo' => 'REGLAS_COSTO_ADICIONAL'],
+            ['name' => 'reglas_costo_adicional.edit',    'descripcion' => 'Editar Reglas de Costo Adicional',   'grupo' => 'REGLAS_COSTO_ADICIONAL'],
+            ['name' => 'reglas_costo_adicional.destroy', 'descripcion' => 'Eliminar Reglas de Costo Adicional', 'grupo' => 'REGLAS_COSTO_ADICIONAL'],
         ];
 
         foreach ($permisos as $p) {

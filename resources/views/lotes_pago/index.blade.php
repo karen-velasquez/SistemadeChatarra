@@ -56,6 +56,8 @@
           <tr>
             <th>Fecha</th>
             <th>Tipo</th>
+            <th>Contratos / Referencias</th>
+            <th class="text-end">Monto total</th>
             <th>Cuenta origen</th>
             <th>Método</th>
             <th>Código provisional</th>
@@ -82,6 +84,21 @@
                 };
               @endphp
               <span class="badge {{ $badgeTipo }}">{{ $labelTipo }}</span>
+            </td>
+            <td>
+              @if($lote->resumen_referencias->isEmpty())
+                <span class="text-muted small">—</span>
+              @else
+                <small>
+                  {{ $lote->resumen_referencias->take(2)->implode(' · ') }}
+                  @if($lote->resumen_referencias->count() > 2)
+                    <span class="text-muted">+{{ $lote->resumen_referencias->count() - 2 }} más</span>
+                  @endif
+                </small>
+              @endif
+            </td>
+            <td class="text-end">
+              <small class="fw-semibold">{{ $lote->resumen_moneda }} {{ number_format($lote->resumen_monto, 2, ',', '.') }}</small>
             </td>
             <td>
               <small>{{ $lote->cuentaOrigen?->empresa?->nombre ?? '—' }}</small>

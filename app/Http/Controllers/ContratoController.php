@@ -15,6 +15,7 @@ use App\Models\Empresa;
 use App\Models\LoteEntrega;
 use App\Models\Parametro;
 use App\Models\ReglaComision;
+use App\Models\ReglaCostoAdicional;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use App\Http\Requests\ContratoRequest;
@@ -96,7 +97,8 @@ class ContratoController extends Controller
                         'placa'          => $cc->camion->placa ?? '',
                         'cliente'        => $t->cliente->nombre ?? '',
                         'cliente_id'     => $t->cliente_id,
-                        'empresa_facturadora_id' => $t->empresa_facturadora_id,
+                        'empresa_facturadora_id'     => $t->empresa_facturadora_id,
+                        'empresa_facturadora_nombre' => $t->empresaFacturadora->nombre ?? '',
                         'tn_entregadas'  => (float) $t->peso_llegada,
                         'precio_venta'   => (float) $t->precio_por_tonelada,
                         'fecha_entrega'  => $t->fecha_llegada?->format('d/m/Y') ?? '',
@@ -138,6 +140,7 @@ class ContratoController extends Controller
             $sumaCom2 = 0;
             $sumaCostoAdicional = 0;
             $sumaUtilNeta = 0;
+            $sumaMontoCobrado = 0;
 
             foreach ($entregas as $e) {
                 $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
@@ -149,7 +152,10 @@ class ContratoController extends Controller
                     ? round($e['tn_entregadas'] * $montoRegla, 2)
                     : round($totalVentas * 0.03, 2);
                 $comision2       = round($totalVentas * 0.011, 2);
-                $costoAdicional  = stripos($e['cliente'], 'Minxin') !== false ? $costoAdicionalMinxin : 0;
+                $montoCostoAdicional = ReglaCostoAdicional::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id']);
+                $costoAdicional  = $montoCostoAdicional !== null
+                    ? $montoCostoAdicional
+                    : (stripos($e['cliente'], 'Minxin') !== false ? $costoAdicionalMinxin : 0);
                 $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2 - $costoAdicional, 2);
 
                 $sumaVentas   += $totalVentas;
@@ -159,9 +165,11 @@ class ContratoController extends Controller
                 $sumaCom2     += $comision2;
                 $sumaCostoAdicional += $costoAdicional;
                 $sumaUtilNeta += $utilidadNeta;
+                $sumaMontoCobrado += $e['monto_cobrado_cliente'];
 
                 $contratosExcelData->push($filaBase + [
                     'placa'            => $e['placa'],
+                    'empresa_facturadora' => $e['empresa_facturadora_nombre'],
                     'cliente'          => $e['cliente'],
                     'tn_entregadas'    => $e['tn_entregadas'],
                     'precio_venta'     => $e['precio_venta'],
@@ -179,6 +187,33 @@ class ContratoController extends Controller
                     'codigo_cobro_cliente'  => $e['codigo_cobro_cliente'],
                     'fecha_cobro_cliente'   => $e['fecha_cobro_cliente'],
                     'es_subtotal'      => false,
+                ]);
+            }
+
+            // Una fila por cada pago individual al proveedor, entre las
+            // entregas y el subtotal — antes iban comprimidos en una sola
+            // celda del subtotal (implode), ahora cada pago es su propia fila.
+            foreach ($c->pagosProveedor as $p) {
+                if ($p->deleted_at) continue;
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => '',
+                    'cliente'          => 'PAGO PROVEEDOR',
+                    'tn_entregadas'    => '',
+                    'precio_venta'     => '',
+                    'total_ventas'     => '',
+                    'precio_compra'    => '',
+                    'importe_compra'   => '',
+                    'utilidad_bruta'   => '',
+                    'it_3'             => '',
+                    'comision_1_3'     => '',
+                    'comision_2_zpl'   => '',
+                    'costo_adicional'  => '',
+                    'utilidad_neta'    => '',
+                    'monto_pagado_proveedor' => (float) $p->monto,
+                    'codigo_pago_proveedor'  => $p->codigo_seguimiento ?? '',
+                    'fecha_pago_proveedor'   => $p->fecha_pago ? $p->fecha_pago->format('d/m/Y') : '',
+                    'es_subtotal'      => false,
+                    'es_pago_proveedor'=> true,
                 ]);
             }
 
@@ -203,6 +238,7 @@ class ContratoController extends Controller
                     'costo_adicional'  => round($sumaCostoAdicional, 2),
                     'utilidad_neta'    => round($sumaUtilNeta, 2),
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos',
+                    'monto_cobrado_cliente'   => round($sumaMontoCobrado, 2),
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
@@ -247,6 +283,7 @@ class ContratoController extends Controller
                     'costo_adicional'  => 0,
                     'utilidad_neta'    => 0,
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos - SIN ENVIOS',
+                    'monto_cobrado_cliente'   => 0,
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),

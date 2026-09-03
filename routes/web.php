@@ -305,4 +305,12 @@ use Illuminate\Support\Facades\Route;
     Route::put('reglas-comision/{uuid}', [App\Http\Controllers\ReglaComisionController::class, 'update'])->name('reglas_comision.update')->middleware('permission:reglas_comision.edit');
     Route::post('reglas-comision/{uuid}/toggle-activo', [App\Http\Controllers\ReglaComisionController::class, 'toggleActivo'])->name('reglas_comision.toggle_activo')->middleware('permission:reglas_comision.edit');
     Route::get('reglas-comision/{uuid}/destroy', [App\Http\Controllers\ReglaComisionController::class, 'destroy'])->name('reglas_comision.destroy')->middleware('permission:reglas_comision.destroy');
+
+    // Reglas de costo adicional (por cliente + empresa facturadora)
+    Route::get('reglas-costo-adicional', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'index'])->name('reglas_costo_adicional.index')->middleware('permission:reglas_costo_adicional.index');
+    Route::post('reglas-costo-adicional', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'store'])->name('reglas_costo_adicional.store')->middleware('permission:reglas_costo_adicional.create');
+    Route::get('reglas-costo-adicional/{uuid}/edit', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'edit'])->name('reglas_costo_adicional.edit')->middleware('permission:reglas_costo_adicional.edit');
+    Route::put('reglas-costo-adicional/{uuid}', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'update'])->name('reglas_costo_adicional.update')->middleware('permission:reglas_costo_adicional.edit');
+    Route::post('reglas-costo-adicional/{uuid}/toggle-activo', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'toggleActivo'])->name('reglas_costo_adicional.toggle_activo')->middleware('permission:reglas_costo_adicional.edit');
+    Route::get('reglas-costo-adicional/{uuid}/destroy', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'destroy'])->name('reglas_costo_adicional.destroy')->middleware('permission:reglas_costo_adicional.destroy');
    });

@@ -27,7 +27,7 @@
                     ]'>
                 <i class="bi bi-question-circle"></i>
             </button>
-            <button type="button" id="btnDescargarExcelContratos" class="btn btn-outline-success btn-sm" onclick="descargarExcelContratos()">
+            <button type="button" id="btnDescargarExcelContratos" class="btn btn-outline-success btn-sm" onclick="previsualizarExcelContratos()">
                 <i class="bi bi-file-earmark-excel"></i> Descargar Excel
             </button>
             @can('contratos.create')
@@ -429,7 +429,10 @@
     // ── Descargar lista de contratos en Excel (valores numéricos limpios para fórmulas) ──
     const _contratosExcelData = @json($contratosExcelData);
 
-    function descargarExcelContratos() {
+    // Arma cols/dataRows/rowStyles/tituloLineas a partir de los contratos
+    // visibles según los filtros activos — fuente única usada tanto por la
+    // vista previa (pestaña nueva) como por la descarga directa del .xlsx.
+    function _construirDatosExcelContratos() {
         // Solo los contratos visibles según los filtros activos (Tipo/Proveedor/Cliente),
         // igual que se ven en pantalla — no todos los contratos registrados.
         const numerosVisibles = new Set(
@@ -438,7 +441,7 @@
         );
         const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
 
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE VENTA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1 (3%)','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA DE FACTURA','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE VENTA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA DE FACTURA','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -450,10 +453,10 @@
         visibles.forEach(c => {
             if (c.es_subtotal) {
                 dataRows.push([
-                    c.cliente, c.fecha_contrato, '', '', c.placa, '', c.moneda,
+                    c.cliente, c.fecha_contrato, '', '', c.placa, '', '', c.moneda,
                     c.tn_entregadas, c.precio_venta, '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, c.estado_envios,
-                    '', '', '',
+                    c.monto_cobrado_cliente, '', '',
                     c.monto_pagado_proveedor, c.codigo_pago_proveedor, c.fecha_pago_proveedor,
                     c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
                 ]);
@@ -465,14 +468,18 @@
                 rowStyles.push(null);
             } else {
                 dataRows.push([
-                    c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.cliente, c.moneda,
+                    c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.empresa_facturadora, c.cliente, c.moneda,
                     c.tn_entregadas, c.precio_venta, c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional, c.utilidad_neta, '',
-                    c.monto_cobrado_cliente, c.codigo_cobro_cliente, c.fecha_cobro_cliente,
-                    '', '', '',
+                    c.es_pago_proveedor ? '' : c.monto_cobrado_cliente,
+                    c.es_pago_proveedor ? '' : c.codigo_cobro_cliente,
+                    c.es_pago_proveedor ? '' : c.fecha_cobro_cliente,
+                    c.es_pago_proveedor ? c.monto_pagado_proveedor : '',
+                    c.es_pago_proveedor ? c.codigo_pago_proveedor : '',
+                    c.es_pago_proveedor ? c.fecha_pago_proveedor : '',
                     c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
                 ]);
-                rowStyles.push(null);
+                rowStyles.push(c.es_pago_proveedor ? 'pago_proveedor' : null);
                 if (typeof c.total_ventas === 'number') ventasEntregas.push(c.total_ventas);
             }
         });
@@ -500,7 +507,54 @@
             'Descargado por: {{ addslashes(auth()->user()->name ?? '') }}',
             'Descargado el: {{ now()->format('d/m/Y H:i') }}',
         ];
+
+        return { cols, dataRows, rowStyles, tituloLineas };
+    }
+
+    function descargarExcelContratos() {
+        const { cols, dataRows, rowStyles, tituloLineas } = _construirDatosExcelContratos();
         _exportarXlsx(cols, dataRows, 'Contratos', `contratos_{{ date('Ymd_His') }}.xlsx`, tituloLineas, rowStyles);
+    }
+
+    // Vista previa en pestaña nueva antes de descargar: misma tabla que iría
+    // al Excel, con el botón de descarga real dentro de esa pestaña.
+    function previsualizarExcelContratos() {
+        const { cols, dataRows, tituloLineas } = _construirDatosExcelContratos();
+
+        const th = cols.map(c => `<th style="background:#1a6b2f;color:#fff;padding:6px 10px;white-space:nowrap;position:sticky;top:0">${c}</th>`).join('');
+        const tr_html = dataRows.map((row, i) => {
+            const bg = row.every(v => v === '') ? 'transparent' : (i % 2 === 0 ? '#fff' : '#f5f5f5');
+            const td = row.map(v => `<td style="padding:5px 10px;border:1px solid #ddd;white-space:nowrap">${v ?? ''}</td>`).join('');
+            return `<tr style="background:${bg}">${td}</tr>`;
+        }).join('');
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Vista previa — Contratos</title></head>
+            <body style="font-family:Arial,sans-serif;font-size:12px;margin:0;padding:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div>
+                        <h3 style="margin:0">${tituloLineas[0]}</h3>
+                        <small style="color:#666">${tituloLineas.slice(1).join(' — ')}</small>
+                    </div>
+                    <button onclick="window.opener && window.opener.descargarExcelContratos()"
+                            style="background:#1a6b2f;color:#fff;border:0;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px">
+                        ⬇ Descargar Excel
+                    </button>
+                </div>
+                <div style="overflow:auto;max-height:calc(100vh - 90px)">
+                    <table style="border-collapse:collapse;width:100%">
+                        <thead><tr>${th}</tr></thead>
+                        <tbody>${tr_html}</tbody>
+                    </table>
+                </div>
+            </body></html>`;
+
+        const w = window.open('', '_blank');
+        if (!w) {
+            alert('El navegador bloqueó la ventana de vista previa. Permite ventanas emergentes para este sitio e inténtalo de nuevo.');
+            return;
+        }
+        w.document.write(html);
+        w.document.close();
     }
 
     // ---- Generador XLSX con cabecera estilizada (fondo verde oscuro + texto blanco + negrita) ----
@@ -519,7 +573,7 @@
     <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
     <font><b/><sz val="11"/><name val="Calibri"/></font>
   </fonts>
-  <fills count="9">
+  <fills count="10">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF1A6B2F"/></patternFill></fill>
@@ -529,10 +583,11 @@
     <fill><patternFill patternType="solid"><fgColor rgb="FF17A2B8"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF808080"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FFE8730E"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFCE4D0"/></patternFill></fill>
   </fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="9">
+  <cellXfs count="10">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
       <alignment horizontal="center" vertical="center"/>
@@ -552,12 +607,22 @@
     <xf numFmtId="0" fontId="1" fillId="8" borderId="0" xfId="0" applyFont="1" applyFill="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
+    <xf numFmtId="0" fontId="0" fillId="9" borderId="0" xfId="0"/>
   </cellXfs>
 </styleSheet>`;
 
         const colLetter = i => { let s='', n=i+1; while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26);} return s; };
 
-        const colWidths = headers.map(h => Math.max(14, h.length + 4));
+        // La primera columna también aloja el título del reporte (ya no
+        // combinado a lo ancho de la tabla), así que su ancho mínimo
+        // considera también el largo de esa primera línea de título.
+        // "Fecha y hora de..." lleva fecha + hora (ej. "02/09/2026 14:30"),
+        // más ancha que su propio encabezado, así que se le da un mínimo aparte.
+        const colWidths = headers.map((h, ci) => {
+            if (ci === 0 && tituloLineas[0]) return Math.max(tituloLineas[0].length + 10, h.length + 10);
+            if (h.startsWith('FECHA Y HORA')) return 60;
+            return Math.max(14, h.length + 10);
+        });
         let colsXml = '<cols>';
         colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
         colsXml += '</cols>';
@@ -567,26 +632,19 @@
   ${colsXml}
   <sheetData>`;
 
-        const ultimaCol = colLetter(headers.length - 1);
-        const mergesXml = [];
-
         let filaActual = 1;
         tituloLineas.forEach((linea, li) => {
-            // Solo la primera línea (el título del reporte) lleva estilo grande y
-            // combina sus celdas a lo ancho de la tabla; las siguientes van planas.
+            // Solo la primera línea (el título del reporte) lleva estilo grande;
+            // las siguientes van planas. Ya no se combina (merge) a lo ancho de
+            // la tabla: cada celda queda separada, con el mismo fondo/estilo.
             const esTitulo = li === 0;
             if (esTitulo) {
-                // El fondo/estilo se aplica a TODAS las celdas del rango combinado
-                // (no solo a la "ancla" A), para que el verde cubra toda la fila.
                 sheetData += `<row r="${filaActual}">`;
                 sheetData += `<c r="A${filaActual}" t="inlineStr" s="2"><is><t>${esc(linea)}</t></is></c>`;
                 for (let ci = 1; ci < headers.length; ci++) {
                     sheetData += `<c r="${colLetter(ci)}${filaActual}" s="2"/>`;
                 }
                 sheetData += `</row>`;
-                if (headers.length > 1) {
-                    mergesXml.push(`<mergeCell ref="A${filaActual}:${ultimaCol}${filaActual}"/>`);
-                }
             } else {
                 sheetData += `<row r="${filaActual}"><c r="A${filaActual}" t="inlineStr"><is><t>${esc(linea)}</t></is></c></row>`;
             }
@@ -611,7 +669,8 @@
         rows.forEach((row, ri) => {
             const s = rowStyles[ri] === 'subtotal_cerrado' ? ' s="4"' :
                 (rowStyles[ri] === 'subtotal_abierto' ? ' s="3"' :
-                (rowStyles[ri] === 'subtotal_sin_envios' ? ' s="5"' : ''));
+                (rowStyles[ri] === 'subtotal_sin_envios' ? ' s="5"' :
+                (rowStyles[ri] === 'pago_proveedor' ? ' s="9"' : '')));
             sheetData += `<row r="${filaActual}">`;
             row.forEach((val, ci) => {
                 if (typeof val === 'number') {
@@ -623,11 +682,7 @@
             sheetData += `</row>`;
             filaActual++;
         });
-        sheetData += `</sheetData>`;
-        if (mergesXml.length) {
-            sheetData += `<mergeCells count="${mergesXml.length}">${mergesXml.join('')}</mergeCells>`;
-        }
-        sheetData += `</worksheet>`;
+        sheetData += `</sheetData></worksheet>`;
 
         const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
