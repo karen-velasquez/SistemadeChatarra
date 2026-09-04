@@ -291,7 +291,10 @@ function abrirModalCodigo(uuid, tipo, fecha) {
             let html = `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
                 <thead class="table-light"><tr><th>Referencia</th><th class="text-end">Monto</th><th>Fecha</th><th style="width:220px">Código real</th></tr></thead>
                 <tbody>`;
+            let totalMonto = 0;
+            const moneda = d.pagos[0]?.moneda ?? '';
             d.pagos.forEach((p, i) => {
+                totalMonto += Number(p.monto);
                 html += `<tr>
                     <td>${p.referencia}</td>
                     <td class="text-end">${_fmtLote(p.monto, p.moneda)}</td>
@@ -303,6 +306,12 @@ function abrirModalCodigo(uuid, tipo, fecha) {
                     </td>
                 </tr>`;
             });
+            html += `<tr class="table-light fw-bold">
+                    <td class="text-end">TOTAL</td>
+                    <td class="text-end">${_fmtLote(totalMonto, moneda)}</td>
+                    <td></td>
+                    <td></td>
+                </tr>`;
             html += `</tbody></table></div>`;
             document.getElementById('codigo_body').innerHTML = html;
             document.getElementById('btn_guardar_codigo').disabled = false;
