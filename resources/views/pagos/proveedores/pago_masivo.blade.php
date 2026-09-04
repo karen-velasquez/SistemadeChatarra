@@ -769,7 +769,7 @@ function irAPaso2() {
                 <div class="mb-1">
                   <label class="form-label small mb-1"><i class="bi bi-paperclip me-1"></i>Voucher de este pago (opcional)</label>
                   <input type="file" class="form-control form-control-sm voucher_input" style="max-width:320px"
-                         id="voucher_input_${ctr.id}" accept=".jpg,.jpeg,.png,.pdf"
+                         id="voucher_input_${ctr.id}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
                          onchange="marcarVoucher(${ctr.id}, this)">
                   <span class="small text-success ms-1 d-none" id="voucher_ok_${ctr.id}"><i class="bi bi-check-circle"></i> adjuntado</span>
                 </div>`;

@@ -310,7 +310,7 @@ class PagoProveedorController extends Controller
             'cuenta_destino'   => 'required|array',
             'cuenta_destino.*' => 'nullable|exists:cuentas_bancarias,id',
             'vouchers'         => 'nullable|array',
-            'vouchers.*'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'vouchers.*'       => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
         $cuentaOrigen = CuentaEmpresa::with('empresa')->findOrFail($request->cuenta_origen_id);

@@ -1022,6 +1022,7 @@ function verDetalle(contratoId) {
         .then(r => r.json())
         .then(d => {
             const mon = d.moneda || 'BOB';
+            const excesoPago = (parseFloat(d.total_pagado)||0) - (parseFloat(d.monto_total)||0);
             document.getElementById('det_titulo').textContent = d.numero + ' — ' + d.proveedor;
 
             let html = `
@@ -1039,14 +1040,22 @@ function verDetalle(contratoId) {
                     </div>
                 </div>
                 <div class="col-6 col-md-4">
-                    <div class="border rounded p-2 text-center bg-${parseFloat(d.saldo_pendiente)<=0?'success':'warning'} bg-opacity-10">
+                    <div class="border rounded p-2 text-center bg-${excesoPago>0.009?'danger':(parseFloat(d.saldo_pendiente)==0?'success':'warning')} bg-opacity-10">
                         <div class="text-muted small">Saldo</div>
-                        <strong class="${parseFloat(d.saldo_pendiente)<=0?'text-success':'text-danger'}">
+                        <strong class="${excesoPago>0.009?'text-danger':(parseFloat(d.saldo_pendiente)==0?'text-success':'text-danger')}">
                             ${mon} ${_fmtP(d.saldo_pendiente||0)}
                         </strong>
                     </div>
                 </div>
             </div>`;
+
+            if (excesoPago > 0.009) {
+                html += `
+                <div class="alert alert-danger py-2 mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <strong>Pago en exceso:</strong> se pagó ${mon} ${_fmtP(excesoPago)} de más sobre el total acordado.
+                </div>`;
+            }
 
             if (!d.pagos || d.pagos.length === 0) {
                 html += '<div class="alert alert-info">No hay pagos registrados aún.</div>';
