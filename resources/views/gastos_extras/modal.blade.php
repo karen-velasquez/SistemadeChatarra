@@ -51,29 +51,27 @@
                             <select name="cuenta_empresa_id" id="cuenta_empresa" class="form-select" required>
                                 <option value="">-- SELECCIONE --</option>
                                 @foreach($cuentasEmpresa as $ce)
-                                    <option value="{{ $ce->id }}">{{ $ce->nombre_cuenta }} (Bs {{ number_format($ce->saldo_actual, 2) }})</option>
+                                    <option value="{{ $ce->id }}" data-saldo="{{ $ce->saldo_actual }}">{{ $ce->nombre_cuenta }} (Bs {{ number_format($ce->saldo_actual, 2) }})</option>
                                 @endforeach
                             </select>
+                            <small id="mensaje_cuenta_empresa" class="text-muted">Las cuentas sin saldo suficiente para el monto ingresado quedan deshabilitadas.</small>
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">CATEGORÍA <strong class="text-danger">(*)</strong></label>
-                            <select name="categoria" id="categoria" class="form-select" required>
-                                <option value="">-- SELECCIONE --</option>
-                                @foreach($categorias as $cat)
-                                    <option value="{{ $cat->descripcion }}">{{ $cat->descripcion }}</option>
-                                @endforeach
-                                <option value="OTRO">OTRO</option>
-                            </select>
-
-                            <div id="contenedorNuevaCategoria" class="d-none mt-2">
-                                <div class="input-group">
-                                    <input type="text" name="nueva_categoria" id="nueva_categoria" class="form-control" placeholder="ESCRIBA LA NUEVA CATEGORÍA" onkeyup="this.value=this.value.toUpperCase();">
-                                    <button type="button" class="btn btn-secondary" id="volverCategoria">
-                                        <i class="bi bi-arrow-left"></i>
-                                    </button>
-                                </div>
-                                <small id="mensaje_categoria" class="text-muted">Escriba una categoría nueva. Si ya existe, se usará la existente.</small>
+                            <div class="input-group">
+                                <select name="categoria" id="categoria" class="form-select" required>
+                                    <option value="">-- SELECCIONE --</option>
+                                    @foreach($categorias as $cat)
+                                        <option value="{{ $cat->valor }}">{{ $cat->valor }}</option>
+                                    @endforeach
+                                </select>
+                                @can('gastos_extras.create')
+                                <button type="button" class="btn btn-outline-secondary" title="Agregar nueva categoría"
+                                        onclick="abrirModalParametroRapido('categoria_gasto_extra', 'categoria', 'Nueva Categoría de Gasto Extra')">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                @endcan
                             </div>
                         </div>
 
@@ -83,27 +81,17 @@
                             <small id="mensaje_concepto" class="text-muted">Mínimo 3 caracteres.</small>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label">MONTO <strong class="text-danger">(*)</strong></label>
+                        <div class="col-md-6">
+                            <label class="form-label">MONTO (BOB) <strong class="text-danger">(*)</strong></label>
                             <input type="text" inputmode="numeric" id="monto_display" class="form-control" placeholder="0,00" autocomplete="off">
                             <input type="hidden" name="monto" id="monto" value="">
-                            <small id="mensaje_monto" class="text-muted">Ingrese un monto mayor a 0.</small>
+                            <small id="mensaje_monto" class="text-muted">Ingrese un monto mayor a 0, en bolivianos.</small>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label">MONEDA <strong class="text-danger">(*)</strong></label>
-                            <select name="moneda" id="moneda" class="form-select" required>
-                                <option value="BOB">BOB</option>
-                                <option value="USD">USD</option>
-                                <option value="BRL">BRL</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-4" id="contenedor_tipo_cambio">
-                            <label class="form-label">TIPO DE CAMBIO<span id="asterisco_tipo_cambio" class="text-danger d-none">(*)</span></label>
-                            <input type="text" inputmode="numeric" id="tipo_cambio_display" class="form-control" placeholder="0,00" autocomplete="off">
+                        <div class="d-none">
+                            <input type="hidden" name="moneda" id="moneda" value="BOB">
                             <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="">
-                            <small id="mensaje_tipo_cambio" class="text-muted">No es necesario cuando la moneda es BOB.</small>
+                            <input type="hidden" id="tipo_cambio_display" value="">
                         </div>
 
                         <div class="col-md-6">
@@ -124,7 +112,7 @@
 
                         <div class="col-md-6" id="contenedor_metodo_pago">
                             <label class="form-label">MÉTODO DE PAGO<span id="asterisco_metodo_pago" class="text-danger">(*)</span></label>
-                            <select name="metodo_pago" id="metodo_pago" class="form-select" required>
+                            <select name="metodo_pago" id="metodo_pago" class="form-select" required onchange="actualizarCodigoSeguimientoGasto()">
                                 <option value="">-- SELECCIONE --</option>
                                 <option value="TRANSFERENCIA">TRANSFERENCIA</option>
                                 <option value="QR">QR</option>
@@ -132,7 +120,19 @@
                             <small id="mensaje_metodo_pago" class="text-muted">Seleccione cómo se realizó el pago.</small>
                         </div>
 
-        
+                        <div class="col-md-6 d-none" id="contenedor_codigo_seguimiento">
+                            <label class="form-label">CÓDIGO DE TRANSFERENCIA<span class="text-danger">(*)</span></label>
+                            <input type="text" name="codigo_seguimiento" id="codigo_seguimiento" class="form-control" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
+                            <small id="mensaje_codigo_seguimiento" class="text-muted">Ingrese el código de la transferencia.</small>
+                        </div>
+
+                        <div class="col-md-6 d-none" id="contenedor_codigo_qr_info">
+                            <label class="form-label">CÓDIGO QR</label>
+                            <input type="text" id="codigo_qr_info" class="form-control" readonly>
+                            <small class="text-muted">Código interno generado automáticamente.</small>
+                        </div>
+
+
                         <div class="col-md-6" id="contenedor_nombre_titular">
                             <label class="form-label">NOMBRE DEL TITULAR</label>
                             <input type="text" name="nombre_titular" id="nombre_titular" class="form-control" placeholder="NOMBRE DE QUIEN REALIZÓ EL PAGO" onkeyup="this.value=this.value.toUpperCase();">
@@ -194,8 +194,64 @@
                         if (onChangeCb) onChangeCb();
                     });
                 }
-                _initCajero('monto_display',      'monto',      function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); });
-                _initCajero('tipo_cambio_display', 'tipo_cambio', function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); });
+                _initCajero('monto_display',      'monto',      function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); actualizarSaldosCuentaGasto(); });
+                _initCajero('tipo_cambio_display', 'tipo_cambio', function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); actualizarSaldosCuentaGasto(); });
+
+                // Deshabilita en el select de Cuenta de Empresa las cuentas cuyo
+                // saldo_actual (siempre en BOB) sea menor al monto del gasto
+                // convertido a bolivianos. Si la cuenta elegida deja de alcanzar,
+                // se limpia la selección para no dejar guardar con saldo insuficiente.
+                window.actualizarSaldosCuentaGasto = function() {
+                    var selectCuenta = document.getElementById('cuenta_empresa');
+                    var monto        = _txt2num(document.getElementById('monto_display').value);
+                    var moneda       = document.getElementById('moneda').value;
+                    var tipoCambio   = moneda === 'BOB' ? 1 : (_txt2num(document.getElementById('tipo_cambio_display').value) || 0);
+                    var montoBs      = monto * tipoCambio;
+                    if (!selectCuenta) return;
+
+                    var seleccionActualInvalida = false;
+                    Array.from(selectCuenta.options).forEach(function(opt) {
+                        if (!opt.value) return;
+                        var saldo = parseFloat(opt.dataset.saldo) || 0;
+                        var alcanza = montoBs <= 0 || saldo >= montoBs;
+                        opt.disabled = !alcanza;
+                        if (opt.selected && !alcanza) seleccionActualInvalida = true;
+                    });
+
+                    var mensaje = document.getElementById('mensaje_cuenta_empresa');
+                    if (seleccionActualInvalida) {
+                        selectCuenta.value = '';
+                        if (mensaje) {
+                            mensaje.textContent = 'La cuenta seleccionada ya no tiene saldo suficiente para este monto; elija otra.';
+                            mensaje.className = 'text-danger';
+                        }
+                    } else if (mensaje) {
+                        mensaje.textContent = 'Las cuentas sin saldo suficiente para el monto ingresado quedan deshabilitadas.';
+                        mensaje.className = 'text-muted';
+                    }
+                };
+
+                // Buscador en el select de Contrato: se inicializa al abrir el modal.
+                // Este bloque corre inline al parsear el HTML del contenido de la
+                // página, antes de que jQuery/Select2 carguen al final del body
+                // (layouts.partials.scripts). Se espera a DOMContentLoaded para
+                // registrar el listener recién cuando "$" ya existe.
+                document.addEventListener('DOMContentLoaded', function () {
+                    $('#modalGastoExtra').on('shown.bs.modal', function () {
+                        if (!$('#contrato').data('select2')) {
+                            $('#contrato').select2({
+                                dropdownParent: $('#modalGastoExtra'),
+                                placeholder: '-- SELECCIONE --',
+                                allowClear: true,
+                                width: '100%',
+                                language: {
+                                    noResults: () => 'No se encontró ningún contrato.',
+                                    searching: () => 'Buscando...'
+                                }
+                            });
+                        }
+                    });
+                });
 
                 // Exponer función para cargar valores al editar
                 window._cargarGastoEnModal = window._cargarGastoEnModal || function() {};
@@ -213,3 +269,123 @@
         </div>
     </div>
 </div>
+
+{{-- ===== MODAL PARÁMETRO RÁPIDO (Nueva Categoría de Gasto Extra) ===== --}}
+@can('gastos_extras.create')
+<div class="modal fade" id="modalParametroRapido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloParametroRapido"><i class="bi bi-plus-circle"></i> Nuevo Parámetro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Valor <span class="text-danger">(*)</span></label>
+                <input type="text" class="form-control" id="pr_valor" maxlength="255"
+                       placeholder="Ej: PEAJE" autocomplete="off" style="text-transform:uppercase"
+                       oninput="this.value=this.value.toUpperCase()">
+                <div id="pr_feedback" class="small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="pr_btn_guardar" onclick="guardarParametroRapido()">
+                    <i class="bi bi-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let _prTipo = null;
+let _prSelectId = null;
+
+function abrirModalParametroRapido(tipo, selectId, titulo) {
+    _prTipo = tipo;
+    _prSelectId = selectId;
+    document.getElementById('tituloParametroRapido').innerHTML = '<i class="bi bi-plus-circle"></i> ' + titulo;
+    const input = document.getElementById('pr_valor');
+    input.value = '';
+    document.getElementById('pr_feedback').innerHTML = '';
+    document.getElementById('pr_btn_guardar').disabled = false;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParametroRapido')).show();
+    setTimeout(() => input.focus(), 300);
+}
+
+function _normalizarValorParametroGasto(valor) {
+    return valor.trim().replace(/\s+/g, ' ');
+}
+
+document.getElementById('pr_valor')?.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); guardarParametroRapido(); }
+});
+
+function guardarParametroRapido() {
+    const input = document.getElementById('pr_valor');
+    const feedback = document.getElementById('pr_feedback');
+    const btn = document.getElementById('pr_btn_guardar');
+    const valor = _normalizarValorParametroGasto(input.value);
+
+    feedback.innerHTML = '';
+    if (!valor) {
+        feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Ingrese un valor.</span>';
+        return;
+    }
+
+    const select = document.getElementById(_prSelectId);
+    const yaExisteLocal = Array.from(select.options).some(
+        opt => opt.value && opt.textContent.trim().toUpperCase() === valor.toUpperCase()
+    );
+    if (yaExisteLocal) {
+        feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> "' + valor + '" ya está en la lista. Selecciónelo directamente.</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+    fetch('{{ route("parametros.store.ajax") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        },
+        body: JSON.stringify({ tipo: _prTipo, valor: valor }),
+    })
+    .then(async r => ({ status: r.status, data: await r.json() }))
+    .then(({ status, data }) => {
+        if (status === 409) {
+            feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> ' + data.message + '</span>';
+            if (data.existente && !Array.from(select.options).some(o => o.value == data.existente.id)) {
+                const op = document.createElement('option');
+                op.value = data.existente.valor;
+                op.textContent = data.existente.valor;
+                select.appendChild(op);
+            }
+            if (data.existente) select.value = data.existente.valor;
+            return;
+        }
+        if (!data.ok) {
+            feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ' + (data.message || 'No se pudo guardar.') + '</span>';
+            return;
+        }
+
+        const op = document.createElement('option');
+        op.value = data.item.valor;
+        op.textContent = data.item.valor;
+        select.appendChild(op);
+        select.value = data.item.valor;
+        select.dispatchEvent(new Event('change'));
+
+        bootstrap.Modal.getInstance(document.getElementById('modalParametroRapido')).hide();
+    })
+    .catch(() => {
+        feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Error de conexión. Intente de nuevo.</span>';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save"></i> Guardar';
+    });
+}
+</script>
+@endcan

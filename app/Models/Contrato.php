@@ -110,6 +110,11 @@ class Contrato extends Model implements Auditable
         return $this->hasMany(PagoProveedor::class, 'contrato_id');
     }
 
+    public function gastosExtras()
+    {
+        return $this->hasMany(GastoExtra::class, 'contrato_id');
+    }
+
     public function getTotalPagadoProveedorAttribute(): float
     {
         $moneda = $this->moneda ?? 'BOB';

@@ -151,6 +151,7 @@ class Movimiento extends Model
             'tipo_cambio'        => $gasto->tipo_cambio ?? 1,
             'fecha'              => $gasto->fecha,
             'concepto'           => 'Gasto Extra ' . $gasto->categoria . ' - ' . $gasto->concepto,
+            'codigo_seguimiento' => $gasto->codigo_seguimiento,
             'origen_type'        => get_class($gasto),
             'origen_id'          => $gasto->id,
             'created_by'         => auth()->id(),

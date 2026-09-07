@@ -29,6 +29,15 @@ class GastoExtraRequest extends FormRequest
             'moneda' => 'required|string|max:10',
             'tipo_cambio' => 'nullable',
             'comprobante_pago' => 'nullable',
+            'metodo_pago' => 'nullable|in:TRANSFERENCIA,QR',
+            'codigo_seguimiento' => 'required_if:metodo_pago,TRANSFERENCIA|nullable|string|max:100',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
         ];
     }
 }

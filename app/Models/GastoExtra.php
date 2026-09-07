@@ -26,6 +26,7 @@ class GastoExtra extends Model
         'estado',
         'tipo_cambio',
         'comprobante_pago',
+        'codigo_seguimiento',
         'estado',
         'created_by',
         'updated_by',
@@ -66,6 +67,19 @@ class GastoExtra extends Model
                 Movimiento::registrarDeGastoExtra($model);
             } elseif ($eraPagado && !$esPagado) {
                 $model->movimiento()->delete();
+            } elseif ($eraPagado && $esPagado) {
+                // Sigue PAGADO pero se editó (p. ej. código de transferencia o
+                // comprobante): sincroniza el movimiento espejo ya existente.
+                $model->movimiento()->update([
+                    'cuenta_empresa_id'  => $model->cuenta_empresa_id,
+                    'monto'              => $model->monto,
+                    'moneda'             => $model->moneda,
+                    'tipo_cambio'        => $model->tipo_cambio ?? 1,
+                    'fecha'              => $model->fecha,
+                    'concepto'           => 'Gasto Extra ' . $model->categoria . ' - ' . $model->concepto,
+                    'codigo_seguimiento' => $model->codigo_seguimiento,
+                    'updated_by'         => auth()->id(),
+                ]);
             }
         });
 

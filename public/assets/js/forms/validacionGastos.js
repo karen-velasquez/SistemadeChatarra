@@ -39,6 +39,11 @@ function contenedorPrincipalCampo(idCampo) {
         );
 
         if (esColumna) return actual;
+        // Si se llega a una fila Bootstrap (row) sin haber encontrado antes una
+        // columna, el campo no tiene su propio contenedor de columna: seguir
+        // ocultando aquí ocultaría la fila entera con todos sus hermanos. Se
+        // detiene antes de cruzar esa frontera.
+        if (clases.includes('row')) break;
         actual = actual.parentElement;
     }
     return campo.closest('.mb-3, .form-group') ?? campo.parentElement;
@@ -85,7 +90,6 @@ function restaurarCamposModalGasto() {
         'contrato',
         'cuenta_empresa',
         'categoria',
-        'nueva_categoria',
         'concepto',
         'monto_display',
         'moneda',
@@ -93,6 +97,7 @@ function restaurarCamposModalGasto() {
         'fecha',
         'estado_switch',
         'metodo_pago',
+        'codigo_seguimiento',
         'nombre_titular',
         'comprobante'
     ];
@@ -117,19 +122,12 @@ function ocultarCamposParaMarcarPagado() {
         'contrato',
         'cuenta_empresa',
         'categoria',
-        'nueva_categoria',
         'concepto',
         'monto_display',
-        'moneda',
-        'tipo_cambio_display',
         'estado_switch'
     ];
 
     camposQueNoSeEditan.forEach(id => ocultarGrupoCampo(id));
-    const contenedorNuevaCategoria = document.getElementById('contenedorNuevaCategoria');
-    if (contenedorNuevaCategoria) {
-        contenedorNuevaCategoria.classList.add('d-none');
-    }
     const categoria = document.getElementById('categoria');
     if (categoria) {
         categoria.classList.remove('d-none');
@@ -142,6 +140,13 @@ function ocultarCamposParaMarcarPagado() {
         campo.disabled = false;
         campo.readOnly = false;
     });
+    // codigo_seguimiento no se agrega a camposEditables porque su visibilidad
+    // depende del método de pago: la resuelve actualizarCodigoSeguimientoGasto().
+    const codigoSeguimientoCampo = document.getElementById('codigo_seguimiento');
+    if (codigoSeguimientoCampo) {
+        codigoSeguimientoCampo.disabled = false;
+        codigoSeguimientoCampo.readOnly = false;
+    }
 
     const metodoPago = document.getElementById('metodo_pago');
     if (metodoPago) {
@@ -166,18 +171,12 @@ window.limpiarFormularioGastoExtra = function () {
     quitarBloqueoCamposGasto();
     const form = document.getElementById('formGasto');
     if (form) form.reset();
+    $('#contrato').val('').trigger('change.select2');
     const categoria = document.getElementById('categoria');
-    const contenedorNuevaCategoria = document.getElementById('contenedorNuevaCategoria');
-    const nuevaCategoria = document.getElementById('nueva_categoria');
     const estadoSwitch = document.getElementById('estado_switch');
     const estado = document.getElementById('estado');
     const estadoLabel = document.getElementById('estado_label');
     if (categoria) categoria.classList.remove('d-none');
-    if (contenedorNuevaCategoria) contenedorNuevaCategoria.classList.add('d-none');
-    if (nuevaCategoria) {
-        nuevaCategoria.required = false;
-        nuevaCategoria.value = '';
-    }
     if (estadoSwitch) estadoSwitch.checked = true;
     if (estado) estado.value = 'PAGADO';
     if (estadoLabel) estadoLabel.innerText = 'PAGADO';
@@ -202,9 +201,6 @@ function editarGasto(gasto) {
     document.getElementById('methodGasto').value = 'PUT';
      document.getElementById('formGasto').action = baseUrl + '/' + gasto.uuid;
     document.getElementById('categoria').classList.remove('d-none');
-    document.getElementById('contenedorNuevaCategoria').classList.add('d-none');
-    document.getElementById('nueva_categoria').required = false;
-    document.getElementById('nueva_categoria').value = '';
     document.getElementById('categoria').value = gasto.categoria ?? '';
     document.getElementById('concepto').value = gasto.concepto ?? '';
     var _montoEdit = parseFloat(gasto.monto) || 0;
@@ -219,8 +215,11 @@ function editarGasto(gasto) {
     document.getElementById('nombre_titular').value = gasto.nombre_titular ?? '';
     document.getElementById('fecha').value = fechaSolo(gasto.fecha) === '-' ? '' : fechaSolo(gasto.fecha);
     document.getElementById('cuenta_empresa').value = gasto.cuenta_empresa_id ?? '';
-    document.getElementById('contrato').value = gasto.contrato_id ?? '';
+    $('#contrato').val(gasto.contrato_id ?? '').trigger('change.select2');
     document.getElementById('metodo_pago').value = gasto.metodo_pago ?? '';
+    document.getElementById('codigo_seguimiento').value = gasto.metodo_pago === 'TRANSFERENCIA' ? (gasto.codigo_seguimiento ?? '') : '';
+    const _qrInfoEdit = document.getElementById('codigo_qr_info');
+    if (_qrInfoEdit) _qrInfoEdit.dataset.valorActual = gasto.metodo_pago === 'QR' ? (gasto.codigo_seguimiento ?? '') : '';
     if (document.getElementById('tipo_pago')) {
         document.getElementById('tipo_pago').value = gasto.tipo_pago ?? '';
     }
@@ -235,6 +234,7 @@ function editarGasto(gasto) {
     }
     limpiarValidacionesVisuales();
     actualizarEstadoPago();
+    actualizarCodigoSeguimientoGasto();
     actualizarTipoCambio();
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGastoExtra')).show();
 }
@@ -246,6 +246,23 @@ function marcarPagadoPorKey(key) {
     }
     marcarPagado(gasto);
 }
+
+// Gasto ya PAGADO: solo se permite cambiar el comprobante (y datos del pago),
+// reutiliza el mismo bloqueo de campos que "marcar como pagado".
+function editarComprobantePorKey(key) {
+    const gasto = obtenerGastoCache(key);
+    if (!gasto) {
+        alert('No se pudo cargar la información del gasto. Vuelva a abrir el detalle del contrato.');
+        return;
+    }
+    marcarPagado(gasto);
+    document.getElementById('tituloGasto').innerText = 'Editar Comprobante';
+    document.getElementById('btnGasto').innerText = 'Guardar';
+    const mensajeEstado = document.getElementById('mensaje_estado');
+    if (mensajeEstado) {
+        mensajeEstado.innerText = 'Este gasto ya está pagado: solo puede actualizar el comprobante y datos del pago.';
+    }
+}
 function marcarPagado(gasto) {
     quitarBloqueoCamposGasto();
     const baseUrl = window.gastosExtrasConfig.updateBaseUrl;
@@ -254,9 +271,6 @@ function marcarPagado(gasto) {
     document.getElementById('methodGasto').value = 'PUT';
     document.getElementById('formGasto').action = baseUrl + '/' + gasto.uuid;
     document.getElementById('categoria').classList.remove('d-none');
-    document.getElementById('contenedorNuevaCategoria').classList.add('d-none');
-    document.getElementById('nueva_categoria').required = false;
-    document.getElementById('nueva_categoria').value = '';
     document.getElementById('categoria').value = gasto.categoria ?? '';
     document.getElementById('concepto').value = gasto.concepto ?? '';
     var _montoMp = parseFloat(gasto.monto) || 0;
@@ -271,8 +285,11 @@ function marcarPagado(gasto) {
     document.getElementById('nombre_titular').value = gasto.nombre_titular ?? '';
     document.getElementById('fecha').value = fechaSolo(gasto.fecha) === '-' ? '' : fechaSolo(gasto.fecha);
     document.getElementById('cuenta_empresa').value = gasto.cuenta_empresa_id ?? '';
-    document.getElementById('contrato').value = gasto.contrato_id ?? '';
+    $('#contrato').val(gasto.contrato_id ?? '').trigger('change.select2');
     document.getElementById('metodo_pago').value = gasto.metodo_pago ?? '';
+    document.getElementById('codigo_seguimiento').value = gasto.metodo_pago === 'TRANSFERENCIA' ? (gasto.codigo_seguimiento ?? '') : '';
+    const _qrInfoMp = document.getElementById('codigo_qr_info');
+    if (_qrInfoMp) _qrInfoMp.dataset.valorActual = gasto.metodo_pago === 'QR' ? (gasto.codigo_seguimiento ?? '') : '';
     if (document.getElementById('tipo_pago')) {
         document.getElementById('tipo_pago').value = gasto.tipo_pago ?? '';
     }
@@ -283,6 +300,7 @@ function marcarPagado(gasto) {
     actualizarEstadoPago();
     actualizarTipoCambio();
     ocultarCamposParaMarcarPagado();
+    actualizarCodigoSeguimientoGasto();
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGastoExtra')).show();
 }
 function limpiarValidacionesVisuales() {
@@ -352,6 +370,7 @@ function actualizarEstadoPago() {
         if (asteriscoMetodoPago) {
             asteriscoMetodoPago.classList.remove('d-none');
         }
+        actualizarCodigoSeguimientoGasto();
     } else {
         estadoInput.value = 'PENDIENTE';
         estadoLabel.innerText = 'PENDIENTE';
@@ -380,6 +399,51 @@ function actualizarEstadoPago() {
         if (asteriscoMetodoPago) {
             asteriscoMetodoPago.classList.add('d-none');
         }
+        mostrarContenedor('contenedor_codigo_seguimiento', false);
+        mostrarContenedor('contenedor_codigo_qr_info', false);
+        const codigoSeguimiento = document.getElementById('codigo_seguimiento');
+        if (codigoSeguimiento) {
+            codigoSeguimiento.required = false;
+            codigoSeguimiento.value = '';
+        }
+    }
+}
+
+// QR: se muestra el código interno ya generado (o "se generará al guardar"),
+// campo de solo lectura. Transferencia: se pide el código, obligatorio.
+// Si el gasto está PENDIENTE (switch de estado apagado), el código no aplica
+// todavía: se oculta y no es obligatorio, sin importar el método guardado.
+function actualizarCodigoSeguimientoGasto() {
+    const metodoPago = document.getElementById('metodo_pago');
+    const codigoSeguimiento = document.getElementById('codigo_seguimiento');
+    const codigoQrInfo = document.getElementById('codigo_qr_info');
+    const estadoSwitch = document.getElementById('estado_switch');
+    if (!metodoPago || !codigoSeguimiento) return;
+
+    if (estadoSwitch && !estadoSwitch.checked) {
+        mostrarContenedor('contenedor_codigo_seguimiento', false);
+        mostrarContenedor('contenedor_codigo_qr_info', false);
+        codigoSeguimiento.required = false;
+        codigoSeguimiento.value = '';
+        return;
+    }
+
+    if (metodoPago.value === 'TRANSFERENCIA') {
+        mostrarContenedor('contenedor_codigo_seguimiento', true);
+        mostrarContenedor('contenedor_codigo_qr_info', false);
+        codigoSeguimiento.required = true;
+        codigoSeguimiento.disabled = false;
+    } else if (metodoPago.value === 'QR') {
+        mostrarContenedor('contenedor_codigo_seguimiento', false);
+        mostrarContenedor('contenedor_codigo_qr_info', true);
+        codigoSeguimiento.required = false;
+        codigoSeguimiento.value = '';
+        if (codigoQrInfo) codigoQrInfo.value = codigoQrInfo.dataset.valorActual || 'Se generará al guardar';
+    } else {
+        mostrarContenedor('contenedor_codigo_seguimiento', false);
+        mostrarContenedor('contenedor_codigo_qr_info', false);
+        codigoSeguimiento.required = false;
+        codigoSeguimiento.value = '';
     }
 }
 function _fmtGasto(n) {
@@ -412,28 +476,26 @@ function actualizarTipoCambio() {
             mensajeTipoCambio.innerText = 'No es necesario ingresar tipo de cambio cuando la moneda es BOB.';
             mensajeTipoCambio.className = 'text-muted';
         }
-        return;
+    } else {
+        mostrarContenedor('contenedor_tipo_cambio', true);
+        tipoCambioDisplay.disabled = false;
+        if (tipoCambioHidden) tipoCambioHidden.disabled = false;
+        if (asteriscoTipoCambio) asteriscoTipoCambio.classList.remove('d-none');
+        if (mensajeTipoCambio) {
+            if (montoValor > 0 && tipoCambioValor > 0) {
+                const totalBob = montoValor * tipoCambioValor;
+                mensajeTipoCambio.innerHTML = `${_fmtGasto(montoValor)} ${monedaValor} = <strong>${_fmtGasto(totalBob)} BOB</strong>`;
+                mensajeTipoCambio.className = 'text-success';
+            } else {
+                mensajeTipoCambio.innerText = 'Ingrese el monto y el tipo de cambio para calcular el equivalente en BOB.';
+                mensajeTipoCambio.className = 'text-warning';
+            }
+        }
     }
 
-    mostrarContenedor('contenedor_tipo_cambio', true);
-    tipoCambioDisplay.disabled = false;
-    if (tipoCambioHidden) tipoCambioHidden.disabled = false;
-    if (asteriscoTipoCambio) asteriscoTipoCambio.classList.remove('d-none');
-    if (!mensajeTipoCambio) return;
-    if (montoValor > 0 && tipoCambioValor > 0) {
-        const totalBob = montoValor * tipoCambioValor;
-        mensajeTipoCambio.innerHTML = `${_fmtGasto(montoValor)} ${monedaValor} = <strong>${_fmtGasto(totalBob)} BOB</strong>`;
-        mensajeTipoCambio.className = 'text-success';
-    } else {
-        mensajeTipoCambio.innerText = 'Ingrese el monto y el tipo de cambio para calcular el equivalente en BOB.';
-        mensajeTipoCambio.className = 'text-warning';
-    }
+    if (window.actualizarSaldosCuentaGasto) window.actualizarSaldosCuentaGasto();
 }
 document.addEventListener('DOMContentLoaded', function () {
-    const categoria = document.getElementById('categoria');
-    const contenedorNueva = document.getElementById('contenedorNuevaCategoria');
-    const nuevaCategoria = document.getElementById('nueva_categoria');
-    const volverCategoria = document.getElementById('volverCategoria');
     const estadoSwitch = document.getElementById('estado_switch');
     const estadoInput = document.getElementById('estado');
     const metodoPago = document.getElementById('metodo_pago');
@@ -444,33 +506,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const tipoCambioInput = document.getElementById('tipo_cambio_display');
     const concepto = document.getElementById('concepto');
     const fecha = document.getElementById('fecha');
-    if (categoria) {
-        categoria.addEventListener('change', function () {
-            if (this.value === 'OTRO') {
-                categoria.classList.add('d-none');
-                if (contenedorNueva) contenedorNueva.classList.remove('d-none');
-                if (nuevaCategoria) {
-                    nuevaCategoria.required = true;
-                    nuevaCategoria.focus();
-                }
-            }
-        });
-    }
-
-    if (volverCategoria) {
-        volverCategoria.addEventListener('click', function () {
-            if (categoria) {
-                categoria.classList.remove('d-none');
-                categoria.value = '';
-            }
-            if (contenedorNueva) contenedorNueva.classList.add('d-none');
-            if (nuevaCategoria) {
-                nuevaCategoria.value = '';
-                nuevaCategoria.required = false;
-            }
-        });
-    }
-
     if (estadoSwitch) estadoSwitch.addEventListener('change', actualizarEstadoPago);
     if (metodoPago) {
         metodoPago.addEventListener('change', function () {
