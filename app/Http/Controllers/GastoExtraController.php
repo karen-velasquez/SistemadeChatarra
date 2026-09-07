@@ -46,8 +46,8 @@ class GastoExtraController extends Controller
             'uuid'                => $g->uuid,
             'id'                  => $g->id,
             'contrato_id'         => $g->contrato_id,
-            'contrato_numero'     => $g->contrato->numero_contrato ?? '-',
-            'proveedor_nombre'    => $g->contrato->proveedor->nombre ?? '-',
+            'contrato_numero'     => $g->contrato->numero_contrato ?? 'Sin contrato',
+            'proveedor_nombre'    => $g->contrato?->proveedor->nombre ?? '-',
             'cuenta_empresa_id'   => $g->cuenta_empresa_id,
             'fecha'               => $g->fecha,
             'categoria'           => $g->categoria,
@@ -115,7 +115,7 @@ class GastoExtraController extends Controller
             return redirect()->route('gastos_extras.index');
         }
         $gasto = new GastoExtra();
-        $gasto->contrato_id = $request->contrato_id;
+        $gasto->contrato_id = $request->contrato_id ?: null;
         $gasto->cuenta_empresa_id = $request->cuenta_empresa_id;
         $gasto->categoria = $categoria;
         $gasto->concepto = strtoupper(trim($request->concepto));
@@ -189,7 +189,7 @@ class GastoExtraController extends Controller
                 return redirect()->route('gastos_extras.index');
             }
         }
-        $gasto->contrato_id =$request->contrato_id;
+        $gasto->contrato_id = $request->contrato_id ?: null;
         $gasto->cuenta_empresa_id =$request->cuenta_empresa_id;
         $gasto->categoria = $categoria;
         $gasto->concepto = strtoupper(trim($request->concepto));

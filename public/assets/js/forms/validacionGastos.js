@@ -124,6 +124,8 @@ function ocultarCamposParaMarcarPagado() {
         'categoria',
         'concepto',
         'monto_display',
+        'moneda',
+        'tipo_cambio_display',
         'estado_switch'
     ];
 
@@ -132,6 +134,7 @@ function ocultarCamposParaMarcarPagado() {
     if (categoria) {
         categoria.classList.remove('d-none');
     }
+    document.getElementById('contenedor_equivalente_gasto')?.classList.add('d-none');
     const camposEditables = ['fecha','metodo_pago', 'nombre_titular', 'comprobante'];
     camposEditables.forEach(id => {
         mostrarGrupoCampo(id);
@@ -208,7 +211,8 @@ function editarGasto(gasto) {
     document.getElementById('monto').value = _montoEdit || '';
     var _mdEdit = document.getElementById('monto_display');
     if (_mdEdit) _mdEdit.value = _montoEdit > 0 ? _fmtGasto(_montoEdit) : '';
-    document.getElementById('moneda').value = gasto.moneda ?? '';
+    document.getElementById('moneda').value = gasto.moneda ?? 'BOB';
+    if (window.toggleTipoCambioGasto) window.toggleTipoCambioGasto(gasto.moneda ?? 'BOB');
     document.getElementById('tipo_cambio').value = _tcEdit || '';
     var _tcdEdit = document.getElementById('tipo_cambio_display');
     if (_tcdEdit) _tcdEdit.value = _tcEdit > 0 ? _fmtGasto(_tcEdit) : '';
@@ -453,46 +457,15 @@ function _parseGasto(v) {
     return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 
+// Delega en toggleTipoCambioGasto/calcEquivalenteGasto (definidas inline en
+// gastos_extras/modal.blade.php), que manejan los contenedores reales del
+// bloque Moneda/Monto/Tipo de cambio. Se mantiene esta función como punto
+// único de entrada porque varios flujos del archivo ya la llaman.
 function actualizarTipoCambio() {
     const moneda = document.getElementById('moneda');
-    const montoHidden = document.getElementById('monto');
-    const tipoCambioDisplay = document.getElementById('tipo_cambio_display');
-    const tipoCambioHidden  = document.getElementById('tipo_cambio');
-    const asteriscoTipoCambio = document.getElementById('asterisco_tipo_cambio');
-    const mensajeTipoCambio = document.getElementById('mensaje_tipo_cambio');
-    if (!moneda || !montoHidden || !tipoCambioDisplay) return;
-    const monedaValor    = moneda.value;
-    const montoValor     = parseFloat(montoHidden.value) || 0;
-    const tipoCambioValor = _parseGasto(tipoCambioDisplay.value);
-
-    if (monedaValor === 'BOB') {
-        tipoCambioDisplay.value = '';
-        if (tipoCambioHidden) tipoCambioHidden.value = '';
-        tipoCambioDisplay.disabled = true;
-        if (tipoCambioHidden) tipoCambioHidden.disabled = true;
-        if (asteriscoTipoCambio) asteriscoTipoCambio.classList.add('d-none');
-        mostrarContenedor('contenedor_tipo_cambio', false);
-        if (mensajeTipoCambio) {
-            mensajeTipoCambio.innerText = 'No es necesario ingresar tipo de cambio cuando la moneda es BOB.';
-            mensajeTipoCambio.className = 'text-muted';
-        }
-    } else {
-        mostrarContenedor('contenedor_tipo_cambio', true);
-        tipoCambioDisplay.disabled = false;
-        if (tipoCambioHidden) tipoCambioHidden.disabled = false;
-        if (asteriscoTipoCambio) asteriscoTipoCambio.classList.remove('d-none');
-        if (mensajeTipoCambio) {
-            if (montoValor > 0 && tipoCambioValor > 0) {
-                const totalBob = montoValor * tipoCambioValor;
-                mensajeTipoCambio.innerHTML = `${_fmtGasto(montoValor)} ${monedaValor} = <strong>${_fmtGasto(totalBob)} BOB</strong>`;
-                mensajeTipoCambio.className = 'text-success';
-            } else {
-                mensajeTipoCambio.innerText = 'Ingrese el monto y el tipo de cambio para calcular el equivalente en BOB.';
-                mensajeTipoCambio.className = 'text-warning';
-            }
-        }
-    }
-
+    if (!moneda) return;
+    if (window.toggleTipoCambioGasto) window.toggleTipoCambioGasto(moneda.value);
+    if (window.calcEquivalenteGasto) window.calcEquivalenteGasto();
     if (window.actualizarSaldosCuentaGasto) window.actualizarSaldosCuentaGasto();
 }
 document.addEventListener('DOMContentLoaded', function () {

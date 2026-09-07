@@ -11,7 +11,7 @@
                             data-tour-modal="#modalGastoExtra"
                             data-steps='[
                                 {"intro":"📝 Registra un gasto extra de un contrato. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
-                                {"element":"#contrato","intro":"📄 <b>Contrato</b> al que pertenece este gasto.","position":"bottom"},
+                                {"element":"#contrato","intro":"📄 <b>Contrato</b> al que pertenece este gasto (opcional). Déjelo vacío para gastos generales como luz o alquiler.","position":"bottom"},
                                 {"element":"#cuenta_empresa","intro":"🏦 <b>Cuenta de empresa</b> desde la que se realizó o se realizará el pago. El monto se descuenta de su saldo al marcar el gasto como PAGADO.","position":"bottom"},
                                 {"element":"#categoria","intro":"🏷️ <b>Categoría</b> del gasto (transporte, impuestos, etc.). Si eliges <b>OTRO</b>, podrás escribir una nueva.","position":"bottom"},
                                 {"element":"#concepto","intro":"✏️ <b>Concepto</b>: una descripción breve del gasto (mínimo 3 caracteres).","position":"bottom"},
@@ -37,13 +37,14 @@
 
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">CONTRATO <strong class="text-danger">(*)</strong></label>
-                            <select name="contrato_id" id="contrato" class="form-select" required>
-                                <option value="">-- SELECCIONE --</option>
+                            <label class="form-label">CONTRATO</label>
+                            <select name="contrato_id" id="contrato" class="form-select">
+                                <option value="">-- SIN CONTRATO (gasto general) --</option>
                                 @foreach($contratos as $c)
                                     <option value="{{ $c->id }}">{{ $c->numero_contrato }}</option>
                                 @endforeach
                             </select>
+                            <small class="text-muted">Déjelo vacío para gastos generales no ligados a un contrato (luz, alquiler, etc.).</small>
                         </div>
 
                         <div class="col-md-6">
@@ -81,17 +82,50 @@
                             <small id="mensaje_concepto" class="text-muted">Mínimo 3 caracteres.</small>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label">MONTO (BOB) <strong class="text-danger">(*)</strong></label>
-                            <input type="text" inputmode="numeric" id="monto_display" class="form-control" placeholder="0,00" autocomplete="off">
-                            <input type="hidden" name="monto" id="monto" value="">
-                            <small id="mensaje_monto" class="text-muted">Ingrese un monto mayor a 0, en bolivianos.</small>
+                        <div class="col-md-3">
+                            <label class="form-label">MONEDA <strong class="text-danger">(*)</strong></label>
+                            <select name="moneda" id="moneda" class="form-select" required onchange="toggleTipoCambioGasto(this.value)">
+                                <option value="BOB">🇧🇴 BOB</option>
+                                <option value="USD">🇺🇸 USD</option>
+                                <option value="BRL">🇧🇷 BRL</option>
+                                <option value="ARS">🇦🇷 ARS</option>
+                                <option value="EUR">🇪🇺 EUR</option>
+                                <option value="PEN">🇵🇪 PEN</option>
+                                <option value="CLP">🇨🇱 CLP</option>
+                                <option value="PYG">🇵🇾 PYG</option>
+                                <option value="COP">🇨🇴 COP</option>
+                            </select>
                         </div>
 
-                        <div class="d-none">
-                            <input type="hidden" name="moneda" id="moneda" value="BOB">
-                            <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="">
-                            <input type="hidden" id="tipo_cambio_display" value="">
+                        <div class="col-md-3">
+                            <label class="form-label">MONTO <strong class="text-danger">(*)</strong></label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold" id="lbl_moneda_monto_gasto">BOB</span>
+                                <input type="text" inputmode="numeric" id="monto_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            </div>
+                            <input type="hidden" name="monto" id="monto" value="">
+                            <small id="mensaje_monto" class="text-muted">Ingrese un monto mayor a 0.</small>
+                        </div>
+
+                        <div class="col-md-6 d-none" id="contenedor_tipo_cambio_gasto">
+                            <label class="form-label">
+                                TIPO DE CAMBIO <strong class="text-danger">(*)</strong>
+                                <small class="text-muted fw-normal">— 1 <span id="lbl_moneda_tc_gasto"></span> equivale a:</small>
+                            </label>
+                            <div class="input-group">
+                                <input type="text" inputmode="numeric" id="tipo_cambio_display" class="form-control" placeholder="0,0000" autocomplete="off">
+                                <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="">
+                                <span class="input-group-text">BOB</span>
+                            </div>
+                        </div>
+
+                        <div class="col-12 d-none" id="contenedor_equivalente_gasto">
+                            <div class="d-flex align-items-center gap-2 rounded-2 px-3 py-2" style="background:#e8f4fd;border:1px solid #b8d9f5;">
+                                <i class="bi bi-arrow-left-right text-primary"></i>
+                                <span class="text-muted small">Equivalente en bolivianos:</span>
+                                <strong class="text-primary fs-6" id="lbl_equivalente_gasto">—</strong>
+                                <span class="text-muted small">BOB</span>
+                            </div>
                         </div>
 
                         <div class="col-md-6">
@@ -194,8 +228,50 @@
                         if (onChangeCb) onChangeCb();
                     });
                 }
-                _initCajero('monto_display',      'monto',      function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); actualizarSaldosCuentaGasto(); });
-                _initCajero('tipo_cambio_display', 'tipo_cambio', function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); actualizarSaldosCuentaGasto(); });
+                _initCajero('monto_display',      'monto',      function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); actualizarSaldosCuentaGasto(); calcEquivalenteGasto(); });
+                _initCajero('tipo_cambio_display', 'tipo_cambio', function() { if(window.validarFormularioGastoExtra) validarFormularioGastoExtra(); actualizarSaldosCuentaGasto(); calcEquivalenteGasto(); });
+
+                // Igual patrón que Pago a Proveedores: si la moneda no es BOB, pide
+                // tipo de cambio y muestra el equivalente en bolivianos en vivo.
+                window.toggleTipoCambioGasto = function(moneda) {
+                    var contTC     = document.getElementById('contenedor_tipo_cambio_gasto');
+                    var contEquiv  = document.getElementById('contenedor_equivalente_gasto');
+                    var tcDisp     = document.getElementById('tipo_cambio_display');
+                    var tcHidden   = document.getElementById('tipo_cambio');
+                    var lblMonto   = document.getElementById('lbl_moneda_monto_gasto');
+                    var lblTC      = document.getElementById('lbl_moneda_tc_gasto');
+
+                    lblMonto.textContent = moneda;
+
+                    if (moneda === 'BOB') {
+                        contTC.classList.add('d-none');
+                        contEquiv.classList.add('d-none');
+                        tcDisp.disabled = true;
+                        tcDisp.value    = '';
+                        tcHidden.value  = '1';
+                    } else {
+                        contTC.classList.remove('d-none');
+                        tcDisp.disabled = false;
+                        lblTC.textContent = moneda;
+                        calcEquivalenteGasto();
+                    }
+                    actualizarSaldosCuentaGasto();
+                };
+
+                window.calcEquivalenteGasto = function() {
+                    var moneda = document.getElementById('moneda').value;
+                    var contEquiv = document.getElementById('contenedor_equivalente_gasto');
+                    if (moneda === 'BOB') { contEquiv.classList.add('d-none'); return; }
+                    var monto = _txt2num(document.getElementById('monto').value);
+                    var tc    = _txt2num(document.getElementById('tipo_cambio').value);
+                    var lblEquiv = document.getElementById('lbl_equivalente_gasto');
+                    if (monto > 0 && tc > 0) {
+                        lblEquiv.textContent = 'Bs ' + _fmt(monto * tc);
+                        contEquiv.classList.remove('d-none');
+                    } else {
+                        contEquiv.classList.add('d-none');
+                    }
+                };
 
                 // Deshabilita en el select de Cuenta de Empresa las cuentas cuyo
                 // saldo_actual (siempre en BOB) sea menor al monto del gasto
