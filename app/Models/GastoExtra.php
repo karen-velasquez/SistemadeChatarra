@@ -66,7 +66,10 @@ class GastoExtra extends Model
             if (!$eraPagado && $esPagado) {
                 Movimiento::registrarDeGastoExtra($model);
             } elseif ($eraPagado && !$esPagado) {
-                $model->movimiento()->delete();
+                // delete() sobre la instancia (no sobre el query builder de la
+                // relación) para que dispare el evento deleted() de Movimiento,
+                // que es quien repone el saldo de la cuenta.
+                $model->movimiento?->delete();
             } elseif ($eraPagado && $esPagado) {
                 // Sigue PAGADO pero se editó (p. ej. código de transferencia o
                 // comprobante): sincroniza el movimiento espejo ya existente.
@@ -84,7 +87,11 @@ class GastoExtra extends Model
         });
 
         static::deleted(function ($model) {
-            $model->movimiento()->delete();
+            // delete() sobre la instancia, no sobre el query builder de la
+            // relación: así dispara el evento deleted() de Movimiento y repone
+            // el saldo de la cuenta (un delete() de query builder es un UPDATE
+            // masivo que no ejecuta eventos de modelo).
+            $model->movimiento?->delete();
         });
     }
 }

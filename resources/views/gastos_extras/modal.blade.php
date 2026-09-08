@@ -248,7 +248,7 @@
                         contEquiv.classList.add('d-none');
                         tcDisp.disabled = true;
                         tcDisp.value    = '';
-                        tcHidden.value  = '1';
+                        tcHidden.value  = '';
                     } else {
                         contTC.classList.remove('d-none');
                         tcDisp.disabled = false;
