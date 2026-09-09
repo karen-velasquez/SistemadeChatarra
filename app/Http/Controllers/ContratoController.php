@@ -16,6 +16,7 @@ use App\Models\LoteEntrega;
 use App\Models\Parametro;
 use App\Models\ReglaComision;
 use App\Models\ReglaCostoAdicional;
+use App\Models\GastoExtra;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use App\Http\Requests\ContratoRequest;
@@ -40,6 +41,7 @@ class ContratoController extends Controller
                             'contratoCamiones.tramos.pagosCliente',
                             'contratoCamiones.tramos.empresaFacturadora',
                             'pagosProveedor',
+                            'gastosExtras',
                             'usuarioCreador',
                             'usuarioActualizador',
                         ])
@@ -72,7 +74,9 @@ class ContratoController extends Controller
         //                    Minxin + Mustamet => 200 x Tn entregadas
         //   Comisión 2 ZPL = Total ventas x 1,1%
         //   Costo adicional Minxin = 25 USD x 6.96 = 174 Bs por tramo entregado a Minxin
-        //   Utilidad Neta  = Utilidad Bruta - IT - Comisión 1 - Comisión 2 - Costo adicional
+        //   Utilidad Neta (por entrega) = Utilidad Bruta - IT - Comisión 1 - Comisión 2 - Costo adicional
+        //   Utilidad Neta (SUBTOTAL del contrato) = suma de lo anterior - Gastos Extra
+        //                    PAGADOS asociados al contrato (costo real del contrato, no de una entrega puntual)
         $costoAdicionalMinxin = 174; // 25 USD x 6.96
         $contratosExcelData = collect();
 
@@ -141,6 +145,7 @@ class ContratoController extends Controller
             $sumaCostoAdicional = 0;
             $sumaUtilNeta = 0;
             $sumaMontoCobrado = 0;
+            $sumaGastoExtra = 0;
 
             foreach ($entregas as $e) {
                 $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
@@ -217,6 +222,32 @@ class ContratoController extends Controller
                 ]);
             }
 
+            // Una fila por cada gasto extra PAGADO asociado a este contrato —
+            // solo los pagados cuentan como movimiento real en tesorería,
+            // igual criterio que el bloque de gastos generales al final.
+            foreach ($c->gastosExtras as $ge) {
+                if ($ge->estado !== 'PAGADO') continue;
+                $sumaGastoExtra += (float) $ge->monto_bolivianos;
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => '',
+                    'cliente'          => 'GASTO EXTRA: ' . $ge->categoria,
+                    'tn_entregadas'    => '',
+                    'precio_venta'     => '',
+                    'total_ventas'     => '',
+                    'precio_compra'    => '',
+                    'importe_compra'   => '',
+                    'utilidad_bruta'   => '',
+                    'it_3'             => '',
+                    'comision_1_3'     => '',
+                    'comision_2_zpl'   => '',
+                    'costo_adicional'  => '',
+                    'utilidad_neta'    => '',
+                    'gasto_extra'      => (float) $ge->monto_bolivianos,
+                    'fecha_gasto_extra'  => $ge->fecha ? $ge->fecha->format('d/m/Y') : '',
+                    'es_subtotal'      => false,
+                ]);
+            }
+
             // Fila de subtotal del contrato (siempre, tenga o no entregas).
             // numero_contrato se mantiene real (el frontend filtra por él para
             // saber qué contratos están visibles en pantalla); al armar el Excel
@@ -236,12 +267,13 @@ class ContratoController extends Controller
                     'comision_1_3'     => round($sumaCom1, 2),
                     'comision_2_zpl'   => round($sumaCom2, 2),
                     'costo_adicional'  => round($sumaCostoAdicional, 2),
-                    'utilidad_neta'    => round($sumaUtilNeta, 2),
+                    'utilidad_neta'    => round($sumaUtilNeta - $sumaGastoExtra, 2),
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos',
                     'monto_cobrado_cliente'   => round($sumaMontoCobrado, 2),
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
+                    'gasto_extra'      => round($sumaGastoExtra, 2),
                     'es_subtotal'      => true,
                 ]);
             } else {
@@ -281,12 +313,13 @@ class ContratoController extends Controller
                     'comision_1_3'     => 0,
                     'comision_2_zpl'   => 0,
                     'costo_adicional'  => 0,
-                    'utilidad_neta'    => 0,
+                    'utilidad_neta'    => round(0 - $sumaGastoExtra, 2),
                     'estado_envios'    => $c->envios_cerrados ? 'Envíos cerrados' : 'Envíos abiertos - SIN ENVIOS',
                     'monto_cobrado_cliente'   => 0,
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
+                    'gasto_extra'      => round($sumaGastoExtra, 2),
                     'es_subtotal'      => true,
                 ]);
             }
@@ -294,7 +327,30 @@ class ContratoController extends Controller
 
         $contratosExcelData = $contratosExcelData->values();
 
-        return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente', 'idempotencyToken', 'contratosExcelData'));
+        // Gastos extra generales (sin contrato), solo PAGADOS — es el único
+        // caso que representa un movimiento real ya ocurrido en tesorería.
+        // Se agrupan por categoría con su propio subtotal, al final del Excel.
+        $gastosExtraGeneralesPorCategoria = GastoExtra::whereNull('contrato_id')
+            ->whereNull('deleted_at')
+            ->where('estado', 'PAGADO')
+            ->orderBy('categoria')
+            ->orderBy('fecha')
+            ->get()
+            ->groupBy('categoria')
+            ->map(function ($grupo) {
+                return [
+                    'categoria' => $grupo->first()->categoria,
+                    'items' => $grupo->map(fn ($ge) => [
+                        'fecha'    => $ge->fecha ? $ge->fecha->format('d/m/Y') : '',
+                        'concepto' => $ge->concepto,
+                        'monto'    => (float) $ge->monto_bolivianos,
+                    ])->values(),
+                    'subtotal' => round($grupo->sum('monto_bolivianos'), 2),
+                ];
+            })
+            ->values();
+
+        return view('contratos.index', compact('contratos', 'clientes', 'proveedores', 'numeroSiguiente', 'idempotencyToken', 'contratosExcelData', 'gastosExtraGeneralesPorCategoria'));
     }
 
     public function nuevoToken()

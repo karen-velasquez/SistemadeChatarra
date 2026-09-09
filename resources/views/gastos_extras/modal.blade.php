@@ -78,8 +78,8 @@
 
                         <div class="col-md-6">
                             <label class="form-label">CONCEPTO <strong class="text-danger">(*)</strong></label>
-                            <input type="text" name="concepto" id="concepto" class="form-control" onkeyup="this.value=this.value.toUpperCase();" required>
-                            <small id="mensaje_concepto" class="text-muted">Mínimo 3 caracteres.</small>
+                            <input type="text" name="concepto" id="concepto" class="form-control" maxlength="255" onkeyup="this.value=this.value.toUpperCase();" required>
+                            <small id="mensaje_concepto" class="text-muted">Mínimo 3 caracteres, máximo 255.</small>
                         </div>
 
                         <div class="col-md-3">

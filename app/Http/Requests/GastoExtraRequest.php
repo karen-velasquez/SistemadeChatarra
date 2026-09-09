@@ -23,7 +23,7 @@ class GastoExtraRequest extends FormRequest
             'contrato_id' => 'nullable|exists:contratos,id',
             'cuenta_empresa_id' => 'required|exists:cuentas_empresa,id',
             'categoria' => 'required|string|max:50',
-            'concepto' => 'required|string',
+            'concepto' => 'required|string|max:255',
             'fecha' => 'required|date',
             'monto' => 'required|',
             'moneda' => 'required|string|max:10',
