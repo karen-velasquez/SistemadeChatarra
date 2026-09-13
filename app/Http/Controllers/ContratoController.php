@@ -41,7 +41,8 @@ class ContratoController extends Controller
                             'contratoCamiones.tramos.pagosCliente',
                             'contratoCamiones.tramos.empresaFacturadora',
                             'pagosProveedor',
-                            'gastosExtras',
+                            'gastosExtras.usuarioCreador',
+                            'gastosExtras.usuarioActualizador',
                             'usuarioCreador',
                             'usuarioActualizador',
                         ])
@@ -105,7 +106,7 @@ class ContratoController extends Controller
                         'empresa_facturadora_nombre' => $t->empresaFacturadora->nombre ?? '',
                         'tn_entregadas'  => (float) $t->peso_llegada,
                         'precio_venta'   => (float) $t->precio_por_tonelada,
-                        'fecha_entrega'  => $t->fecha_llegada?->format('d/m/Y') ?? '',
+                        'fecha_entrega'  => $t->fecha_llegada?->format('Y-m-d') ?? '',
                         'monto_cobrado_cliente' => round($montoCobradoEnvio, 2),
                         'codigo_cobro_cliente'  => implode(', ', $codigosCobroEnvio),
                         'fecha_cobro_cliente'   => implode(', ', $fechasCobroEnvio),
@@ -127,7 +128,7 @@ class ContratoController extends Controller
 
             $filaBase = [
                 'numero_contrato'  => $c->numero_contrato,
-                'fecha_contrato'   => $c->fecha_inicio?->format('d/m/Y') ?? '',
+                'fecha_contrato'   => $c->fecha_inicio?->format('Y-m-d') ?? '',
                 'tipo_contrato'    => $c->tipo_contrato,
                 'proveedor'        => $c->proveedor->nombre ?? '',
                 'moneda'           => $c->moneda,
@@ -216,7 +217,7 @@ class ContratoController extends Controller
                     'utilidad_neta'    => '',
                     'monto_pagado_proveedor' => (float) $p->monto,
                     'codigo_pago_proveedor'  => $p->codigo_seguimiento ?? '',
-                    'fecha_pago_proveedor'   => $p->fecha_pago ? $p->fecha_pago->format('d/m/Y') : '',
+                    'fecha_pago_proveedor'   => $p->fecha_pago ? $p->fecha_pago->format('Y-m-d') : '',
                     'es_subtotal'      => false,
                     'es_pago_proveedor'=> true,
                 ]);
@@ -243,7 +244,13 @@ class ContratoController extends Controller
                     'costo_adicional'  => '',
                     'utilidad_neta'    => '',
                     'gasto_extra'      => (float) $ge->monto_bolivianos,
-                    'fecha_gasto_extra'  => $ge->fecha ? $ge->fecha->format('d/m/Y') : '',
+                    'codigo_gasto_extra' => $ge->codigo_seguimiento ?? '',
+                    // El registro/edición debe ser del propio gasto extra, no
+                    // del contrato al que está asociado (que ya viene en $filaBase).
+                    'fecha_registro'   => $ge->created_at?->format('d/m/Y H:i') ?? '',
+                    'registrado_por'   => $ge->usuarioCreador->name ?? '',
+                    'fecha_edicion'    => $ge->updated_at && !$ge->updated_at->equalTo($ge->created_at) ? $ge->updated_at->format('d/m/Y H:i') : '',
+                    'editado_por'      => $ge->updated_at && !$ge->updated_at->equalTo($ge->created_at) ? ($ge->usuarioActualizador->name ?? '') : '',
                     'es_subtotal'      => false,
                 ]);
             }
@@ -333,6 +340,7 @@ class ContratoController extends Controller
         $gastosExtraGeneralesPorCategoria = GastoExtra::whereNull('contrato_id')
             ->whereNull('deleted_at')
             ->where('estado', 'PAGADO')
+            ->with(['usuarioCreador', 'usuarioActualizador'])
             ->orderBy('categoria')
             ->orderBy('fecha')
             ->get()
@@ -344,6 +352,11 @@ class ContratoController extends Controller
                         'fecha'    => $ge->fecha ? $ge->fecha->format('d/m/Y') : '',
                         'concepto' => $ge->concepto,
                         'monto'    => (float) $ge->monto_bolivianos,
+                        'codigo'   => $ge->codigo_seguimiento ?? '',
+                        'fecha_registro' => $ge->created_at?->format('d/m/Y H:i') ?? '',
+                        'registrado_por' => $ge->usuarioCreador->name ?? '',
+                        'fecha_edicion'  => $ge->updated_at && !$ge->updated_at->equalTo($ge->created_at) ? $ge->updated_at->format('d/m/Y H:i') : '',
+                        'editado_por'    => $ge->updated_at && !$ge->updated_at->equalTo($ge->created_at) ? ($ge->usuarioActualizador->name ?? '') : '',
                     ])->values(),
                     'subtotal' => round($grupo->sum('monto_bolivianos'), 2),
                 ];

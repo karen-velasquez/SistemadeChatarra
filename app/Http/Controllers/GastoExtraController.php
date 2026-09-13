@@ -129,6 +129,8 @@ class GastoExtraController extends Controller
         $gasto->codigo_seguimiento = $this->resolverCodigoSeguimiento($request->metodo_pago, $request->codigo_seguimiento);
         $gasto->nombre_titular = $request->nombre_titular;
         $gasto->estado = $request->estado;
+        $gasto->created_by = auth()->id();
+        $gasto->updated_by = auth()->id();
         $gasto->save();
         Alert::success('Registrado','Gasto Extra registrado con éxito');
         return redirect()->route('gastos_extras.index');
@@ -204,6 +206,7 @@ class GastoExtraController extends Controller
         $gasto->codigo_seguimiento = $this->resolverCodigoSeguimiento($request->metodo_pago, $request->codigo_seguimiento, $codigoActualSiEraQr);
         $gasto->comprobante_pago = $nombreComprobante;
         $gasto->nombre_titular = $request->nombre_titular;
+        $gasto->updated_by = auth()->id();
         $gasto->save();
         Alert::success('Actualizado','Gasto Extra actualizado con éxito');
         return redirect()->route('gastos_extras.index');
@@ -219,6 +222,10 @@ class GastoExtraController extends Controller
             }
         }
         // El propio modelo revierte el movimiento en tesorería si el gasto estaba PAGADO.
+        // saveQuietly() para no disparar de más el evento saved() (que sincroniza
+        // el movimiento) justo antes de eliminar el registro.
+        $gasto->deleted_by = auth()->id();
+        $gasto->saveQuietly();
         $gasto->delete();
         Alert::success('Eliminacion ', 'Gasto Extra eliminado y movimiento en tesorería revertido.');
         return redirect()->route('gastos_extras.index');

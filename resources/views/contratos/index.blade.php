@@ -442,7 +442,7 @@
         );
         const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
 
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE VENTA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA DE FACTURA','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -451,22 +451,37 @@
         const dataRows = [];
         const rowStyles = [];
         const ventasEntregas = [];
+        const toneladasEntregas = [];
+        const importeCompraEntregas = [];
+        const utilidadBrutaEntregas = [];
+        const itEntregas = [];
+        const comision1Entregas = [];
+        const comision2Entregas = [];
+        const costoAdicionalEntregas = [];
+        const gastoExtraContratos = [];
+        const utilidadNetaContratos = [];
+        const montoCobradoContratos = [];
+        const montoPagadoContratos = [];
         visibles.forEach(c => {
             if (c.es_subtotal) {
                 dataRows.push([
-                    c.cliente, c.fecha_contrato, '', '', c.placa, '', '', c.moneda,
+                    c.cliente, '', '', '', c.placa, '', '', c.moneda,
                     c.tn_entregadas, c.precio_venta, '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
-                    c.gasto_extra, c.utilidad_neta,
+                    c.gasto_extra, '', c.utilidad_neta,
                     c.estado_envios,
                     c.monto_cobrado_cliente, '', '',
-                    c.monto_pagado_proveedor, c.codigo_pago_proveedor, c.fecha_pago_proveedor,
-                    c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
+                    c.monto_pagado_proveedor, '', '',
+                    '', '', '', '',
                 ]);
                 rowStyles.push(
                     c.estado_envios === 'Envíos cerrados' ? 'subtotal_cerrado' :
                     (c.estado_envios && c.estado_envios.includes('SIN ENVIOS') ? 'subtotal_sin_envios' : 'subtotal_abierto')
                 );
+                if (typeof c.gasto_extra === 'number') gastoExtraContratos.push(c.gasto_extra);
+                if (typeof c.utilidad_neta === 'number') utilidadNetaContratos.push(c.utilidad_neta);
+                if (typeof c.monto_cobrado_cliente === 'number') montoCobradoContratos.push(c.monto_cobrado_cliente);
+                if (typeof c.monto_pagado_proveedor === 'number') montoPagadoContratos.push(c.monto_pagado_proveedor);
                 dataRows.push(cols.map(() => ''));
                 rowStyles.push(null);
             } else {
@@ -474,7 +489,7 @@
                     c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.empresa_facturadora, c.cliente, c.moneda,
                     c.tn_entregadas, c.precio_venta, c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
-                    c.gasto_extra ?? '', c.utilidad_neta,
+                    c.gasto_extra ?? '', c.codigo_gasto_extra ?? '', c.utilidad_neta,
                     '',
                     c.es_pago_proveedor ? '' : c.monto_cobrado_cliente,
                     c.es_pago_proveedor ? '' : c.codigo_cobro_cliente,
@@ -486,26 +501,15 @@
                 ]);
                 rowStyles.push(c.es_pago_proveedor ? 'pago_proveedor' : (c.gasto_extra ? 'gasto_extra' : null));
                 if (typeof c.total_ventas === 'number') ventasEntregas.push(c.total_ventas);
+                if (typeof c.tn_entregadas === 'number') toneladasEntregas.push(c.tn_entregadas);
+                if (typeof c.importe_compra === 'number') importeCompraEntregas.push(c.importe_compra);
+                if (typeof c.utilidad_bruta === 'number') utilidadBrutaEntregas.push(c.utilidad_bruta);
+                if (typeof c.it_3 === 'number') itEntregas.push(c.it_3);
+                if (typeof c.comision_1_3 === 'number') comision1Entregas.push(c.comision_1_3);
+                if (typeof c.comision_2_zpl === 'number') comision2Entregas.push(c.comision_2_zpl);
+                if (typeof c.costo_adicional === 'number') costoAdicionalEntregas.push(c.costo_adicional);
             }
         });
-
-        // Filas finales: total y promedio de Total Ventas de todas las entregas visibles
-        if (ventasEntregas.length > 0) {
-            const totalVentasGeneral = ventasEntregas.reduce((a, b) => a + b, 0);
-            const promedioVentas     = totalVentasGeneral / ventasEntregas.length;
-
-            const filaTotal = cols.map(() => '');
-            filaTotal[5]  = 'TOTAL VENTAS GENERAL';
-            filaTotal[11] = Math.round(totalVentasGeneral * 100) / 100;
-            dataRows.push(filaTotal);
-            rowStyles.push('subtotal_cerrado');
-
-            const filaPromedio = cols.map(() => '');
-            filaPromedio[5]  = 'PROMEDIO TOTAL VENTAS';
-            filaPromedio[11] = Math.round(promedioVentas * 100) / 100;
-            dataRows.push(filaPromedio);
-            rowStyles.push('subtotal_cerrado');
-        }
 
         // Gastos extra generales (sin contrato, ya PAGADOS): un bloque final
         // agrupado por categoría, con una fila por gasto y su subtotal.
@@ -514,7 +518,7 @@
             rowStyles.push(null);
 
             const filaTituloBloque = cols.map(() => '');
-            filaTituloBloque[5] = 'GASTOS EXTRA GENERALES (SIN CONTRATO)';
+            filaTituloBloque[0] = 'GASTOS EXTRA GENERALES (SIN CONTRATO)';
             dataRows.push(filaTituloBloque);
             rowStyles.push('subtotal_cerrado');
 
@@ -522,25 +526,52 @@
                 dataRows.push(cols.map(() => ''));
                 rowStyles.push(null);
 
-                const filaCategoria = cols.map(() => '');
-                filaCategoria[5] = grupo.categoria;
-                dataRows.push(filaCategoria);
-                rowStyles.push('gasto_extra');
-
                 grupo.items.forEach(item => {
                     const fila = cols.map(() => '');
+                    fila[0]  = grupo.categoria;
                     fila[6]  = item.concepto + (item.fecha ? ' (' + item.fecha + ')' : '');
                     fila[20] = item.monto;
+                    fila[21] = item.codigo;
+                    fila[30] = item.fecha_registro;
+                    fila[31] = item.registrado_por;
+                    fila[32] = item.fecha_edicion;
+                    fila[33] = item.editado_por;
                     dataRows.push(fila);
                     rowStyles.push('gasto_extra');
                 });
 
                 const filaSubtotal = cols.map(() => '');
-                filaSubtotal[5]  = 'SUBTOTAL ' + grupo.categoria;
+                filaSubtotal[0]  = 'SUBTOTAL ' + grupo.categoria;
                 filaSubtotal[20] = grupo.subtotal;
                 dataRows.push(filaSubtotal);
                 rowStyles.push('subtotal_cerrado');
             });
+        }
+
+        // Fila final: total de Total Ventas y de Toneladas de todas las entregas
+        // visibles — va al final de todo, después de los gastos extra generales.
+        if (ventasEntregas.length > 0) {
+            const sumar = arr => Math.round(arr.reduce((a, b) => a + b, 0) * 100) / 100;
+
+            dataRows.push(cols.map(() => ''));
+            rowStyles.push(null);
+
+            const filaTotal = cols.map(() => '');
+            filaTotal[0]  = 'TOTAL VENTAS GENERAL';
+            filaTotal[8]  = sumar(toneladasEntregas);
+            filaTotal[12] = sumar(ventasEntregas);
+            filaTotal[14] = sumar(importeCompraEntregas);
+            filaTotal[15] = sumar(utilidadBrutaEntregas);
+            filaTotal[16] = sumar(itEntregas);
+            filaTotal[17] = sumar(comision1Entregas);
+            filaTotal[18] = sumar(comision2Entregas);
+            filaTotal[19] = sumar(costoAdicionalEntregas);
+            filaTotal[20] = sumar(gastoExtraContratos);
+            filaTotal[22] = sumar(utilidadNetaContratos);
+            filaTotal[24] = sumar(montoCobradoContratos);
+            filaTotal[27] = sumar(montoPagadoContratos);
+            dataRows.push(filaTotal);
+            rowStyles.push('subtotal_cerrado');
         }
 
         const tituloLineas = [
@@ -608,6 +639,7 @@
 
         const styleXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>
   <fonts count="4">
     <font><sz val="11"/><name val="Calibri"/></font>
     <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
@@ -629,25 +661,25 @@
   </fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="18">
+  <cellXfs count="23">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="right" vertical="center"/>
     </xf>
     <xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
     <xf numFmtId="0" fontId="3" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
     <xf numFmtId="0" fontId="3" fillId="5" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
     <xf numFmtId="0" fontId="1" fillId="6" borderId="0" xfId="0" applyFont="1" applyFill="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="0" fontId="1" fillId="7" borderId="0" xfId="0" applyFont="1" applyFill="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="0" fontId="1" fillId="8" borderId="0" xfId="0" applyFont="1" applyFill="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="0" fontId="0" fillId="9" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="0" fillId="10" borderId="0" xfId="0"/>
@@ -658,20 +690,70 @@
     <xf numFmtId="2" fontId="3" fillId="5" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>
     <xf numFmtId="2" fontId="0" fillId="9" borderId="0" xfId="0" applyNumberFormat="1"/>
     <xf numFmtId="2" fontId="0" fillId="10" borderId="0" xfId="0" applyNumberFormat="1"/>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+    <xf numFmtId="164" fontId="3" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>
+    <xf numFmtId="164" fontId="3" fillId="4" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>
+    <xf numFmtId="164" fontId="3" fillId="5" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>
+    <xf numFmtId="164" fontId="0" fillId="9" borderId="0" xfId="0" applyNumberFormat="1"/>
   </cellXfs>
 </styleSheet>`;
 
         const colLetter = i => { let s='', n=i+1; while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26);} return s; };
+
+        // Convierte una fecha "YYYY-MM-DD" al número serial que usa Excel
+        // internamente (días desde 1899-12-30), para que la celda sea una
+        // fecha real filtrable/ordenable, no texto. Devuelve null si no matchea.
+        const fechaISOaSerial = v => {
+            if (typeof v !== 'string') return null;
+            const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!m) return null;
+            const utcMs = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+            return Math.round((utcMs - Date.UTC(1899, 11, 30)) / 86400000);
+        };
+        // Columnas que deben tratarse como fecha real de Excel.
+        const colsFecha = [1, 10, 29];
 
         // La primera columna también aloja el título del reporte (ya no
         // combinado a lo ancho de la tabla), así que su ancho mínimo
         // considera también el largo de esa primera línea de título.
         // "Fecha y hora de..." lleva fecha + hora (ej. "02/09/2026 14:30"),
         // más ancha que su propio encabezado, así que se le da un mínimo aparte.
+        // Anchos fijos acordados con el cliente (medidos en Excel en píxeles y
+        // convertidos a la unidad de caracteres del formato XLSX).
+        const anchosPorColumna = {
+            'N° CONTRATO': 20.71,
+            'FECHA DE CONTRATO': 14.29,
+            'TIPO': 8,
+            'PROVEEDOR': 16.43,
+            'PLACA': 11.29,
+            'EMPRESA FACTURADORA': 13,
+            'CLIENTE': 8.43,
+            'MONEDA': 4.29,
+            'TN ENTREGADAS': 7.71,
+            'PRECIO DE VENTA': 11.57,
+            'FECHA DE ENTREGA': 10.43,
+            'FECHA DE FACTURA': 9.86,
+            'TOTAL VENTAS': 11.86,
+            'PRECIO DE COMPRA': 10.29,
+            'IMPORTE COMPRA': 11.43,
+            'UTILIDAD BRUTA': 10.71,
+            'IT 3%': 9.86,
+            'COMISIÓN 1': 11.57,
+            'COMISIÓN 2 ZPL (1,1%)': 11.57,
+            'COSTO ADICIONAL': 10.71,
+            'GASTOS EXTRA': 10.43,
+            'UTILIDAD NETA': 10.71,
+            'ESTADO ENVÍOS': 10.71,
+            'MONTO COBRADO CLIENTE': 11.57,
+            'CÓDIGO COBRO CLIENTE': 10.14,
+            'FECHA Y HORA DE REGISTRO': 6.43,
+            'REGISTRADO POR': 6.43,
+            'FECHA Y HORA DE EDICIÓN': 6.43,
+            'EDITADO POR': 6.43,
+        };
+        const anchoDefault = 13.57;
         const colWidths = headers.map((h, ci) => {
-            if (ci === 0 && tituloLineas[0]) return Math.max(tituloLineas[0].length + 10, h.length + 10);
-            if (h.startsWith('FECHA Y HORA')) return 60;
-            return Math.max(14, h.length + 10);
+            return anchosPorColumna[h] ?? anchoDefault;
         });
         let colsXml = '<cols>';
         colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
@@ -685,7 +767,7 @@
         let sheetData = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <sheetViews>
-    <sheetView workbookViewId="0">
+    <sheetView workbookViewId="0" zoomScale="80" zoomScaleNormal="80">
       <pane ySplit="${filaCabeceraCalc}" topLeftCell="A${filaCabeceraCalc + 1}" activePane="bottomLeft" state="frozen"/>
     </sheetView>
   </sheetViews>
@@ -720,15 +802,14 @@
 
         // Columnas con color de cabecera distinto al verde estándar (s="1"):
         // celeste = IT/comisiones/costo adicional, lila = gastos extra, plomo = cobro cliente, naranja = pago proveedor.
-        const colsCeleste = [16, 17, 18, 19];
-        const colsLila    = [20];
-        const colsPlomo   = [23, 24, 25];
-        const colsNaranja = [26, 27, 28];
+        const colsCeleste = [16, 17, 18, 19, 20];
+        const colsPlomo   = [24, 25, 26];
+        const colsNaranja = [27, 28, 29];
 
         const filaCabecera = filaActual;
         sheetData += `<row r="${filaCabecera}">`;
         headers.forEach((h, ci) => {
-            const s = colsCeleste.includes(ci) ? '6' : colsPlomo.includes(ci) ? '7' : colsNaranja.includes(ci) ? '8' : colsLila.includes(ci) ? '11' : '1';
+            const s = colsCeleste.includes(ci) ? '6' : colsPlomo.includes(ci) ? '7' : colsNaranja.includes(ci) ? '8' : '1';
             sheetData += `<c r="${colLetter(ci)}${filaCabecera}" t="inlineStr" s="${s}"><is><t>${esc(h)}</t></is></c>`;
         });
         sheetData += `</row>`;
@@ -737,26 +818,25 @@
         // Cada fila usa dos estilos: uno de texto (color de fondo por tipo de
         // fila) y su variante con formato numérico "0.00" para que los montos
         // siempre salgan con dos decimales, aunque el valor sea un entero exacto.
-        // "gasto_extra" es la única excepción: solo tiñe sus propias columnas
-        // (21-22), no toda la fila — evita pintar de morado columnas vacías
-        // como TN ENTREGADAS que no tienen relación con el gasto extra.
-        const colsSoloGastoExtra = [20];
         rows.forEach((row, ri) => {
-            const esGastoExtra = rowStyles[ri] === 'gasto_extra';
-            const sTextoFila = rowStyles[ri] === 'subtotal_cerrado' ? '4' :
+            const sTexto = rowStyles[ri] === 'subtotal_cerrado' ? '4' :
                 (rowStyles[ri] === 'subtotal_abierto' ? '3' :
                 (rowStyles[ri] === 'subtotal_sin_envios' ? '5' :
                 (rowStyles[ri] === 'pago_proveedor' ? '9' : '0')));
-            const sNumeroFila = rowStyles[ri] === 'subtotal_cerrado' ? '13' :
-                (rowStyles[ri] === 'subtotal_abierto' ? '12' :
-                (rowStyles[ri] === 'subtotal_sin_envios' ? '14' :
-                (rowStyles[ri] === 'pago_proveedor' ? '15' : '11')));
+            const sNumero = rowStyles[ri] === 'subtotal_cerrado' ? '14' :
+                (rowStyles[ri] === 'subtotal_abierto' ? '13' :
+                (rowStyles[ri] === 'subtotal_sin_envios' ? '15' :
+                (rowStyles[ri] === 'pago_proveedor' ? '16' : '12')));
+            const sFecha = rowStyles[ri] === 'subtotal_cerrado' ? '20' :
+                (rowStyles[ri] === 'subtotal_abierto' ? '19' :
+                (rowStyles[ri] === 'subtotal_sin_envios' ? '21' :
+                (rowStyles[ri] === 'pago_proveedor' ? '22' : '18')));
             sheetData += `<row r="${filaActual}">`;
             row.forEach((val, ci) => {
-                const enColGastoExtra = esGastoExtra && colsSoloGastoExtra.includes(ci);
-                const sTexto  = enColGastoExtra ? '10' : sTextoFila;
-                const sNumero = enColGastoExtra ? '16' : sNumeroFila;
-                if (typeof val === 'number') {
+                const serial = colsFecha.includes(ci) ? fechaISOaSerial(val) : null;
+                if (serial !== null) {
+                    sheetData += `<c r="${colLetter(ci)}${filaActual}" s="${sFecha}"><v>${serial}</v></c>`;
+                } else if (typeof val === 'number') {
                     sheetData += `<c r="${colLetter(ci)}${filaActual}" s="${sNumero}"><v>${val}</v></c>`;
                 } else {
                     sheetData += `<c r="${colLetter(ci)}${filaActual}" s="${sTexto}" t="inlineStr"><is><t>${esc(val)}</t></is></c>`;
@@ -765,7 +845,10 @@
             sheetData += `</row>`;
             filaActual++;
         });
-        sheetData += `</sheetData></worksheet>`;
+        // Autofiltro (flechitas de ordenar/filtrar) en la fila de encabezados,
+        // cubriendo todas las columnas de la tabla.
+        const rangoFiltro = `A${filaCabecera}:${colLetter(headers.length - 1)}${filaCabecera}`;
+        sheetData += `</sheetData><autoFilter ref="${rangoFiltro}"/></worksheet>`;
 
         const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"

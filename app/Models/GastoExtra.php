@@ -50,6 +50,14 @@ class GastoExtra extends Model
     {
         return $this->morphOne(Movimiento::class, 'origen', 'origen_type', 'origen_id');
     }
+    public function usuarioCreador()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function usuarioActualizador()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
     protected static function boot()
     {
         parent::boot();
