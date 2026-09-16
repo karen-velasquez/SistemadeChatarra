@@ -127,6 +127,7 @@
     {{-- Tabs --}}
     <div class="card">
         <div class="card-body">
+            <p class="text-muted small d-none mt-2" id="resumen_contratos_tipo"></p>
             <ul class="nav nav-tabs" id="segTabs" role="tablist">
                 <li class="nav-item">
                     <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-en-ruta" type="button">
@@ -259,6 +260,13 @@
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
+                                                @if($t->contratoCamion->total_pagado == 0)
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirModalFlete('{{ $t->contratoCamion->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($t->contratoCamion->contrato->numero_contrato) }}',{{ $t->contratoCamion->monto_acordado }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}')">
+                                                        <i class="bi bi-pencil text-info me-2"></i> Editar flete
+                                                    </button>
+                                                </li>
+                                                @endif
                                                 @else
                                                 <li>
                                                     <button class="dropdown-item" onclick="abrirModalFlete('{{ $t->contratoCamion->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($t->contratoCamion->contrato->numero_contrato) }}')">
@@ -404,6 +412,13 @@
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
+                                                @if($t->contratoCamion->total_pagado == 0)
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirModalFlete('{{ $t->contratoCamion->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($t->contratoCamion->contrato->numero_contrato) }}',{{ $t->contratoCamion->monto_acordado }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}')">
+                                                        <i class="bi bi-pencil text-info me-2"></i> Editar flete
+                                                    </button>
+                                                </li>
+                                                @endif
                                                 @else
                                                 <li>
                                                     <button class="dropdown-item" onclick="abrirModalFlete('{{ $t->contratoCamion->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($t->contratoCamion->contrato->numero_contrato) }}')">
@@ -535,6 +550,13 @@
                                                         <i class="bi bi-cash-coin text-warning me-2"></i> Registrar pago
                                                     </button>
                                                 </li>
+                                                @if($t->contratoCamion->total_pagado == 0)
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirModalFlete('{{ $t->contratoCamion->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($t->contratoCamion->contrato->numero_contrato) }}',{{ $t->contratoCamion->monto_acordado }},'{{ $t->contratoCamion->moneda_flete ?? 'BOB' }}')">
+                                                        <i class="bi bi-pencil text-info me-2"></i> Editar flete
+                                                    </button>
+                                                </li>
+                                                @endif
                                                 @else
                                                 <li>
                                                     <button class="dropdown-item" onclick="abrirModalFlete('{{ $t->contratoCamion->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($t->contratoCamion->contrato->numero_contrato) }}')">
@@ -689,6 +711,13 @@
                                                 @else
                                                 <li>
                                                     <span class="dropdown-item text-success"><i class="bi bi-check-circle me-2"></i> Flete pagado</span>
+                                                </li>
+                                                @endif
+                                                @if($cc->total_pagado == 0)
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirModalFlete('{{ $cc->uuid }}','{{ addslashes($t->camion->placa) }} — {{ addslashes($cc->contrato->numero_contrato) }}',{{ $cc->monto_acordado }},'{{ $cc->moneda_flete ?? 'BOB' }}')">
+                                                        <i class="bi bi-pencil text-info me-2"></i> Editar flete
+                                                    </button>
                                                 </li>
                                                 @endif
                                                 @else
@@ -1805,11 +1834,22 @@ function segCambiarReceptor(tipo) {
 }
 // ---- Fin pago desde seguimiento ----
 
+const _resumenContratosPorTipo = @json($resumenContratosPorTipo);
+
+function actualizarResumenContratosTipo(tipoTramo) {
+    const el = document.getElementById('resumen_contratos_tipo');
+    const r  = _resumenContratosPorTipo[tipoTramo];
+    if (!tipoTramo || !r) { el.classList.add('d-none'); return; }
+    el.textContent = `📄 ${r.total} contrato(s) ${tipoTramo.toLowerCase()}(es): ${r.con_envios} con envíos asignados, ${r.sin_envios} sin ningún envío.`;
+    el.classList.remove('d-none');
+}
+
 function aplicarFiltrosSeg() {
     const proveedorId  = (document.getElementById('filtro_proveedor_seg')?.value    || '');
     const tipoTramo    = (document.getElementById('filtro_tipo_tramo_seg')?.value   || '');
     const fleteEstado  = (document.getElementById('filtro_flete_estado_seg')?.value || '');
     const hayFiltro    = !!(proveedorId || tipoTramo || fleteEstado);
+    actualizarResumenContratosTipo(tipoTramo);
     const grupos = [
         { tabla: 'tabla_en_ruta',        tarjeta: 'contador_tarjeta_en_ruta',        badge: 'badge_tab_en_ruta' },
         { tabla: 'tabla_transbordando',  tarjeta: 'contador_tarjeta_transbordando',  badge: 'badge_tab_transbordando' },
@@ -1951,12 +1991,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-function abrirModalFlete(ccUuid, label) {
+function abrirModalFlete(ccUuid, label, montoActual, monedaActual) {
     document.getElementById('flete_label').textContent    = label;
     document.getElementById('formFlete').action           = '{{ url("contrato-camion") }}/' + ccUuid + '/flete';
-    document.getElementById('flete_moneda').value         = 'BOB';
-    document.getElementById('flete_monto_display').value  = '';
-    document.getElementById('flete_monto_hidden').value   = '';
+    document.getElementById('flete_moneda').value         = monedaActual || 'BOB';
+    document.getElementById('flete_monto_hidden').value   = montoActual || '';
+    document.getElementById('flete_monto_display').value  = montoActual
+        ? new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(montoActual)
+        : '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalFlete')).show();
 }
 

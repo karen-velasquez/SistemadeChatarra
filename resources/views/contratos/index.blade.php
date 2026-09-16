@@ -79,6 +79,14 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1"><i class="bi bi-truck"></i> Envíos</label>
+                            <select class="form-select" id="filtro_envios_contrato" onchange="aplicarFiltrosContratos()">
+                                <option value="">— Todos —</option>
+                                <option value="con">Con envíos</option>
+                                <option value="sin">Sin envíos</option>
+                            </select>
+                        </div>
                         <div class="col-auto">
                             <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosContratos()">
                                 <i class="bi bi-x-circle"></i> Limpiar
@@ -112,7 +120,7 @@
                             <tbody>
                                 @foreach($contratos as $c)
                                 @php $clientesEntregados = $c->clientes_entregados; @endphp
-                                <tr data-tipo="{{ $c->tipo_contrato }}" data-proveedor-id="{{ $c->proveedor_id }}" data-clientes-ids="{{ $clientesEntregados->pluck('id')->implode(',') }}" data-numero-contrato="{{ $c->numero_contrato }}">
+                                <tr data-tipo="{{ $c->tipo_contrato }}" data-proveedor-id="{{ $c->proveedor_id }}" data-clientes-ids="{{ $clientesEntregados->pluck('id')->implode(',') }}" data-numero-contrato="{{ $c->numero_contrato }}" data-tiene-envios="{{ $c->contratoCamiones->isNotEmpty() ? 'con' : 'sin' }}">
                                     <td style="white-space:nowrap;"><span class="fw-bold text-primary">{{ $c->numero_contrato }}</span></td>
                                     <td>
                                         @if($c->tipo_contrato === 'Nacional')
@@ -943,13 +951,15 @@
         const tipo         = document.getElementById('filtro_tipo').value;
         const proveedorId  = document.getElementById('filtro_proveedor_contrato').value;
         const clienteId    = document.getElementById('filtro_cliente_contrato').value;
+        const envios       = document.getElementById('filtro_envios_contrato').value;
 
         const okTipo      = !tipo || fila.dataset.tipo === tipo;
         const okProveedor = !proveedorId || fila.dataset.proveedorId === proveedorId;
         const clientesIds = (fila.dataset.clientesIds || '').split(',');
         const okCliente   = !clienteId || clientesIds.includes(clienteId);
+        const okEnvios    = !envios || fila.dataset.tieneEnvios === envios;
 
-        return okTipo && okProveedor && okCliente;
+        return okTipo && okProveedor && okCliente && okEnvios;
     });
 
     tablaContratos.on('draw', function () {
@@ -964,6 +974,7 @@
         document.getElementById('filtro_tipo').value               = '';
         document.getElementById('filtro_proveedor_contrato').value = '';
         document.getElementById('filtro_cliente_contrato').value   = '';
+        document.getElementById('filtro_envios_contrato').value    = '';
         aplicarFiltrosContratos();
     }
 

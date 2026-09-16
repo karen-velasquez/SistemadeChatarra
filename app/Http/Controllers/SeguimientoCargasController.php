@@ -9,6 +9,7 @@ use App\Models\Cliente;
 use App\Models\Empresa;
 use App\Models\Proveedor;
 use App\Models\Parametro;
+use App\Models\Contrato;
 
 class SeguimientoCargasController extends Controller
 {
@@ -58,6 +59,21 @@ class SeguimientoCargasController extends Controller
             'entregado'     => Tramo::whereNull('deleted_at')->where('estado', 'Entregado')->count(),
         ];
 
+        // Resumen de contratos con/sin camiones asignados, por tipo (Nacional/Internacional),
+        // para el texto que aparece sobre las pestañas al filtrar por tipo de transporte.
+        $resumenContratosPorTipo = Contrato::whereNull('deleted_at')
+            ->withCount('contratoCamiones')
+            ->get()
+            ->groupBy('tipo_contrato')
+            ->map(function ($grupo) {
+                $conEnvios = $grupo->where('contrato_camiones_count', '>', 0)->count();
+                return [
+                    'total'      => $grupo->count(),
+                    'con_envios' => $conEnvios,
+                    'sin_envios' => $grupo->count() - $conEnvios,
+                ];
+            });
+
         $clientes = Cliente::with(['pais', 'contacts' => fn($q) => $q->where('tipo', 'direccion')->whereNull('deleted_at')])->whereNull('deleted_at')->orderBy('nombre')->get();
 
         $proveedores = Proveedor::with('pais')->whereNull('deleted_at')->orderBy('nombre')->get();
@@ -84,6 +100,6 @@ class SeguimientoCargasController extends Controller
         $idempotencyToken   = $this->generarToken('pago_camion_store_token');
         $tokenTransbordo    = $this->generarToken('tramo_transbordo_store_token');
 
-        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada', 'idempotencyToken', 'tokenTransbordo'));
+        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'resumenContratosPorTipo', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada', 'idempotencyToken', 'tokenTransbordo'));
     }
 }

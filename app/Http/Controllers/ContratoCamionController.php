@@ -88,6 +88,11 @@ class ContratoCamionController extends Controller
     {
         $cc = ContratoCamion::where('uuid', $uuid)->firstOrFail();
 
+        if ($cc->monto_acordado && $cc->total_pagado > 0) {
+            Alert::error('Error', 'No se puede editar el flete: ya se registró un pago.');
+            return back();
+        }
+
         $request->validate([
             'moneda_flete'   => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
             'monto_acordado' => 'required|numeric|min:0.01',
