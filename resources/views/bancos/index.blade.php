@@ -509,7 +509,14 @@ document.getElementById('colapseBancos').addEventListener('hide.bs.collapse', fu
 // Arrays de titulares con nombre, apellido_paterno, apellido_materno cuando aplica
 @php
 $proveedoresJs = $proveedores->map(fn($p) => ['id' => $p->id, 'nombre' => $p->nombre, 'ap' => '', 'am' => '', 'ci' => '']);
-$operadoresJs  = $operadores->map(fn($o) => ['id' => $o->id, 'nombre' => $o->nombre, 'ap' => $o->apellido_paterno, 'am' => $o->apellido_materno, 'ci' => $o->ci ?? '']);
+$operadoresJs  = $operadores->map(fn($o) => [
+    'id'    => $o->id,
+    'nombre'=> $o->nombre,
+    'ap'    => $o->apellido_paterno,
+    'am'    => $o->apellido_materno,
+    'ci'    => $o->ci ?? '',
+    'label' => trim($o->nombre . ' ' . $o->apellido_paterno . ' ' . $o->apellido_materno),
+]);
 $empleadosJs   = $empleados->map(fn($e) => [
     'id'    => $e->id,
     'nombre'=> $e->nombre,

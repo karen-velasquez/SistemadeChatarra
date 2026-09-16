@@ -52,28 +52,28 @@
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm text-center py-3">
                 <div style="font-size:2rem; color:#0d6efd;"><i class="bi bi-truck"></i></div>
-                <div class="fw-bold fs-4">{{ $resumen['en_ruta'] }}</div>
+                <div class="fw-bold fs-4" id="contador_tarjeta_en_ruta">{{ $resumen['en_ruta'] }}</div>
                 <div class="text-muted small">En ruta</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm text-center py-3">
                 <div style="font-size:2rem; color:#ffc107;"><i class="bi bi-arrow-left-right"></i></div>
-                <div class="fw-bold fs-4">{{ $resumen['transbordando'] }}</div>
+                <div class="fw-bold fs-4" id="contador_tarjeta_transbordando">{{ $resumen['transbordando'] }}</div>
                 <div class="text-muted small">Transbordando</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm text-center py-3">
                 <div style="font-size:2rem; color:#0dcaf0;"><i class="bi bi-check2-all"></i></div>
-                <div class="fw-bold fs-4">{{ $resumen['transbordado'] }}</div>
+                <div class="fw-bold fs-4" id="contador_tarjeta_transbordado">{{ $resumen['transbordado'] }}</div>
                 <div class="text-muted small">Transbordado</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm text-center py-3">
                 <div style="font-size:2rem; color:#198754;"><i class="bi bi-check-circle"></i></div>
-                <div class="fw-bold fs-4">{{ $resumen['entregado'] }}</div>
+                <div class="fw-bold fs-4" id="contador_tarjeta_entregado">{{ $resumen['entregado'] }}</div>
                 <div class="text-muted small">Entregados</div>
             </div>
         </div>
@@ -131,25 +131,25 @@
                 <li class="nav-item">
                     <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-en-ruta" type="button">
                         <i class="bi bi-truck text-primary"></i> En ruta
-                        <span class="badge bg-primary ms-1">{{ $resumen['en_ruta'] }}</span>
+                        <span class="badge bg-primary ms-1" id="badge_tab_en_ruta" data-total="{{ $resumen['en_ruta'] }}">{{ $resumen['en_ruta'] }}</span>
                     </button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-transbordando" type="button">
                         <i class="bi bi-arrow-left-right text-warning"></i> Transbordando
-                        <span class="badge bg-warning text-dark ms-1">{{ $resumen['transbordando'] }}</span>
+                        <span class="badge bg-warning text-dark ms-1" id="badge_tab_transbordando" data-total="{{ $resumen['transbordando'] }}">{{ $resumen['transbordando'] }}</span>
                     </button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-transbordado" type="button">
                         <i class="bi bi-check2-all text-info"></i> Transbordado
-                        <span class="badge bg-info text-dark ms-1">{{ $resumen['transbordado'] }}</span>
+                        <span class="badge bg-info text-dark ms-1" id="badge_tab_transbordado" data-total="{{ $resumen['transbordado'] }}">{{ $resumen['transbordado'] }}</span>
                     </button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-entregados" type="button">
                         <i class="bi bi-check-circle text-success"></i> Entregados
-                        <span class="badge bg-success ms-1">{{ $resumen['entregado'] }}</span>
+                        <span class="badge bg-success ms-1" id="badge_tab_entregado" data-total="{{ $resumen['entregado'] }}">{{ $resumen['entregado'] }}</span>
                     </button>
                 </li>
             </ul>
@@ -1798,16 +1798,34 @@ function aplicarFiltrosSeg() {
     const proveedorId  = (document.getElementById('filtro_proveedor_seg')?.value    || '');
     const tipoTramo    = (document.getElementById('filtro_tipo_tramo_seg')?.value   || '');
     const fleteEstado  = (document.getElementById('filtro_flete_estado_seg')?.value || '');
-    const tablas = ['tabla_en_ruta', 'tabla_transbordando', 'tabla_transbordado', 'tabla_entregados'];
-    tablas.forEach(function(id) {
-        const tabla = document.getElementById(id);
-        if (!tabla) return;
-        tabla.querySelectorAll('tbody tr').forEach(function(fila) {
-            const okProv  = !proveedorId || fila.dataset.proveedorId == proveedorId;
-            const okTipo  = !tipoTramo   || fila.dataset.tipoTramo  === tipoTramo;
-            const okFlete = !fleteEstado || fila.dataset.fleteEstado === fleteEstado;
-            fila.style.display = (okProv && okTipo && okFlete) ? '' : 'none';
-        });
+    const hayFiltro    = !!(proveedorId || tipoTramo || fleteEstado);
+    const grupos = [
+        { tabla: 'tabla_en_ruta',        tarjeta: 'contador_tarjeta_en_ruta',        badge: 'badge_tab_en_ruta' },
+        { tabla: 'tabla_transbordando',  tarjeta: 'contador_tarjeta_transbordando',  badge: 'badge_tab_transbordando' },
+        { tabla: 'tabla_transbordado',   tarjeta: 'contador_tarjeta_transbordado',   badge: 'badge_tab_transbordado' },
+        { tabla: 'tabla_entregados',     tarjeta: 'contador_tarjeta_entregado',      badge: 'badge_tab_entregado' },
+    ];
+    grupos.forEach(function(g) {
+        const tabla = document.getElementById(g.tabla);
+        let visibles = 0;
+        if (tabla) {
+            tabla.querySelectorAll('tbody tr').forEach(function(fila) {
+                const okProv  = !proveedorId || fila.dataset.proveedorId == proveedorId;
+                const okTipo  = !tipoTramo   || fila.dataset.tipoTramo  === tipoTramo;
+                const okFlete = !fleteEstado || fila.dataset.fleteEstado === fleteEstado;
+                const visible = okProv && okTipo && okFlete;
+                fila.style.display = visible ? '' : 'none';
+                if (visible) visibles++;
+            });
+        }
+        const tarjeta = document.getElementById(g.tarjeta);
+        const badge   = document.getElementById(g.badge);
+        // "Entregados" solo trae las últimas 50 filas del servidor: sin filtro
+        // se muestra el total real (data-total), no el conteo de filas cargadas.
+        const esEntregados = g.tabla === 'tabla_entregados';
+        const valor = (esEntregados && !hayFiltro) ? (badge?.dataset.total ?? visibles) : visibles;
+        if (tarjeta) tarjeta.textContent = valor;
+        if (badge)   badge.textContent   = valor;
     });
 }
 
