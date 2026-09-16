@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use App\Models\Camion;
 use App\Models\Tramo;
 use App\Models\Cliente;
@@ -19,7 +20,7 @@ class SeguimientoCargasController extends Controller
         $this->middleware('auth');
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $base = Tramo::with([
             'camion',
@@ -32,7 +33,23 @@ class SeguimientoCargasController extends Controller
         $enRuta        = (clone $base)->where('estado', 'En ruta')->orderBy('fecha_salida')->get();
         $transbordando = (clone $base)->where('estado', 'Transbordando')->orderBy('fecha_salida')->get();
         $transbordado  = (clone $base)->where('estado', 'Transbordado')->orderByDesc('fecha_llegada')->get();
-        $entregados    = (clone $base)->with('cliente')->where('estado', 'Entregado')->orderByDesc('fecha_llegada')->limit(50)->get();
+
+        $entregadosQuery = (clone $base)->with('cliente')->where('estado', 'Entregado')
+            ->when($request->filled('proveedor_id'), fn($q) => $q->whereHas('contratoCamion.contrato', fn($q2) => $q2->where('proveedor_id', $request->proveedor_id)))
+            ->when($request->filled('tipo_tramo'), fn($q) => $q->where('tipo_tramo', $request->tipo_tramo))
+            ->orderByDesc('fecha_llegada');
+
+        // El estado de flete (pagado/pendiente/sin flete) se calcula con accessors PHP,
+        // no es una columna: con ese filtro traemos todo y filtramos en PHP, sin paginar.
+        if ($request->filled('flete_estado')) {
+            $entregados = $entregadosQuery->get()->filter(function ($t) use ($request) {
+                $cc = $t->contratoCamion;
+                $estado = !$cc->monto_acordado ? 'sin_flete' : ($cc->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
+                return $estado === $request->flete_estado;
+            })->values();
+        } else {
+            $entregados = $entregadosQuery->paginate(50, ['*'], 'pagina_entregados')->withQueryString();
+        }
 
         $resumen = [
             'en_ruta'       => $enRuta->count(),

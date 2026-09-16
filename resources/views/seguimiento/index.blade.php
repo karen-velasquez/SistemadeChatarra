@@ -576,10 +576,15 @@
 
                 {{-- ENTREGADOS --}}
                 <div class="tab-pane fade" id="pane-entregados">
+                    <div id="pane-entregados-contenido">
                     @if($entregados->isEmpty())
                         <div class="alert alert-info"><i class="bi bi-info-circle"></i> No hay entregas registradas aún.</div>
                     @else
-                    <p class="text-muted small"><i class="bi bi-info-circle"></i> Mostrando las últimas 50 entregas.</p>
+                    @if($entregados instanceof \Illuminate\Pagination\LengthAwarePaginator)
+                    <p class="text-muted small"><i class="bi bi-info-circle"></i> Mostrando {{ $entregados->firstItem() }}–{{ $entregados->lastItem() }} de {{ $entregados->total() }} entregas.</p>
+                    @else
+                    <p class="text-muted small"><i class="bi bi-info-circle"></i> {{ $entregados->count() }} entregas encontradas.</p>
+                    @endif
                     <div class="table-responsive">
                         <table id="tabla_entregados" class="table table-hover table-bordered table-sm align-middle">
                             <thead class="table-light">
@@ -722,7 +727,13 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($entregados instanceof \Illuminate\Pagination\LengthAwarePaginator)
+                    <div class="d-flex justify-content-center">
+                        {{ $entregados->links() }}
+                    </div>
                     @endif
+                    @endif
+                    </div>
                 </div>
 
             </div>
@@ -1803,7 +1814,6 @@ function aplicarFiltrosSeg() {
         { tabla: 'tabla_en_ruta',        tarjeta: 'contador_tarjeta_en_ruta',        badge: 'badge_tab_en_ruta' },
         { tabla: 'tabla_transbordando',  tarjeta: 'contador_tarjeta_transbordando',  badge: 'badge_tab_transbordando' },
         { tabla: 'tabla_transbordado',   tarjeta: 'contador_tarjeta_transbordado',   badge: 'badge_tab_transbordado' },
-        { tabla: 'tabla_entregados',     tarjeta: 'contador_tarjeta_entregado',      badge: 'badge_tab_entregado' },
     ];
     grupos.forEach(function(g) {
         const tabla = document.getElementById(g.tabla);
@@ -1820,14 +1830,38 @@ function aplicarFiltrosSeg() {
         }
         const tarjeta = document.getElementById(g.tarjeta);
         const badge   = document.getElementById(g.badge);
-        // "Entregados" solo trae las últimas 50 filas del servidor: sin filtro
-        // se muestra el total real (data-total), no el conteo de filas cargadas.
-        const esEntregados = g.tabla === 'tabla_entregados';
-        const valor = (esEntregados && !hayFiltro) ? (badge?.dataset.total ?? visibles) : visibles;
-        if (tarjeta) tarjeta.textContent = valor;
-        if (badge)   badge.textContent   = valor;
+        if (tarjeta) tarjeta.textContent = visibles;
+        if (badge)   badge.textContent   = visibles;
     });
+
+    // "Entregados" está paginado en el servidor: con filtro se recarga la tabla
+    // en vez de ocultar filas de la página cargada, para buscar en todos los registros.
+    cargarPaneEntregados(hayFiltro ? `${url_global}/seguimiento-cargas?proveedor_id=${proveedorId}&tipo_tramo=${tipoTramo}&flete_estado=${fleteEstado}` : null);
 }
+
+function cargarPaneEntregados(url) {
+    fetch(url || (url_global + '/seguimiento-cargas'))
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nuevo = doc.getElementById('pane-entregados-contenido');
+            if (!nuevo) return;
+            document.getElementById('pane-entregados-contenido').innerHTML = nuevo.innerHTML;
+            // Sin filtro, la tarjeta/badge muestran el total real; con filtro, las filas encontradas
+            const totalReal = document.getElementById('badge_tab_entregado')?.dataset.total ?? 0;
+            const valor = url ? document.getElementById('tabla_entregados')?.querySelectorAll('tbody tr').length ?? 0 : totalReal;
+            document.getElementById('contador_tarjeta_entregado').textContent = valor;
+            document.getElementById('badge_tab_entregado').textContent = valor;
+        });
+}
+
+// Pagina "Entregados" por AJAX para no recargar toda la vista ni perder la pestaña activa
+document.getElementById('pane-entregados')?.addEventListener('click', function(e) {
+    const link = e.target.closest('.pagination a[href]');
+    if (!link) return;
+    e.preventDefault();
+    cargarPaneEntregados(link.href);
+});
 
 function limpiarFiltrosSeg() {
     const sel1 = document.getElementById('filtro_proveedor_seg');
