@@ -217,4 +217,20 @@ class Contrato extends Model implements Auditable
         }
         return Cliente::whereIn('id', $clienteIds->unique())->orderBy('nombre')->get();
     }
+
+    // Tipos de material (Chatarra/Fundido) entregados en este contrato
+    public function getTiposChatarraEntregadosAttribute()
+    {
+        $tipos = collect();
+        foreach ($this->contratoCamiones as $cc) {
+            $tipos = $tipos->merge(
+                $cc->tramos()
+                    ->whereDoesntHave('tramosHijos')
+                    ->where('estado', 'Entregado')
+                    ->whereNotNull('tipo_chatarra')
+                    ->pluck('tipo_chatarra')
+            );
+        }
+        return $tipos->unique()->values();
+    }
 }

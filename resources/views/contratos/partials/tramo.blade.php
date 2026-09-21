@@ -69,6 +69,11 @@
             <span class="badge bg-{{ $tramo->tipo_tramo === 'Internacional' ? 'danger' : 'secondary' }} me-1">
                 {{ $tramo->tipo_tramo }}
             </span>
+            @if($tramo->tipo_chatarra)
+                <span class="badge bg-{{ $tramo->tipo_chatarra === 'Fundido' ? 'dark' : 'secondary' }} me-1">
+                    <i class="bi bi-fire"></i> {{ $tramo->tipo_chatarra }}
+                </span>
+            @endif
             <strong>{{ $tramo->origen }}</strong>
             <i class="bi bi-arrow-right mx-1 text-muted"></i>
             <strong>{{ $tramo->destino }}</strong>

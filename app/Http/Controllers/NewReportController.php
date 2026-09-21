@@ -320,17 +320,19 @@ class NewReportController extends Controller
 
             default: // deudas_proveedores
                 return [
-                    ['Contrato', 'Proveedor', 'Estado', 'Monto Total', 'Pagado', 'Pendiente', 'Moneda'],
+                    ['Fecha', 'Contrato', 'Proveedor', 'Estado', 'Toneladas Recibidas', 'Monto Total', 'Pagado', 'Pendiente', 'Moneda'],
                     $reporte['items']->map(fn ($c) => [
+                        $c->fecha_inicio?->format('d/m/Y') ?? '—',
                         $c->numero_contrato,
                         $c->proveedor->nombre ?? '—',
                         ucfirst($c->estado),
+                        (float) $c->toneladas_entregadas,
                         (float) $c->monto_total,
                         (float) $c->total_pagado_proveedor,
                         (float) $c->saldo_pendiente_proveedor,
                         $c->moneda,
                     ])->toArray(),
-                    ['texto', 'texto', 'centro', 'numero', 'numero', 'numero', 'centro'],
+                    ['centro', 'texto', 'texto', 'centro', 'numero', 'numero', 'numero', 'numero', 'centro'],
                 ];
         }
     }

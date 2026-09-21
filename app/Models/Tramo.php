@@ -28,6 +28,7 @@ class Tramo extends Model
         'peso_declarado',
         'peso_salida',
         'peso_llegada',
+        'tipo_chatarra',
         'precio_por_tonelada',
         'moneda_venta',
         'descuento_porcentaje',

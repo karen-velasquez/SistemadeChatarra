@@ -123,6 +123,12 @@
     <span class="badge {{ $tramo->tipo_tramo === 'Internacional' ? 'badge-danger' : 'badge-info' }}">
         {{ $tramo->tipo_tramo }}
     </span>
+    @if($tramo->tipo_chatarra)
+        &nbsp;
+        <span class="badge {{ $tramo->tipo_chatarra === 'Fundido' ? 'badge-danger' : 'badge-success' }}">
+            {{ $tramo->tipo_chatarra }}
+        </span>
+    @endif
 </div>
 
 {{-- PESOS --}}
@@ -243,6 +249,10 @@
             <td>{{ $tramo->contratoCamion->contrato->proveedor?->nombre ?? '—' }}</td>
             <td class="label">Cliente:</td>
             <td>{{ $tramo->cliente?->nombre ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Tipo de material:</td>
+            <td colspan="3">{{ $tramo->tipo_chatarra ?? '—' }}</td>
         </tr>
         <tr>
             <td class="label">Estado:</td>

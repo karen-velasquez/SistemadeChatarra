@@ -111,9 +111,11 @@
                     <table id="datos" class="table table-sm table-striped align-middle">
                         <thead>
                             <tr>
+                                <th>Fecha</th>
                                 <th>Contrato</th>
                                 <th>Proveedor</th>
                                 <th>Estado</th>
+                                <th class="text-end">Toneladas Recibidas</th>
                                 <th class="text-end">Monto Total</th>
                                 <th class="text-end">Pagado</th>
                                 <th class="text-end">Pendiente</th>
@@ -123,16 +125,18 @@
                         <tbody>
                             @forelse($reporte['items'] as $c)
                                 <tr>
+                                    <td>{{ $c->fecha_inicio?->format('d/m/Y') ?? '—' }}</td>
                                     <td>{{ $c->numero_contrato }}</td>
                                     <td>{{ $c->proveedor->nombre ?? '—' }}</td>
                                     <td>{{ ucfirst($c->estado) }}</td>
+                                    <td class="text-end">{{ number_format($c->toneladas_entregadas, 2, ',', '.') }} t</td>
                                     <td class="text-end">{{ number_format($c->monto_total, 2) }}</td>
                                     <td class="text-end">{{ number_format($c->total_pagado_proveedor, 2) }}</td>
                                     <td class="text-end">{{ number_format($c->saldo_pendiente_proveedor, 2) }}</td>
                                     <td>{{ $c->moneda }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="text-center text-muted py-4">No hay resultados para los filtros seleccionados.</td></tr>
+                                <tr><td colspan="9" class="text-center text-muted py-4">No hay resultados para los filtros seleccionados.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

@@ -542,6 +542,15 @@
                                         </select>
                                         <input type="hidden" name="direccion_entrega" id="inp_direccion_entrega">
                                     </div>
+                                    {{-- Tipo de chatarra entregada --}}
+                                    <div class="d-none mt-3" id="sec_tipo_chatarra">
+                                        <label class="form-label fw-semibold">Tipo de material entregado <span class="text-danger">(*)</span></label>
+                                        <select class="form-select" name="tipo_chatarra" id="sel_tipo_chatarra">
+                                            <option value="">-- Seleccione tipo --</option>
+                                            <option value="Chatarra">Chatarra</option>
+                                            <option value="Fundido">Fundido</option>
+                                        </select>
+                                    </div>
                                     {{-- Empresa que facturará --}}
                                     <div class="d-none mt-3" id="sec_empresa_factura">
                                         <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">(*)</span></label>
@@ -632,6 +641,14 @@
                                                         @endforeach
                                                     </select>
                                                     <input type="hidden" name="direccion_entrega" id="inp_direccion_entrega_div">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Tipo de material entregado <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="tipo_chatarra" id="sel_tipo_chatarra_div">
+                                                        <option value="">-- Seleccione tipo --</option>
+                                                        <option value="Chatarra">Chatarra</option>
+                                                        <option value="Fundido">Fundido</option>
+                                                    </select>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">*</span></label>
@@ -1257,6 +1274,9 @@ function abrirModalLlegada(tramoUuid, info, pesoSalida, fechaSalida, camionId, c
     document.getElementById('sec_cliente').classList.add('d-none');
     document.getElementById('sel_cliente').value         = '';
     document.getElementById('sel_cliente_div').value     = '';
+    document.getElementById('sec_tipo_chatarra').classList.add('d-none');
+    document.getElementById('sel_tipo_chatarra').value     = '';
+    document.getElementById('sel_tipo_chatarra_div').value = '';
     document.getElementById('inp_direccion_entrega').value     = '';
     document.getElementById('inp_direccion_entrega_div').value = '';
     document.getElementById('sec_empresa_factura').classList.add('d-none');
@@ -1365,17 +1385,21 @@ function submitLlegada(e) {
 
     if (accion === 'entregado') {
         const cliente = document.getElementById('sel_cliente')?.value;
+        const tipoChatarra = document.getElementById('sel_tipo_chatarra')?.value;
         const empresa = document.getElementById('sel_empresa_factura')?.value;
         if (!cliente) marcarError('sel_cliente', 'Debe seleccionar el cliente que recibe la carga.');
+        if (!tipoChatarra) marcarError('sel_tipo_chatarra', 'Debe indicar si es chatarra o fundido.');
         if (!empresa) marcarError('sel_empresa_factura', 'Debe seleccionar la empresa que facturará.');
     }
 
     if (accion === 'div_carga') {
         const clienteDiv = document.getElementById('sel_cliente_div')?.value;
+        const tipoChatarraDiv = document.getElementById('sel_tipo_chatarra_div')?.value;
         const empresaDiv = document.getElementById('sel_empresa_factura_div')?.value;
         const tnParcial  = document.getElementById('cam_inp_tn_parcial')?.value;
         const destNuevo  = document.querySelector('#sec_parcial_cam [name="destino_nuevo_tramo"]')?.value.trim();
         if (!clienteDiv) marcarError('sel_cliente_div', 'Debe seleccionar el cliente que recibe la carga.');
+        if (!tipoChatarraDiv) marcarError('sel_tipo_chatarra_div', 'Debe indicar si es chatarra o fundido.');
         if (!empresaDiv) marcarError('sel_empresa_factura_div', 'Debe seleccionar la empresa que facturará.');
         if (!tnParcial || parseFloat(tnParcial) <= 0) marcarError('cam_inp_tn_parcial_display', 'Debe ingresar las toneladas entregadas.');
         if (!destNuevo) marcarError('cam_inp_destino_nuevo', 'Debe ingresar el destino del nuevo tramo.');
@@ -1389,7 +1413,7 @@ function submitLlegada(e) {
 
     // Deshabilitar campos de la sección oculta para que no se envíen
     if (accion === 'entregado') {
-        ['sel_cliente_div', 'sel_empresa_factura_div', 'inp_direccion_entrega_div'].forEach(function(id) {
+        ['sel_cliente_div', 'sel_tipo_chatarra_div', 'sel_empresa_factura_div', 'inp_direccion_entrega_div'].forEach(function(id) {
             const el = document.getElementById(id);
             if (el) el.disabled = true;
         });
@@ -1397,7 +1421,7 @@ function submitLlegada(e) {
             el.disabled = true;
         });
     } else if (accion === 'div_carga') {
-        ['sel_cliente', 'sel_empresa_factura', 'inp_direccion_entrega'].forEach(function(id) {
+        ['sel_cliente', 'sel_tipo_chatarra', 'sel_empresa_factura', 'inp_direccion_entrega'].forEach(function(id) {
             const el = document.getElementById(id);
             if (el) el.disabled = true;
         });
@@ -1411,12 +1435,14 @@ function accionCamionCambiada(accion) {
     document.querySelectorAll('#formLlegada .error-llegada').forEach(el => el.remove());
     document.querySelectorAll('#formLlegada .is-invalid-llegada').forEach(el => el.classList.remove('is-invalid-llegada', 'border-danger'));
     const secCliente        = document.getElementById('sec_cliente');
+    const secTipoChatarra   = document.getElementById('sec_tipo_chatarra');
     const secEmpresa        = document.getElementById('sec_empresa_factura');
     const secPrecio         = document.getElementById('sec_precio_venta');
     const secParcial        = document.getElementById('sec_parcial_cam');
 
     // Ocultar todo primero
     secCliente.classList.add('d-none');
+    secTipoChatarra.classList.add('d-none');
     secEmpresa.classList.add('d-none');
     secPrecio.classList.add('d-none');
     secParcial.classList.add('d-none');
@@ -1428,6 +1454,8 @@ function accionCamionCambiada(accion) {
     document.getElementById('lbl_total_venta_div').textContent  = '—';
     document.getElementById('sel_cliente').value             = '';
     document.getElementById('sel_cliente_div').value         = '';
+    document.getElementById('sel_tipo_chatarra').value       = '';
+    document.getElementById('sel_tipo_chatarra_div').value   = '';
     document.getElementById('inp_direccion_entrega').value     = '';
     document.getElementById('inp_direccion_entrega_div').value = '';
     document.getElementById('sel_empresa_factura').value     = '';
@@ -1435,6 +1463,7 @@ function accionCamionCambiada(accion) {
 
     if (accion === 'entregado') {
         secCliente.classList.remove('d-none');
+        secTipoChatarra.classList.remove('d-none');
         secEmpresa.classList.remove('d-none');
         secPrecio.classList.remove('d-none');
         calcTotalVenta();
@@ -1453,6 +1482,7 @@ function accionCamionCambiada(accion) {
 function sincronizarCamposLlegada() {
     [
         ['sec_cliente',        false],
+        ['sec_tipo_chatarra',  false],
         ['sec_empresa_factura', false],
         ['sec_precio_venta',   false],
         ['sec_parcial_cam',    false],
@@ -1955,6 +1985,9 @@ document.addEventListener('DOMContentLoaded', function () {
     @endif
     @if(old('cliente_id'))
         document.getElementById('sel_cliente').value = '{{ old("cliente_id") }}';
+    @endif
+    @if(old('tipo_chatarra'))
+        document.getElementById('sel_tipo_chatarra').value = '{{ old("tipo_chatarra") }}';
     @endif
     @if(old('empresa_facturadora_id'))
         document.getElementById('sel_empresa_factura').value = '{{ old("empresa_facturadora_id") }}';

@@ -108,6 +108,7 @@
                                     <th>Tipo</th>
                                     <th>Proveedor</th>
                                     <th style="max-width:180px;">Clientes</th>
+                                    <th>Material</th>
                                     <th>Fecha Inicio</th>
                                     <th>Fecha Fin</th>
                                     <th>Toneladas</th>
@@ -136,6 +137,15 @@
                                                   style="max-width:160px; vertical-align:middle;"
                                                   title="{{ $cli->nombre }}"
                                                   data-bs-toggle="tooltip">{{ $cli->nombre }}</span>
+                                        @empty
+                                            <small class="text-muted">—</small>
+                                        @endforelse
+                                    </td>
+                                    <td>
+                                        @forelse($c->tipos_chatarra_entregados as $tipo)
+                                            <span class="badge bg-{{ $tipo === 'Fundido' ? 'dark' : 'secondary' }}">
+                                                <i class="bi bi-fire"></i> {{ $tipo }}
+                                            </span>
                                         @empty
                                             <small class="text-muted">—</small>
                                         @endforelse
