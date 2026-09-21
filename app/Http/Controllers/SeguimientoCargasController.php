@@ -56,23 +56,19 @@ class SeguimientoCargasController extends Controller
             'en_ruta'       => $enRuta->count(),
             'transbordando' => $transbordando->count(),
             'transbordado'  => $transbordado->count(),
-            'entregado'     => Tramo::whereNull('deleted_at')->where('estado', 'Entregado')->count(),
+            'entregado'     => (clone $entregadosQuery)->count(),
         ];
 
-        // Resumen de contratos con/sin camiones asignados, por tipo (Nacional/Internacional),
-        // para el texto que aparece sobre las pestañas al filtrar por tipo de transporte.
-        $resumenContratosPorTipo = Contrato::whereNull('deleted_at')
-            ->withCount('contratoCamiones')
-            ->get()
-            ->groupBy('tipo_contrato')
-            ->map(function ($grupo) {
-                $conEnvios = $grupo->where('contrato_camiones_count', '>', 0)->count();
-                return [
-                    'total'      => $grupo->count(),
-                    'con_envios' => $conEnvios,
-                    'sin_envios' => $grupo->count() - $conEnvios,
-                ];
-            });
+        // Resumen de contratos con/sin camiones asignados, por tipo y por proveedor,
+        // para el texto que aparece sobre las pestañas al filtrar.
+        $contratosConConteo = Contrato::whereNull('deleted_at')->withCount('contratoCamiones')->get();
+        $resumirGrupo = fn($grupo) => [
+            'total'      => $grupo->count(),
+            'con_envios' => $conEnvios = $grupo->where('contrato_camiones_count', '>', 0)->count(),
+            'sin_envios' => $grupo->count() - $conEnvios,
+        ];
+        $resumenContratosPorTipo      = $contratosConConteo->groupBy('tipo_contrato')->map($resumirGrupo);
+        $resumenContratosPorProveedor = $contratosConConteo->groupBy('proveedor_id')->map($resumirGrupo);
 
         $clientes = Cliente::with(['pais', 'contacts' => fn($q) => $q->where('tipo', 'direccion')->whereNull('deleted_at')])->whereNull('deleted_at')->orderBy('nombre')->get();
 
@@ -100,6 +96,6 @@ class SeguimientoCargasController extends Controller
         $idempotencyToken   = $this->generarToken('pago_camion_store_token');
         $tokenTransbordo    = $this->generarToken('tramo_transbordo_store_token');
 
-        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'resumenContratosPorTipo', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada', 'idempotencyToken', 'tokenTransbordo'));
+        return view('seguimiento.index', compact('enRuta', 'transbordando', 'transbordado', 'entregados', 'resumen', 'resumenContratosPorTipo', 'resumenContratosPorProveedor', 'clientes', 'proveedores', 'empresas', 'camionesDisponibles', 'monedas', 'tramoErrorLlegada', 'idempotencyToken', 'tokenTransbordo'));
     }
 }

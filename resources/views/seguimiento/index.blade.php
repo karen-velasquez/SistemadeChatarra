@@ -127,7 +127,7 @@
     {{-- Tabs --}}
     <div class="card">
         <div class="card-body">
-            <p class="text-muted small d-none mt-2" id="resumen_contratos_tipo"></p>
+            <p class="text-muted d-none mt-2 fs-5" id="resumen_contratos_tipo"></p>
             <ul class="nav nav-tabs" id="segTabs" role="tablist">
                 <li class="nav-item">
                     <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-en-ruta" type="button">
@@ -598,7 +598,7 @@
 
                 {{-- ENTREGADOS --}}
                 <div class="tab-pane fade" id="pane-entregados">
-                    <div id="pane-entregados-contenido">
+                    <div id="pane-entregados-contenido" data-total-entregados="{{ $resumen['entregado'] }}">
                     @if($entregados->isEmpty())
                         <div class="alert alert-info"><i class="bi bi-info-circle"></i> No hay entregas registradas aún.</div>
                     @else
@@ -1834,13 +1834,28 @@ function segCambiarReceptor(tipo) {
 }
 // ---- Fin pago desde seguimiento ----
 
-const _resumenContratosPorTipo = @json($resumenContratosPorTipo);
+const _resumenContratosPorTipo      = @json($resumenContratosPorTipo);
+const _resumenContratosPorProveedor = @json($resumenContratosPorProveedor);
+const _proveedoresSegNombre         = @json($proveedores->pluck('nombre', 'id'));
 
-function actualizarResumenContratosTipo(tipoTramo) {
+function _lineaResumenContratos(r, etiqueta) {
+    return `📄 ${r.total} contrato(s) ${etiqueta}: ${r.con_envios} con envíos asignados, <strong class="text-decoration-underline">${r.sin_envios} sin ningún envío</strong>.`;
+}
+
+function actualizarResumenContratosTipo(tipoTramo, proveedorId) {
     const el = document.getElementById('resumen_contratos_tipo');
-    const r  = _resumenContratosPorTipo[tipoTramo];
-    if (!tipoTramo || !r) { el.classList.add('d-none'); return; }
-    el.textContent = `📄 ${r.total} contrato(s) ${tipoTramo.toLowerCase()}(es): ${r.con_envios} con envíos asignados, ${r.sin_envios} sin ningún envío.`;
+    const lineas = [];
+
+    const rTipo = tipoTramo && _resumenContratosPorTipo[tipoTramo];
+    if (rTipo) lineas.push(_lineaResumenContratos(rTipo, `${tipoTramo.toLowerCase()}(es)`));
+
+    if (proveedorId) {
+        const rProv = _resumenContratosPorProveedor[proveedorId] || { total: 0, con_envios: 0, sin_envios: 0 };
+        lineas.push(_lineaResumenContratos(rProv, `del proveedor ${_proveedoresSegNombre[proveedorId]}`));
+    }
+
+    if (!lineas.length) { el.classList.add('d-none'); return; }
+    el.innerHTML = lineas.join('<br>');
     el.classList.remove('d-none');
 }
 
@@ -1849,7 +1864,7 @@ function aplicarFiltrosSeg() {
     const tipoTramo    = (document.getElementById('filtro_tipo_tramo_seg')?.value   || '');
     const fleteEstado  = (document.getElementById('filtro_flete_estado_seg')?.value || '');
     const hayFiltro    = !!(proveedorId || tipoTramo || fleteEstado);
-    actualizarResumenContratosTipo(tipoTramo);
+    actualizarResumenContratosTipo(tipoTramo, proveedorId);
     const grupos = [
         { tabla: 'tabla_en_ruta',        tarjeta: 'contador_tarjeta_en_ruta',        badge: 'badge_tab_en_ruta' },
         { tabla: 'tabla_transbordando',  tarjeta: 'contador_tarjeta_transbordando',  badge: 'badge_tab_transbordando' },
@@ -1870,26 +1885,37 @@ function aplicarFiltrosSeg() {
         }
         const tarjeta = document.getElementById(g.tarjeta);
         const badge   = document.getElementById(g.badge);
-        if (tarjeta) tarjeta.textContent = visibles;
-        if (badge)   badge.textContent   = visibles;
+        // Sin filtro, se muestra el total real (data-total) por si la tabla no trae
+        // todas las filas cargadas (p.ej. si en el futuro se pagina como "Entregados").
+        const valor = hayFiltro ? visibles : (badge?.dataset.total ?? visibles);
+        if (tarjeta) tarjeta.textContent = valor;
+        if (badge)   badge.textContent   = valor;
     });
 
     // "Entregados" está paginado en el servidor: con filtro se recarga la tabla
     // en vez de ocultar filas de la página cargada, para buscar en todos los registros.
-    cargarPaneEntregados(hayFiltro ? `${url_global}/seguimiento-cargas?proveedor_id=${proveedorId}&tipo_tramo=${tipoTramo}&flete_estado=${fleteEstado}` : null);
+    // proveedor_id/tipo_tramo se resuelven en SQL (el total sigue siendo exacto);
+    // solo flete_estado se calcula en PHP tras traer todo, así que ahí sí se cuentan
+    // las filas visibles en vez de usar el total.
+    cargarPaneEntregados(hayFiltro ? `${url_global}/seguimiento-cargas?proveedor_id=${proveedorId}&tipo_tramo=${tipoTramo}&flete_estado=${fleteEstado}` : null, !!fleteEstado);
 }
 
-function cargarPaneEntregados(url) {
+function cargarPaneEntregados(url, esFiltro) {
     fetch(url || (url_global + '/seguimiento-cargas'))
         .then(r => r.text())
         .then(html => {
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const nuevo = doc.getElementById('pane-entregados-contenido');
             if (!nuevo) return;
-            document.getElementById('pane-entregados-contenido').innerHTML = nuevo.innerHTML;
-            // Sin filtro, la tarjeta/badge muestran el total real; con filtro, las filas encontradas
-            const totalReal = document.getElementById('badge_tab_entregado')?.dataset.total ?? 0;
-            const valor = url ? document.getElementById('tabla_entregados')?.querySelectorAll('tbody tr').length ?? 0 : totalReal;
+            const contenedor = document.getElementById('pane-entregados-contenido');
+            contenedor.innerHTML = nuevo.innerHTML;
+            contenedor.dataset.totalEntregados = nuevo.dataset.totalEntregados;
+            // Sin filtro (incluida la paginación), la tarjeta/badge muestran el total real
+            // que trae el propio fragmento recargado; con filtro activo, muestran las
+            // filas encontradas (ya no hay paginación en ese caso).
+            const totalReal = contenedor.dataset.totalEntregados ?? 0;
+            const valor = esFiltro ? document.getElementById('tabla_entregados')?.querySelectorAll('tbody tr').length ?? 0 : totalReal;
+            document.getElementById('badge_tab_entregado').dataset.total = totalReal;
             document.getElementById('contador_tarjeta_entregado').textContent = valor;
             document.getElementById('badge_tab_entregado').textContent = valor;
         });
