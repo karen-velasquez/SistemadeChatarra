@@ -162,10 +162,21 @@
                     @if($enRuta->isEmpty())
                         <div class="alert alert-info"><i class="bi bi-info-circle"></i> No hay camiones en ruta.</div>
                     @else
+                    @can('tramo.edit')
+                    <div class="mb-2 d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-success" id="btn_entrega_masiva" disabled onclick="abrirModalEntregaMasiva()">
+                            <i class="bi bi-truck"></i> Entrega masiva (<span id="lbl_entrega_masiva_count">0</span>)
+                        </button>
+                        <small class="text-muted" id="lbl_entrega_masiva_ayuda">Selecciona 2 o más tramos para entregarlos juntos.</small>
+                    </div>
+                    @endcan
                     <div class="table-responsive">
                         <table id="tabla_en_ruta" class="table table-hover table-bordered table-sm align-middle">
                             <thead class="table-light">
                                 <tr>
+                                    @can('tramo.edit')
+                                    <th style="width:1%;"><input type="checkbox" id="chk_en_ruta_todos" onclick="toggleTodosEntregaMasiva(this)"></th>
+                                    @endcan
                                     <th style="white-space:nowrap; width:1%;">Contrato</th>
                                     <th>Proveedor</th>
                                     <th>Camión</th>
@@ -185,6 +196,18 @@
                                     $fleteEstado = !$ccFlete->monto_acordado ? 'sin_flete' : ($ccFlete->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
                                 <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado }}">
+                                    @can('tramo.edit')
+                                    <td>
+                                        <input type="checkbox" class="chk_entrega_masiva"
+                                            data-uuid="{{ $t->uuid }}"
+                                            data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}"
+                                            data-proveedor-nombre="{{ addslashes($t->contratoCamion->contrato->proveedor->nombre ?? '') }}"
+                                            data-placa="{{ addslashes($t->camion->placa) }}"
+                                            data-ruta="{{ addslashes($t->origen . ' → ' . $t->destino) }}"
+                                            data-peso-salida="{{ $t->peso_salida }}"
+                                            onchange="actualizarSeleccionEntregaMasiva()">
+                                    </td>
+                                    @endcan
                                     <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -739,6 +762,13 @@
                                                     <a class="dropdown-item" href="{{ route('tramo.nota-entrega', $t->uuid) }}" target="_blank">
                                                         <i class="bi bi-file-earmark-pdf text-success me-2"></i> Nota de entrega
                                                     </a>
+                                                </li>
+                                                @endcan
+                                                @can('tramo.edit')
+                                                <li>
+                                                    <button class="dropdown-item" onclick="abrirModalEditarLote('{{ $t->uuid }}', {{ $t->contratoCamion->contrato->proveedor_id }}, {{ $t->lote_entrega_id ?? 'null' }})">
+                                                        <i class="bi bi-collection text-info me-2"></i> Editar lote de entrega
+                                                    </button>
                                                 </li>
                                                 @endcan
                                                 @can('pagos_camiones.index')
@@ -1473,6 +1503,157 @@
     </div>
 </div>
 
+{{-- ===== MODAL ENTREGA MASIVA (desde seguimiento) ===== --}}
+<div class="modal fade" id="modalEntregaMasiva" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-truck"></i> Entrega Masiva</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEntregaMasiva" action="{{ route('tramo.entrega_masiva') }}" method="POST" onsubmit="return submitEntregaMasiva(event)">
+                @csrf
+                <input type="hidden" name="origen" value="seguimiento">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2">
+                        <i class="bi bi-info-circle"></i> Cliente, empresa, tipo de material y precio se aplican a <strong>todos</strong> los tramos seleccionados. El peso de llegada se ingresa por separado en cada uno.
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Fecha de llegada <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="fecha_llegada" id="em_inp_fecha_llegada" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Cliente que recibe la carga <span class="text-danger">*</span></label>
+                            <select class="form-select" name="cliente_id" id="em_sel_cliente" required>
+                                <option value="">-- Seleccione cliente y dirección --</option>
+                                @foreach($clientes as $cli)
+                                    @if($cli->contacts->isEmpty())
+                                        <option value="{{ $cli->id }}" data-direccion="">{{ $cli->nombre }} — Sin dirección registrada</option>
+                                    @else
+                                        @foreach($cli->contacts as $dir)
+                                            <option value="{{ $cli->id }}" data-direccion="{{ $dir->valor }}">{{ $cli->nombre }} — {{ $dir->valor }}</option>
+                                        @endforeach
+                                    @endif
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="direccion_entrega" id="em_inp_direccion_entrega">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Tipo de material <span class="text-danger">*</span></label>
+                            <select class="form-select" name="tipo_chatarra" id="em_sel_tipo_chatarra" required>
+                                <option value="">-- Seleccione tipo --</option>
+                                <option value="Chatarra">Chatarra</option>
+                                <option value="Fundido">Fundido</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Empresa que facturará <span class="text-danger">*</span></label>
+                            <select class="form-select" name="empresa_facturadora_id" id="em_sel_empresa_factura" required>
+                                <option value="">-- Seleccione empresa --</option>
+                                @foreach($empresas as $emp)
+                                    <option value="{{ $emp->id }}" data-ultimo-precio="{{ $emp->precio_referencia ?? '' }}">{{ $emp->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Precio por tonelada</label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold">BOB</span>
+                                <input type="text" inputmode="numeric" class="form-control" id="em_inp_precio_ton_display" placeholder="0,00" autocomplete="off">
+                                <input type="hidden" name="precio_por_tonelada" id="em_inp_precio_ton">
+                                <span class="input-group-text">/t</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-secondary py-2 mb-0 mt-3">
+                        <i class="bi bi-collection"></i> El lote de entrega se asigna automáticamente (el más reciente de cada proveedor). Si necesitas cambiarlo, puedes editarlo después desde la pestaña Entregados.
+                    </div>
+
+                    <hr>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="reasignar_camion" value="1" id="em_chk_reasignar">
+                        <label class="form-check-label fw-semibold" for="em_chk_reasignar">
+                            <i class="bi bi-arrow-repeat text-warning"></i> ¿Reasignar camión? (otro camión recogió lo acumulado y lo llevó al destino)
+                        </label>
+                    </div>
+                    <div class="d-none row g-3 mb-3" id="em_sec_reasignar">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Camión que recoge <span class="text-danger">*</span></label>
+                            <select class="form-select" name="camion_nuevo_id" id="em_sel_camion_nuevo">
+                                <option value="">-- Seleccione --</option>
+                                @foreach($camionesDisponibles as $cam)
+                                    <option value="{{ $cam->id }}" data-uuid="{{ $cam->uuid }}">
+                                        {{ $cam->placa }} — {{ $cam->marca->valor ?? '-' }} {{ $cam->modelo }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Conductor <span class="text-danger">*</span></label>
+                            <select class="form-select" name="conductor_nuevo_id" id="em_sel_conductor_nuevo" disabled>
+                                <option value="">— Seleccione un camión primero —</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="fw-semibold"><i class="bi bi-list-check"></i> Tramos seleccionados</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Camión</th>
+                                    <th>Ruta</th>
+                                    <th>Peso salida</th>
+                                    <th style="width:180px;">Peso de llegada <span class="text-danger">*</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="em_tbody_tramos"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="em_btn_confirmar" class="btn btn-success" disabled>
+                        <i class="bi bi-check-lg"></i> Confirmar entrega masiva
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ===== MODAL EDITAR LOTE DE ENTREGA (desde seguimiento) ===== --}}
+<div class="modal fade" id="modalEditarLote" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-dark">
+                <h5 class="modal-title"><i class="bi bi-collection"></i> Editar Lote de Entrega</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarLote" method="POST">
+                @csrf
+                <input type="hidden" name="origen" value="seguimiento">
+                <div class="modal-body">
+                    <label class="form-label fw-semibold">Lote de entrega <span class="text-danger">*</span></label>
+                    <select class="form-select" name="lote_entrega_id" id="el_sel_lote_entrega" required>
+                        <option value="">Cargando lotes...</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info"><i class="bi bi-check-lg"></i> Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {{-- ===== MODAL TRANSBORDO (desde seguimiento) ===== --}}
 <div class="modal fade" id="modalTransbordoSeg" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -1954,6 +2135,251 @@ function limpiarFiltrosSeg() {
     if (sel2) sel2.value = '';
     if (sel3) sel3.value = '';
     aplicarFiltrosSeg();
+}
+
+// ── Entrega masiva ───────────────────────────────────────────────────────
+function actualizarSeleccionEntregaMasiva() {
+    const marcados = Array.from(document.querySelectorAll('.chk_entrega_masiva:checked'));
+    const btn      = document.getElementById('btn_entrega_masiva');
+    const lbl      = document.getElementById('lbl_entrega_masiva_count');
+    lbl.textContent = marcados.length;
+    btn.disabled = marcados.length < 2;
+}
+
+function toggleTodosEntregaMasiva(chkTodos) {
+    document.querySelectorAll('#tabla_en_ruta .chk_entrega_masiva').forEach(function (chk) {
+        // Solo afecta filas visibles (respeta los filtros de proveedor/tipo/flete activos)
+        const fila = chk.closest('tr');
+        if (fila.style.display === 'none') return;
+        chk.checked = chkTodos.checked;
+    });
+    actualizarSeleccionEntregaMasiva();
+}
+
+function abrirModalEntregaMasiva() {
+    const marcados = Array.from(document.querySelectorAll('.chk_entrega_masiva:checked'));
+    if (marcados.length < 2) return;
+
+    document.getElementById('formEntregaMasiva').reset();
+    document.getElementById('em_inp_precio_ton').value = '';
+    document.getElementById('em_inp_direccion_entrega').value = '';
+    document.getElementById('em_sec_reasignar').classList.add('d-none');
+    document.getElementById('em_sel_conductor_nuevo').innerHTML = '<option value="">— Seleccione un camión primero —</option>';
+    document.getElementById('em_sel_conductor_nuevo').disabled = true;
+    document.getElementById('em_btn_confirmar').disabled = true;
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    document.getElementById('em_inp_fecha_llegada').value = hoy;
+
+    const tbody = document.getElementById('em_tbody_tramos');
+    tbody.innerHTML = '';
+    marcados.forEach(function (chk) {
+        const tr = document.createElement('tr');
+        tr.dataset.uuid = chk.dataset.uuid;
+        tr.innerHTML = `
+            <td>${chk.dataset.placa}</td>
+            <td>${chk.dataset.ruta}</td>
+            <td>${parseFloat(chk.dataset.pesoSalida).toLocaleString('es-BO', {minimumFractionDigits:2, maximumFractionDigits:2})} t</td>
+            <td>
+                <input type="text" inputmode="numeric" class="form-control form-control-sm em_inp_peso_llegada_display"
+                    placeholder="0,00" autocomplete="off">
+                <input type="hidden" class="em_inp_peso_llegada_hidden" value="">
+            </td>`;
+        tbody.appendChild(tr);
+    });
+    _emInicializarCajerosPeso();
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEntregaMasiva')).show();
+}
+
+function _emInicializarCajerosPeso() {
+    const fmt = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function textoANum(txt) { return parseFloat((txt || '').replace(/\./g, '').replace(',', '.')) || 0; }
+
+    document.querySelectorAll('.em_inp_peso_llegada_display').forEach(function (disp) {
+        const hidd = disp.nextElementSibling;
+        disp.addEventListener('input', function () {
+            var raw = this.value.replace(/[^0-9,]/g, '');
+            var p = raw.split(',');
+            if (p.length > 2) raw = p[0] + ',' + p.slice(1).join('');
+            if (p[1] !== undefined && p[1].length > 2) raw = p[0] + ',' + p[1].substring(0, 2);
+            var partes = raw.split(',');
+            var entF   = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo  = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            this.value = nuevo;
+            hidd.value = nuevo ? textoANum(nuevo) : '';
+            validarFormEntregaMasiva();
+        });
+        disp.addEventListener('blur', function () {
+            var n = textoANum(this.value);
+            this.value = n > 0 ? fmt.format(n) : '';
+            hidd.value = n > 0 ? n : '';
+            validarFormEntregaMasiva();
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('em_sel_cliente')?.addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        document.getElementById('em_inp_direccion_entrega').value = opt?.dataset.direccion || '';
+    });
+
+    const fmtEm = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    function textoANumEm(txt) { return parseFloat((txt || '').replace(/\./g, '').replace(',', '.')) || 0; }
+    const dispPrecio = document.getElementById('em_inp_precio_ton_display');
+    const hiddPrecio = document.getElementById('em_inp_precio_ton');
+    if (dispPrecio) {
+        dispPrecio.addEventListener('input', function () {
+            var raw = this.value.replace(/[^0-9,]/g, '');
+            var p = raw.split(',');
+            if (p.length > 2) raw = p[0] + ',' + p.slice(1).join('');
+            if (p[1] !== undefined && p[1].length > 2) raw = p[0] + ',' + p[1].substring(0, 2);
+            var partes = raw.split(',');
+            var entF   = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo  = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            this.value = nuevo;
+            hiddPrecio.value = nuevo ? textoANumEm(nuevo) : '';
+        });
+        dispPrecio.addEventListener('blur', function () {
+            var n = textoANumEm(this.value);
+            this.value = n > 0 ? fmtEm.format(n) : '';
+            hiddPrecio.value = n > 0 ? n : '';
+        });
+    }
+
+    // Precio sugerido según la empresa que facturará
+    document.getElementById('em_sel_empresa_factura')?.addEventListener('change', function () {
+        var opt = this.options[this.selectedIndex];
+        var precio = opt ? parseFloat(opt.dataset.ultimoPrecio) : NaN;
+        hiddPrecio.value = precio || '';
+        dispPrecio.value = precio ? fmtEm.format(precio) : '';
+    });
+
+    document.getElementById('em_chk_reasignar')?.addEventListener('change', function () {
+        const sec = document.getElementById('em_sec_reasignar');
+        sec.classList.toggle('d-none', !this.checked);
+        if (!this.checked) {
+            document.getElementById('em_sel_camion_nuevo').value = '';
+            document.getElementById('em_sel_conductor_nuevo').innerHTML = '<option value="">— Seleccione un camión primero —</option>';
+            document.getElementById('em_sel_conductor_nuevo').disabled = true;
+        }
+        validarFormEntregaMasiva();
+    });
+
+    document.getElementById('em_sel_camion_nuevo')?.addEventListener('change', function () {
+        const opt = this.options[this.selectedIndex];
+        emCargarConductores(opt?.dataset.uuid);
+    });
+
+    document.getElementById('modalEntregaMasiva')?.addEventListener('input', validarFormEntregaMasiva);
+    document.getElementById('modalEntregaMasiva')?.addEventListener('change', validarFormEntregaMasiva);
+});
+
+function emCargarConductores(uuid) {
+    const sel = document.getElementById('em_sel_conductor_nuevo');
+    sel.innerHTML = '<option value="">— Cargando... —</option>';
+    sel.disabled  = true;
+
+    if (!uuid) {
+        sel.innerHTML = '<option value="">— Primero seleccione un camión —</option>';
+        return;
+    }
+
+    fetch('{{ url("api/camion") }}/' + uuid + '/conductores-relacionados', {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(conductores => {
+        if (conductores.length === 0) {
+            sel.innerHTML = '<option value="">— Sin conductores —</option>';
+            validarFormEntregaMasiva();
+            return;
+        }
+        sel.innerHTML = '<option value="">— Seleccione conductor —</option>';
+        conductores.forEach(c => {
+            const op = document.createElement('option');
+            op.value       = c.id;
+            op.textContent = c.nombre + ' — Lic: ' + (c.licencia || 'S/N') + ' [' + c.tipo + ']';
+            sel.appendChild(op);
+        });
+        sel.disabled = false;
+        validarFormEntregaMasiva();
+    })
+    .catch(() => { sel.innerHTML = '<option value="">— Error al cargar —</option>'; });
+}
+
+function validarFormEntregaMasiva() {
+    const fecha    = document.getElementById('em_inp_fecha_llegada')?.value;
+    const cliente  = document.getElementById('em_sel_cliente')?.value;
+    const tipo     = document.getElementById('em_sel_tipo_chatarra')?.value;
+    const empresa  = document.getElementById('em_sel_empresa_factura')?.value;
+    const pesos    = Array.from(document.querySelectorAll('.em_inp_peso_llegada_hidden'));
+    const todosPesos = pesos.length > 0 && pesos.every(p => parseFloat(p.value) > 0);
+
+    const reasignar = document.getElementById('em_chk_reasignar')?.checked;
+    const camionNuevo    = document.getElementById('em_sel_camion_nuevo')?.value;
+    const conductorNuevo = document.getElementById('em_sel_conductor_nuevo')?.value;
+    const okReasignar = !reasignar || (camionNuevo && conductorNuevo);
+
+    const btn = document.getElementById('em_btn_confirmar');
+    btn.disabled = !(fecha && cliente && tipo && empresa && todosPesos && okReasignar);
+}
+
+function submitEntregaMasiva(e) {
+    e.preventDefault();
+
+    document.querySelectorAll('#formEntregaMasiva .em-hidden-tramo').forEach(el => el.remove());
+
+    const filas = document.querySelectorAll('#em_tbody_tramos tr');
+    filas.forEach(function (fila, i) {
+        const uuid = fila.dataset.uuid;
+        const peso = fila.querySelector('.em_inp_peso_llegada_hidden').value;
+
+        const inpUuid = document.createElement('input');
+        inpUuid.type = 'hidden';
+        inpUuid.className = 'em-hidden-tramo';
+        inpUuid.name = `tramos[${i}][uuid]`;
+        inpUuid.value = uuid;
+
+        const inpPeso = document.createElement('input');
+        inpPeso.type = 'hidden';
+        inpPeso.className = 'em-hidden-tramo';
+        inpPeso.name = `tramos[${i}][peso_llegada]`;
+        inpPeso.value = peso;
+
+        e.target.appendChild(inpUuid);
+        e.target.appendChild(inpPeso);
+    });
+
+    e.target.submit();
+    return false;
+}
+
+function abrirModalEditarLote(tramoUuid, proveedorId, loteActualId) {
+    document.getElementById('formEditarLote').action = url_global + '/tramo/' + tramoUuid + '/lote';
+
+    const selLote = document.getElementById('el_sel_lote_entrega');
+    selLote.innerHTML = '<option value="">Cargando lotes...</option>';
+    fetch(url_global + '/lotes-entrega/proveedor/' + proveedorId)
+        .then(r => r.json())
+        .then(lotes => {
+            selLote.innerHTML = '';
+            if (lotes.length === 0) {
+                selLote.innerHTML = '<option value="">— Sin lotes disponibles —</option>';
+                return;
+            }
+            lotes.forEach(function (l) {
+                const opt = document.createElement('option');
+                opt.value = l.id;
+                opt.textContent = l.nombre;
+                if (loteActualId && l.id === loteActualId) opt.selected = true;
+                selLote.appendChild(opt);
+            });
+        })
+        .catch(() => { selLote.innerHTML = '<option value="">— Error al cargar —</option>'; });
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarLote')).show();
 }
 
 function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo) {

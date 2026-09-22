@@ -141,6 +141,8 @@ use Illuminate\Support\Facades\Route;
     Route::get('tramo/{uuid}/edit',[App\Http\Controllers\TramoController::class,'edit'])->name('tramo.edit')->middleware('permission:tramo.edit');
     Route::put('tramo/{uuid}',[App\Http\Controllers\TramoController::class,'update'])->name('tramo.update')->middleware('permission:tramo.edit');
     Route::post('tramo/{uuid}/llegada',[App\Http\Controllers\TramoController::class,'registrarLlegada'])->name('tramo.llegada')->middleware('permission:tramo.edit');
+    Route::post('tramo/entrega-masiva',[App\Http\Controllers\TramoController::class,'entregaMasiva'])->name('tramo.entrega_masiva')->middleware('permission:tramo.edit');
+    Route::post('tramo/{uuid}/lote',[App\Http\Controllers\TramoController::class,'actualizarLote'])->name('tramo.actualizar_lote')->middleware('permission:tramo.edit');
     Route::post('tramo/{uuid}/deshacer-llegada',[App\Http\Controllers\TramoController::class,'deshacerLlegada'])->name('tramo.deshacer_llegada')->middleware('permission:tramo.edit');
     Route::get('tramo/{uuid}/toggle-activo',[App\Http\Controllers\TramoController::class,'toggleActivo'])->name('tramo.toggle-activo')->middleware('permission:tramo.edit');
     Route::get('tramo/{uuid}/nota-entrega',[App\Http\Controllers\TramoController::class,'notaEntrega'])->name('tramo.nota-entrega')->middleware('permission:contratos.index');

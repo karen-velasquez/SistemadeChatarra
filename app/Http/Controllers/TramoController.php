@@ -255,6 +255,161 @@ class TramoController extends Controller
             : redirect()->route('contratos.camiones', $contratoUuidLlegada);
     }
 
+    // Entrega masiva: varios tramos "En ruta" del mismo proveedor se marcan
+    // Entregado de una sola vez, con cliente/empresa/tipo/precio/lote comunes
+    // y un peso de llegada propio por tramo. Solo cubre entrega simple
+    // (no Div. Carga): un tramo = un cliente.
+    public function entregaMasiva(Request $request)
+    {
+        $desdeSegimiento = $request->input('origen') === 'seguimiento';
+        $rutaRetorno = $desdeSegimiento
+            ? redirect()->route('seguimiento.index')
+            : redirect()->back();
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'tramos'                 => 'required|array|min:2',
+            'tramos.*.uuid'          => 'required|distinct|exists:tramos,uuid',
+            'tramos.*.peso_llegada'  => 'required|numeric|min:0.001',
+            'fecha_llegada'          => 'required|date',
+            'cliente_id'             => 'required|exists:clientes,id',
+            'empresa_facturadora_id' => 'required|exists:empresas,id',
+            'tipo_chatarra'          => 'required|in:Chatarra,Fundido',
+            'precio_por_tonelada'    => 'nullable|numeric|min:0',
+            'moneda_venta'           => 'nullable|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
+            'descuento_porcentaje'   => 'nullable|numeric|min:0|max:60',
+            'reasignar_camion'       => 'nullable|boolean',
+            'camion_nuevo_id'        => 'required_if:reasignar_camion,1|nullable|exists:camiones,id',
+            'conductor_nuevo_id'     => 'required_if:reasignar_camion,1|nullable|exists:operadores_transporte,id',
+        ], [
+            'tramos.required'             => 'Debe seleccionar al menos dos tramos.',
+            'tramos.min'                  => 'La entrega masiva requiere al menos dos tramos.',
+            'tramos.*.peso_llegada.required' => 'Debe ingresar el peso de llegada de cada tramo.',
+            'fecha_llegada.required'      => 'Debe ingresar la fecha de llegada.',
+            'cliente_id.required'         => 'Debe seleccionar el cliente que recibe la carga.',
+            'empresa_facturadora_id.required' => 'Debe seleccionar la empresa que facturará.',
+            'tipo_chatarra.required'      => 'Debe indicar si es chatarra o fundido.',
+            'camion_nuevo_id.required_if'    => 'Debe seleccionar el camión que recoge la carga.',
+            'conductor_nuevo_id.required_if' => 'Debe seleccionar el conductor que recoge la carga.',
+        ]);
+
+        if ($validator->fails()) {
+            return $rutaRetorno->withErrors($validator, 'entregaMasiva')->withInput();
+        }
+
+        $tramos = Tramo::whereIn('uuid', collect($request->tramos)->pluck('uuid'))
+            ->with('contratoCamion.contrato')
+            ->get();
+
+        if ($tramos->count() !== count($request->tramos)) {
+            Alert::error('Error', 'Alguno de los tramos seleccionados ya no existe.');
+            return $rutaRetorno;
+        }
+
+        if ($tramos->contains(fn ($t) => $t->estado !== 'En ruta')) {
+            Alert::error('Error', 'Todos los tramos seleccionados deben estar "En ruta".');
+            return $rutaRetorno;
+        }
+
+        $pesosPorUuid = collect($request->tramos)->pluck('peso_llegada', 'uuid');
+        $reasignar    = (bool) $request->reasignar_camion;
+
+        // Reasignar cambia camion_id/conductor_id también en el ContratoCamion (de ahí
+        // sale el flete). Si ese CC tiene otros tramos no incluidos en este lote, cambiar
+        // el camión afectaría el flete de un tramo ajeno a esta operación.
+        if ($reasignar) {
+            $ccConOtrosTramos = $tramos->contains(function ($t) use ($tramos) {
+                return $t->contratoCamion->tramos()
+                    ->whereNotIn('uuid', $tramos->pluck('uuid'))
+                    ->exists();
+            });
+            if ($ccConOtrosTramos) {
+                Alert::error('Error', 'No se puede reasignar el camión: alguno de los tramos comparte su contrato de camión con otro tramo que no está en esta entrega masiva.');
+                return $rutaRetorno;
+            }
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($tramos, $pesosPorUuid, $reasignar, $request) {
+            foreach ($tramos as $tramo) {
+                // El lote de entrega es por proveedor: al no exigir un único proveedor
+                // en el lote masivo, cada tramo toma el último lote de SU proveedor
+                // (o se crea el de la semana actual). Se puede corregir después
+                // desde la pestaña Entregados.
+                $proveedorId = $tramo->contratoCamion->contrato->proveedor_id;
+                $lote = \App\Models\LoteEntrega::where('proveedor_id', $proveedorId)
+                    ->orderByDesc('anio')->orderByDesc('numero_semana')
+                    ->first() ?? \App\Models\LoteEntrega::obtenerOCrearSemanaActual($proveedorId);
+
+                $tramo->update([
+                    'peso_llegada'           => (float) $pesosPorUuid[$tramo->uuid],
+                    'fecha_llegada'          => $request->fecha_llegada,
+                    'estado'                 => 'Entregado',
+                    'tipo_chatarra'          => $request->tipo_chatarra,
+                    'cliente_id'             => $request->cliente_id,
+                    'direccion_entrega'      => $request->direccion_entrega ?: null,
+                    'empresa_facturadora_id' => $request->empresa_facturadora_id,
+                    'precio_por_tonelada'    => $request->precio_por_tonelada ?: null,
+                    'moneda_venta'           => $request->moneda_venta ?: 'BOB',
+                    'descuento_porcentaje'   => $request->descuento_porcentaje ?: null,
+                    'lote_entrega_id'        => $lote->id,
+                    'camion_id'              => $reasignar ? $request->camion_nuevo_id : $tramo->camion_id,
+                    'conductor_id'           => $reasignar ? $request->conductor_nuevo_id : $tramo->conductor_id,
+                ]);
+
+                // El flete se calcula sobre el ContratoCamion: al reasignar el camión
+                // que recoge la carga acumulada, el CC del tramo debe reflejar quién
+                // efectivamente hizo/terminó el recorrido, para pagarle a él.
+                if ($reasignar) {
+                    $tramo->contratoCamion->update([
+                        'camion_id'    => $request->camion_nuevo_id,
+                        'conductor_id' => $request->conductor_nuevo_id,
+                    ]);
+                }
+
+                $this->recalcularEstadoPadre($tramo->tramo_padre_id);
+
+                $cc = $tramo->contratoCamion;
+                $todosEntregados = $cc->tramos()
+                    ->whereDoesntHave('tramosHijos')
+                    ->where('estado', '!=', 'Div. Carga')
+                    ->whereNotIn('estado', ['Entregado', 'Desactivado'])
+                    ->doesntExist();
+
+                if ($todosEntregados) {
+                    $cc->update(['estado_entrega' => 'Entregado']);
+                }
+            }
+        });
+
+        if ($request->precio_por_tonelada) {
+            Empresa::actualizarPrecioReferencia($request->empresa_facturadora_id, (float) $request->precio_por_tonelada);
+        }
+
+        Alert::success('Entrega masiva', 'Se registraron ' . $tramos->count() . ' tramos como entregados.');
+
+        return $rutaRetorno;
+    }
+
+    // Corregir el lote de entrega de un tramo ya entregado (p.ej. después de
+    // una entrega masiva, donde el lote se asigna automáticamente por proveedor).
+    public function actualizarLote(Request $request, $uuid)
+    {
+        $tramo = Tramo::where('uuid', $uuid)->firstOrFail();
+
+        $request->validate([
+            'lote_entrega_id' => 'required|exists:lotes_entrega,id',
+        ], [
+            'lote_entrega_id.required' => 'Debe seleccionar un lote de entrega.',
+        ]);
+
+        $tramo->update(['lote_entrega_id' => $request->lote_entrega_id]);
+
+        Alert::success('Éxito', 'Lote de entrega actualizado.');
+
+        return $request->input('origen') === 'seguimiento'
+            ? redirect()->route('seguimiento.index')
+            : redirect()->route('contratos.camiones', $tramo->contratoCamion->contrato->uuid);
+    }
+
     // Deshacer una llegada ya registrada, volviendo el tramo a "En ruta" para
     // corregir datos. Solo se permite en el caso simple: sin cobro al cliente,
     // sin pago de flete en su ContratoCamion, y sin haber dividido la carga
