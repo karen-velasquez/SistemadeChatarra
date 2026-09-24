@@ -527,8 +527,12 @@ function actualizarResumen() {
     });
     const sinErrores = document.querySelectorAll('.monto_input_flete.is-invalid, .pct_input_flete.is-invalid').length === 0;
 
+    // ponytail: bloqueo por saldo insuficiente de la cuenta (saldoInsuf) comentado
+    // a pedido del cliente, mientras se ponen al día con los pagos de este mes.
+    // El aviso visual arriba se mantiene. montosOk sigue validando que ningún flete
+    // exceda lo que realmente se le debe, eso no es parte de este cambio.
     const ok = checks.length > 0 && cuentaSel.value !== '' && metodo !== '' && fecha !== ''
-               && !saldoInsuf && montosOk && sinErrores;
+               && montosOk && sinErrores;
     document.getElementById('btn_continuar').disabled = !ok;
 }
 

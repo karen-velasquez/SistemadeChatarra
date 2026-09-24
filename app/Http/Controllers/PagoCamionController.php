@@ -408,15 +408,17 @@ class PagoCamionController extends Controller
 
         $totalAPagar = $contratosChk->sum($montoPorFlete);
 
-        if ($cuenta->saldo_actual < $totalAPagar) {
-            return back()
-                ->withInput()
-                ->withErrors(['cuenta_origen_id' =>
-                    'Saldo insuficiente. La cuenta "' . $cuenta->nombre_cuenta . '" tiene ' .
-                    $cuenta->moneda . ' ' . number_format($cuenta->saldo_actual, 2) .
-                    ' y el total a pagar es ' . $cuenta->moneda . ' ' . number_format($totalAPagar, 2) . '.'
-                ]);
-        }
+        // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
+        // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
+        // if ($cuenta->saldo_actual < $totalAPagar) {
+        //     return back()
+        //         ->withInput()
+        //         ->withErrors(['cuenta_origen_id' =>
+        //             'Saldo insuficiente. La cuenta "' . $cuenta->nombre_cuenta . '" tiene ' .
+        //             $cuenta->moneda . ' ' . number_format($cuenta->saldo_actual, 2) .
+        //             ' y el total a pagar es ' . $cuenta->moneda . ' ' . number_format($totalAPagar, 2) . '.'
+        //         ]);
+        // }
 
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';
         $codigoLote = $this->generarCodigoUnico($prefijo);

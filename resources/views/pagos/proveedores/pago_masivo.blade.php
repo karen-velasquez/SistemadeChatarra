@@ -527,6 +527,9 @@ function _totalSeleccionado() {
     return Object.values(_seleccionados).reduce((s, e) => s + (e.monto || 0), 0);
 }
 
+// ponytail: el bloqueo por saldo insuficiente se comentó a pedido del cliente,
+// mientras se ponen al día con los pagos de este mes. Esta función ya no bloquea
+// el botón (ver actualizarBtnPaso2) — solo deja el aviso visual informativo.
 function verificarSaldo() {
     if (!_monedaCuenta) {
         document.getElementById('aviso_saldo_insuficiente').style.display = 'none';
@@ -685,8 +688,8 @@ function actualizarBtnPaso2() {
     const ctaOrigen   = document.getElementById('cuenta_origen_id').value;
     const fecha       = document.getElementById('fecha_pago').value;
     const metodo      = document.getElementById('metodo_pago').value;
-    const saldoOk     = verificarSaldo();
-    document.getElementById('btn_paso2').disabled = !(todosConPct && sinErrores && ctaOrigen && fecha && metodo && saldoOk);
+    verificarSaldo(); // solo actualiza el aviso visual — no bloquea (ver nota en verificarSaldo)
+    document.getElementById('btn_paso2').disabled = !(todosConPct && sinErrores && ctaOrigen && fecha && metodo);
 }
 
 document.getElementById('fecha_pago').addEventListener('change', actualizarBtnPaso2);

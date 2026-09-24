@@ -110,10 +110,12 @@ class GastoExtraController extends Controller
         }
         $montoBolivianos = $monedaEsBob ? $request->monto : $request->monto * $request->tipo_cambio;
         $cuentaEmpresa = CuentaEmpresa::find($request->cuenta_empresa_id);
-        if ($cuentaEmpresa && $cuentaEmpresa->saldo_actual < $montoBolivianos) {
-            Alert::error('Saldo insuficiente', 'La cuenta "' . $cuentaEmpresa->nombre_cuenta . '" no tiene saldo suficiente para este monto.');
-            return redirect()->route('gastos_extras.index');
-        }
+        // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
+        // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
+        // if ($cuentaEmpresa && $cuentaEmpresa->saldo_actual < $montoBolivianos) {
+        //     Alert::error('Saldo insuficiente', 'La cuenta "' . $cuentaEmpresa->nombre_cuenta . '" no tiene saldo suficiente para este monto.');
+        //     return redirect()->route('gastos_extras.index');
+        // }
         $gasto = new GastoExtra();
         $gasto->contrato_id = $request->contrato_id ?: null;
         $gasto->cuenta_empresa_id = $request->cuenta_empresa_id;
@@ -178,19 +180,21 @@ class GastoExtraController extends Controller
         }
         $montoBolivianos = $monedaEsBob ? $request->monto : $request->monto * $request->tipo_cambio;
         $cuentaEmpresa = CuentaEmpresa::find($request->cuenta_empresa_id);
-        if ($cuentaEmpresa) {
-            // Si el gasto ya estaba PAGADO con esta misma cuenta, su saldo actual
-            // ya tiene descontado el monto anterior: se repone antes de comparar,
-            // para no bloquear una edición que no cambia lo que realmente se debe.
-            $saldoDisponible = $cuentaEmpresa->saldo_actual;
-            if ($gasto->estado === 'PAGADO' && (int) $gasto->cuenta_empresa_id === (int) $request->cuenta_empresa_id) {
-                $saldoDisponible += (float) $gasto->monto_bolivianos;
-            }
-            if ($saldoDisponible < $montoBolivianos) {
-                Alert::error('Saldo insuficiente', 'La cuenta "' . $cuentaEmpresa->nombre_cuenta . '" no tiene saldo suficiente para este monto.');
-                return redirect()->route('gastos_extras.index');
-            }
-        }
+        // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
+        // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
+        // if ($cuentaEmpresa) {
+        //     // Si el gasto ya estaba PAGADO con esta misma cuenta, su saldo actual
+        //     // ya tiene descontado el monto anterior: se repone antes de comparar,
+        //     // para no bloquear una edición que no cambia lo que realmente se debe.
+        //     $saldoDisponible = $cuentaEmpresa->saldo_actual;
+        //     if ($gasto->estado === 'PAGADO' && (int) $gasto->cuenta_empresa_id === (int) $request->cuenta_empresa_id) {
+        //         $saldoDisponible += (float) $gasto->monto_bolivianos;
+        //     }
+        //     if ($saldoDisponible < $montoBolivianos) {
+        //         Alert::error('Saldo insuficiente', 'La cuenta "' . $cuentaEmpresa->nombre_cuenta . '" no tiene saldo suficiente para este monto.');
+        //         return redirect()->route('gastos_extras.index');
+        //     }
+        // }
         $gasto->contrato_id = $request->contrato_id ?: null;
         $gasto->cuenta_empresa_id =$request->cuenta_empresa_id;
         $gasto->categoria = $categoria;

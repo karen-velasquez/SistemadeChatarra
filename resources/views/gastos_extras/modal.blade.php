@@ -55,7 +55,7 @@
                                     <option value="{{ $ce->id }}" data-saldo="{{ $ce->saldo_actual }}">{{ $ce->nombre_cuenta }} (Bs {{ number_format($ce->saldo_actual, 2) }})</option>
                                 @endforeach
                             </select>
-                            <small id="mensaje_cuenta_empresa" class="text-muted">Las cuentas sin saldo suficiente para el monto ingresado quedan deshabilitadas.</small>
+                            <small id="mensaje_cuenta_empresa" class="text-muted"></small>
                         </div>
 
                         <div class="col-md-6">
@@ -273,10 +273,11 @@
                     }
                 };
 
-                // Deshabilita en el select de Cuenta de Empresa las cuentas cuyo
-                // saldo_actual (siempre en BOB) sea menor al monto del gasto
-                // convertido a bolivianos. Si la cuenta elegida deja de alcanzar,
-                // se limpia la selección para no dejar guardar con saldo insuficiente.
+                // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
+                // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
+                // Antes: deshabilitaba en el select de Cuenta de Empresa las cuentas cuyo
+                // saldo_actual (siempre en BOB) fuera menor al monto del gasto convertido
+                // a bolivianos, y limpiaba la selección si dejaba de alcanzar.
                 window.actualizarSaldosCuentaGasto = function() {
                     var selectCuenta = document.getElementById('cuenta_empresa');
                     var monto        = _txt2num(document.getElementById('monto_display').value);
@@ -285,25 +286,14 @@
                     var montoBs      = monto * tipoCambio;
                     if (!selectCuenta) return;
 
-                    var seleccionActualInvalida = false;
                     Array.from(selectCuenta.options).forEach(function(opt) {
                         if (!opt.value) return;
-                        var saldo = parseFloat(opt.dataset.saldo) || 0;
-                        var alcanza = montoBs <= 0 || saldo >= montoBs;
-                        opt.disabled = !alcanza;
-                        if (opt.selected && !alcanza) seleccionActualInvalida = true;
+                        opt.disabled = false;
                     });
 
                     var mensaje = document.getElementById('mensaje_cuenta_empresa');
-                    if (seleccionActualInvalida) {
-                        selectCuenta.value = '';
-                        if (mensaje) {
-                            mensaje.textContent = 'La cuenta seleccionada ya no tiene saldo suficiente para este monto; elija otra.';
-                            mensaje.className = 'text-danger';
-                        }
-                    } else if (mensaje) {
-                        mensaje.textContent = 'Las cuentas sin saldo suficiente para el monto ingresado quedan deshabilitadas.';
-                        mensaje.className = 'text-muted';
+                    if (mensaje) {
+                        mensaje.textContent = '';
                     }
                 };
 

@@ -326,11 +326,13 @@ class PagoProveedorController extends Controller
             if (!$c) continue;
             $totalAPagar += round($c->saldo_pendiente_proveedor * $pct / 100, 2);
         }
-        if ($cuentaOrigen->saldo_actual < $totalAPagar) {
-            return back()->withInput()->withErrors([
-                'cuenta_origen_id' => "Saldo insuficiente. Disponible: {$monedaPago} " . number_format($cuentaOrigen->saldo_actual, 2) . ", requerido: {$monedaPago} " . number_format($totalAPagar, 2) . '.',
-            ]);
-        }
+        // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
+        // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
+        // if ($cuentaOrigen->saldo_actual < $totalAPagar) {
+        //     return back()->withInput()->withErrors([
+        //         'cuenta_origen_id' => "Saldo insuficiente. Disponible: {$monedaPago} " . number_format($cuentaOrigen->saldo_actual, 2) . ", requerido: {$monedaPago} " . number_format($totalAPagar, 2) . '.',
+        //     ]);
+        // }
 
         // Código provisional del lote (compartido por todos los pagos de este lote)
         $prefijo    = $request->metodo_pago === 'qr' ? 'QR' : 'TRANS';

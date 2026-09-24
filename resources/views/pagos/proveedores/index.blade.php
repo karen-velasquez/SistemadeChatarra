@@ -818,7 +818,9 @@ function actualizarBtnPagoProveedor() {
     }
     aviso.style.display = insuficiente ? '' : 'none';
 
-    btn.disabled = !camposOk || insuficiente;
+    // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
+    // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
+    btn.disabled = !camposOk;
 }
 
 function abrirModalPago(contratoId, label, saldo, moneda, proveedorId) {
