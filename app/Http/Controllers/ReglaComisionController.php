@@ -40,7 +40,9 @@ class ReglaComisionController extends Controller
         $request->validate([
             'cliente_id'              => 'nullable|exists:clientes,id',
             'empresa_facturadora_id'  => 'nullable|exists:empresas,id',
-            'monto_por_tonelada'      => 'required|numeric|min:0.01',
+            'monto_por_tonelada'      => 'required|numeric|min:0',
+            'mes'                     => 'nullable|integer|min:1|max:12',
+            'anio'                    => 'required_with:mes|nullable|integer|min:2000|max:2100',
         ]);
 
         if (!$request->cliente_id && !$request->empresa_facturadora_id) {
@@ -48,13 +50,18 @@ class ReglaComisionController extends Controller
             return null;
         }
 
+        $vigenteDesde = $request->filled('mes')
+            ? \Carbon\Carbon::create($request->anio, $request->mes, 1)->toDateString()
+            : null;
+
         $duplicado = ReglaComision::where('cliente_id', $request->cliente_id)
             ->where('empresa_facturadora_id', $request->empresa_facturadora_id)
+            ->where('vigente_desde', $vigenteDesde)
             ->when($exceptoId, fn($q) => $q->where('id', '!=', $exceptoId))
             ->exists();
 
         if ($duplicado) {
-            Alert::warning('Ya existe', 'Ya existe una regla con esa combinación de cliente y empresa facturadora.');
+            Alert::warning('Ya existe', 'Ya existe una regla con esa combinación de cliente, empresa facturadora y mes de vigencia.');
             return null;
         }
 
@@ -62,6 +69,7 @@ class ReglaComisionController extends Controller
             'cliente_id'             => $request->cliente_id ?: null,
             'empresa_facturadora_id' => $request->empresa_facturadora_id ?: null,
             'monto_por_tonelada'     => $request->monto_por_tonelada,
+            'vigente_desde'          => $vigenteDesde,
         ];
     }
 

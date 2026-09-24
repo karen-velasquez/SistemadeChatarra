@@ -39,9 +39,10 @@
             <p class="text-muted small mb-0">
                 <i class="bi bi-info-circle me-1"></i>
                 Al descargar el Excel de Contratos, la Comisión 1 de cada venta se calcula normalmente como Total Ventas × 3%.
-                Si la venta coincide con una regla activa de esta lista (cliente y/o empresa facturadora), se usa en su lugar
-                <strong>monto por tonelada × toneladas entregadas</strong>. Deje un campo en blanco para que la regla aplique
-                a cualquier cliente o cualquier empresa en ese campo.
+                Si la venta coincide con una regla activa de esta lista (cliente y/o empresa facturadora) vigente en el
+                <strong>mes de la fecha de entrega</strong>, se usa en su lugar <strong>monto por tonelada × toneladas entregadas</strong>.
+                Deje un campo en blanco para que la regla aplique a cualquier cliente o cualquier empresa en ese campo.
+                El monto puede variar cada mes: registra una regla nueva con el mismo cliente/empresa y el mes desde el que rige.
             </p>
         </div>
     </div>
@@ -60,6 +61,7 @@
                         <tr>
                             <th>Cliente</th>
                             <th>Empresa Facturadora</th>
+                            <th>Vigente desde</th>
                             <th class="text-end">Monto por Tonelada</th>
                             <th>Estado</th>
                             <th style="width:160px"></th>
@@ -70,6 +72,7 @@
                         <tr>
                             <td>{{ $r->cliente->nombre ?? '— Cualquier cliente —' }}</td>
                             <td>{{ $r->empresaFacturadora->nombre ?? '— Cualquier empresa —' }}</td>
+                            <td>{{ $r->vigente_desde ? ucfirst($r->vigente_desde->translatedFormat('F Y')) : '— Siempre —' }}</td>
                             <td class="text-end">BOB {{ number_format($r->monto_por_tonelada, 2, ',', '.') }} / t</td>
                             <td>
                                 @if($r->activo)
@@ -146,9 +149,23 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label">Monto por Tonelada (BOB) <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" min="0.01" name="monto_por_tonelada" id="regla_monto"
+                            <input type="number" step="0.01" min="0" name="monto_por_tonelada" id="regla_monto"
                                    class="form-control" required placeholder="Ej: 350.00">
                             <div class="form-text">Reemplaza el 3% de Comisión 1 por este monto fijo × toneladas entregadas.</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Vigente desde (mes)</label>
+                            <select name="mes" id="regla_mes" class="form-select">
+                                <option value="">— Siempre —</option>
+                                @foreach(['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'] as $i => $nombreMes)
+                                    <option value="{{ $i + 1 }}">{{ $nombreMes }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Año</label>
+                            <input type="number" name="anio" id="regla_anio" class="form-control" min="2000" max="2100" value="{{ now()->year }}">
+                            <div class="form-text">Deja "Vigente desde" en — Siempre — para que aplique a cualquier mes.</div>
                         </div>
                     </div>
                 </div>
@@ -183,6 +200,14 @@ function editarRegla(uuid) {
             document.getElementById('regla_cliente_id').value = r.cliente_id ?? '';
             document.getElementById('regla_empresa_id').value = r.empresa_facturadora_id ?? '';
             document.getElementById('regla_monto').value = r.monto_por_tonelada ?? '';
+            if (r.vigente_desde) {
+                const [anio, mes] = r.vigente_desde.split('-');
+                document.getElementById('regla_mes').value = parseInt(mes, 10);
+                document.getElementById('regla_anio').value = anio;
+            } else {
+                document.getElementById('regla_mes').value = '';
+                document.getElementById('regla_anio').value = new Date().getFullYear();
+            }
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalRegla')).show();
         });
 }

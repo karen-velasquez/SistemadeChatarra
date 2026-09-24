@@ -153,7 +153,7 @@ class ContratoController extends Controller
                 $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
                 $utilidadBruta = round($totalVentas - $importeCompra, 2);
                 $it              = round($totalVentas * 0.03, 2);
-                $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id']);
+                $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $comision1       = $montoRegla !== null
                     ? round($e['tn_entregadas'] * $montoRegla, 2)
                     : round($totalVentas * 0.03, 2);
