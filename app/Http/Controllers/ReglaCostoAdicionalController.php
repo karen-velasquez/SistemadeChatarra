@@ -40,7 +40,11 @@ class ReglaCostoAdicionalController extends Controller
         $request->validate([
             'cliente_id'              => 'nullable|exists:clientes,id',
             'empresa_facturadora_id'  => 'nullable|exists:empresas,id',
-            'monto_por_tramo'         => 'required|numeric|min:0.01',
+            'monto_por_tramo'         => 'required|numeric|min:0',
+            'fecha_inicio'            => 'nullable|date',
+            'fecha_fin'               => 'nullable|date|after_or_equal:fecha_inicio',
+        ], [
+            'fecha_fin.after_or_equal' => 'La fecha de fin no puede ser anterior a la fecha de inicio.',
         ]);
 
         if (!$request->cliente_id && !$request->empresa_facturadora_id) {
@@ -48,13 +52,20 @@ class ReglaCostoAdicionalController extends Controller
             return null;
         }
 
+        if ($request->filled('fecha_fin') && !$request->filled('fecha_inicio')) {
+            Alert::warning('Falta información', 'Si indica fecha de fin, debe indicar también la fecha de inicio.');
+            return null;
+        }
+
         $duplicado = ReglaCostoAdicional::where('cliente_id', $request->cliente_id)
             ->where('empresa_facturadora_id', $request->empresa_facturadora_id)
+            ->where('fecha_inicio', $request->fecha_inicio ?: null)
+            ->where('fecha_fin', $request->fecha_fin ?: null)
             ->when($exceptoId, fn($q) => $q->where('id', '!=', $exceptoId))
             ->exists();
 
         if ($duplicado) {
-            Alert::warning('Ya existe', 'Ya existe una regla con esa combinación de cliente y empresa facturadora.');
+            Alert::warning('Ya existe', 'Ya existe una regla con esa combinación de cliente, empresa facturadora y rango de vigencia.');
             return null;
         }
 
@@ -62,6 +73,8 @@ class ReglaCostoAdicionalController extends Controller
             'cliente_id'             => $request->cliente_id ?: null,
             'empresa_facturadora_id' => $request->empresa_facturadora_id ?: null,
             'monto_por_tramo'        => $request->monto_por_tramo,
+            'fecha_inicio'           => $request->fecha_inicio ?: null,
+            'fecha_fin'              => $request->fecha_fin ?: null,
         ];
     }
 

@@ -69,16 +69,16 @@ class ContratoController extends Controller
         //   Importe compra = Tn entregadas x costo_unitario del contrato (prorrateo por tonelaje)
         //   Utilidad Bruta = Total ventas - Importe compra
         //   IT             = Total ventas x 3%
-        //   Comisión 1     = Total ventas x 3%, salvo dos excepciones por
-        //                    cliente + empresa facturadora (ambas a la vez):
-        //                    Minxin + Daniel   => 350 x Tn entregadas
-        //                    Minxin + Mustamet => 200 x Tn entregadas
+        //   Comisión 1     = Tn entregadas x monto de la Regla de Comisión vigente
+        //                    (cliente + empresa facturadora, según fecha de entrega);
+        //                    0 si no hay ninguna regla vigente para esa venta.
         //   Comisión 2 ZPL = Total ventas x 1,1%
-        //   Costo adicional Minxin = 25 USD x 6.96 = 174 Bs por tramo entregado a Minxin
+        //   Costo adicional = monto de la Regla de Costo Adicional vigente
+        //                    (cliente + empresa facturadora, según fecha de entrega);
+        //                    0 si no hay ninguna regla vigente para esa venta.
         //   Utilidad Neta (por entrega) = Utilidad Bruta - IT - Comisión 1 - Comisión 2 - Costo adicional
         //   Utilidad Neta (SUBTOTAL del contrato) = suma de lo anterior - Gastos Extra
         //                    PAGADOS asociados al contrato (costo real del contrato, no de una entrega puntual)
-        $costoAdicionalMinxin = 174; // 25 USD x 6.96
         $contratosExcelData = collect();
 
         foreach ($contratos as $c) {
@@ -156,10 +156,7 @@ class ContratoController extends Controller
                 $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $comision1       = round($e['tn_entregadas'] * $montoRegla, 2);
                 $comision2       = round($totalVentas * 0.011, 2);
-                $montoCostoAdicional = ReglaCostoAdicional::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id']);
-                $costoAdicional  = $montoCostoAdicional !== null
-                    ? $montoCostoAdicional
-                    : (stripos($e['cliente'], 'Minxin') !== false ? $costoAdicionalMinxin : 0);
+                $costoAdicional  = ReglaCostoAdicional::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2 - $costoAdicional, 2);
 
                 $sumaVentas   += $totalVentas;
