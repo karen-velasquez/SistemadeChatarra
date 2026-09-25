@@ -84,8 +84,12 @@ class GastoExtraController extends Controller
             ($monedaEsBob && !$tipoCambioVacio) ||
             (!$monedaEsBob && $tipoCambioVacio)
         ) {
-            Alert::error('Error','No puedes realizar el registro, datos inconsistentes');
-            return redirect()->route('gastos_extras.index');
+            $mensaje = $monedaEsBob
+                ? 'La moneda BOB no debe llevar tipo de cambio.'
+                : 'Debe indicar el tipo de cambio cuando la moneda no es BOB.';
+            return redirect()->route('gastos_extras.index')
+                ->withErrors(['tipo_cambio' => $mensaje])
+                ->withInput();
         }
         $categoria = strtoupper(trim($request->categoria));
         $categoriaParametro = Parametro::where('tipo','categoria_gasto_extra')->whereRaw('UPPER(TRIM(valor)) = ?',[$categoria])->first();
@@ -151,8 +155,12 @@ class GastoExtraController extends Controller
             ($monedaEsBob && !$tipoCambioVacio) ||
             (!$monedaEsBob && $tipoCambioVacio)
         ) {
-            Alert::error('Error','No puedes realizar la actualización, datos inconsistentes');
-            return redirect()->route('gastos_extras.index');
+            $mensaje = $monedaEsBob
+                ? 'La moneda BOB no debe llevar tipo de cambio.'
+                : 'Debe indicar el tipo de cambio cuando la moneda no es BOB.';
+            return redirect()->route('gastos_extras.index')
+                ->withErrors(['tipo_cambio' => $mensaje])
+                ->withInput();
         }
         $categoria = strtoupper(trim($request->categoria));
         $categoriaParametro = Parametro::where('tipo','categoria_gasto_extra')->whereRaw('UPPER(TRIM(valor)) = ?',[$categoria])->first();

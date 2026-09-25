@@ -35,13 +35,24 @@
                 <div class="modal-body">
                     <p>Los campos con <strong class="text-danger">(*)</strong> son obligatorios.</p>
 
+                    @if($errors->any())
+                    <div class="alert alert-danger py-2" id="alerta_errores_gasto">
+                        <strong><i class="bi bi-exclamation-triangle"></i> No se pudo guardar:</strong>
+                        <ul class="mb-0 ps-3">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">CONTRATO</label>
-                            <select name="contrato_id" id="contrato" class="form-select">
+                            <select name="contrato_id" id="contrato" class="form-select @error('contrato_id') is-invalid @enderror">
                                 <option value="">-- SIN CONTRATO (gasto general) --</option>
                                 @foreach($contratos as $c)
-                                    <option value="{{ $c->id }}">{{ $c->numero_contrato }}</option>
+                                    <option value="{{ $c->id }}" {{ old('contrato_id') == $c->id ? 'selected' : '' }}>{{ $c->numero_contrato }}</option>
                                 @endforeach
                             </select>
                             <small class="text-muted">Déjelo vacío para gastos generales no ligados a un contrato (luz, alquiler, etc.).</small>
@@ -49,22 +60,23 @@
 
                         <div class="col-md-6">
                             <label class="form-label">CUENTA DE EMPRESA <strong class="text-danger">(*)</strong></label>
-                            <select name="cuenta_empresa_id" id="cuenta_empresa" class="form-select" required>
+                            <select name="cuenta_empresa_id" id="cuenta_empresa" class="form-select @error('cuenta_empresa_id') is-invalid @enderror" required>
                                 <option value="">-- SELECCIONE --</option>
                                 @foreach($cuentasEmpresa as $ce)
-                                    <option value="{{ $ce->id }}" data-saldo="{{ $ce->saldo_actual }}">{{ $ce->nombre_cuenta }} (Bs {{ number_format($ce->saldo_actual, 2) }})</option>
+                                    <option value="{{ $ce->id }}" data-saldo="{{ $ce->saldo_actual }}" {{ old('cuenta_empresa_id') == $ce->id ? 'selected' : '' }}>{{ $ce->nombre_cuenta }} (Bs {{ number_format($ce->saldo_actual, 2) }})</option>
                                 @endforeach
                             </select>
                             <small id="mensaje_cuenta_empresa" class="text-muted"></small>
+                            @error('cuenta_empresa_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">CATEGORÍA <strong class="text-danger">(*)</strong></label>
                             <div class="input-group">
-                                <select name="categoria" id="categoria" class="form-select" required>
+                                <select name="categoria" id="categoria" class="form-select @error('categoria') is-invalid @enderror" required>
                                     <option value="">-- SELECCIONE --</option>
                                     @foreach($categorias as $cat)
-                                        <option value="{{ $cat->valor }}">{{ $cat->valor }}</option>
+                                        <option value="{{ $cat->valor }}" {{ old('categoria') === $cat->valor ? 'selected' : '' }}>{{ $cat->valor }}</option>
                                     @endforeach
                                 </select>
                                 @can('gastos_extras.create')
@@ -74,37 +86,41 @@
                                 </button>
                                 @endcan
                             </div>
+                            @error('categoria') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">CONCEPTO <strong class="text-danger">(*)</strong></label>
-                            <input type="text" name="concepto" id="concepto" class="form-control" maxlength="255" onkeyup="this.value=this.value.toUpperCase();" required>
+                            <input type="text" name="concepto" id="concepto" class="form-control @error('concepto') is-invalid @enderror" value="{{ old('concepto') }}" maxlength="255" onkeyup="this.value=this.value.toUpperCase();" required>
                             <small id="mensaje_concepto" class="text-muted">Mínimo 3 caracteres, máximo 255.</small>
+                            @error('concepto') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label">MONEDA <strong class="text-danger">(*)</strong></label>
-                            <select name="moneda" id="moneda" class="form-select" required onchange="toggleTipoCambioGasto(this.value)">
-                                <option value="BOB">🇧🇴 BOB</option>
-                                <option value="USD">🇺🇸 USD</option>
-                                <option value="BRL">🇧🇷 BRL</option>
-                                <option value="ARS">🇦🇷 ARS</option>
-                                <option value="EUR">🇪🇺 EUR</option>
-                                <option value="PEN">🇵🇪 PEN</option>
-                                <option value="CLP">🇨🇱 CLP</option>
-                                <option value="PYG">🇵🇾 PYG</option>
-                                <option value="COP">🇨🇴 COP</option>
+                            <select name="moneda" id="moneda" class="form-select @error('moneda') is-invalid @enderror" required onchange="toggleTipoCambioGasto(this.value)">
+                                <option value="BOB" {{ old('moneda', 'BOB') === 'BOB' ? 'selected' : '' }}>🇧🇴 BOB</option>
+                                <option value="USD" {{ old('moneda') === 'USD' ? 'selected' : '' }}>🇺🇸 USD</option>
+                                <option value="BRL" {{ old('moneda') === 'BRL' ? 'selected' : '' }}>🇧🇷 BRL</option>
+                                <option value="ARS" {{ old('moneda') === 'ARS' ? 'selected' : '' }}>🇦🇷 ARS</option>
+                                <option value="EUR" {{ old('moneda') === 'EUR' ? 'selected' : '' }}>🇪🇺 EUR</option>
+                                <option value="PEN" {{ old('moneda') === 'PEN' ? 'selected' : '' }}>🇵🇪 PEN</option>
+                                <option value="CLP" {{ old('moneda') === 'CLP' ? 'selected' : '' }}>🇨🇱 CLP</option>
+                                <option value="PYG" {{ old('moneda') === 'PYG' ? 'selected' : '' }}>🇵🇾 PYG</option>
+                                <option value="COP" {{ old('moneda') === 'COP' ? 'selected' : '' }}>🇨🇴 COP</option>
                             </select>
+                            @error('moneda') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label">MONTO <strong class="text-danger">(*)</strong></label>
                             <div class="input-group">
                                 <span class="input-group-text fw-bold" id="lbl_moneda_monto_gasto">BOB</span>
-                                <input type="text" inputmode="numeric" id="monto_display" class="form-control" placeholder="0,00" autocomplete="off">
+                                <input type="text" inputmode="numeric" id="monto_display" class="form-control @error('monto') is-invalid @enderror" placeholder="0,00" autocomplete="off">
                             </div>
-                            <input type="hidden" name="monto" id="monto" value="">
+                            <input type="hidden" name="monto" id="monto" value="{{ old('monto') }}">
                             <small id="mensaje_monto" class="text-muted">Ingrese un monto mayor a 0.</small>
+                            @error('monto') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6 d-none" id="contenedor_tipo_cambio_gasto">
@@ -113,10 +129,11 @@
                                 <small class="text-muted fw-normal">— 1 <span id="lbl_moneda_tc_gasto"></span> equivale a:</small>
                             </label>
                             <div class="input-group">
-                                <input type="text" inputmode="numeric" id="tipo_cambio_display" class="form-control" placeholder="0,0000" autocomplete="off">
-                                <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="">
+                                <input type="text" inputmode="numeric" id="tipo_cambio_display" class="form-control @error('tipo_cambio') is-invalid @enderror" placeholder="0,0000" autocomplete="off">
+                                <input type="hidden" name="tipo_cambio" id="tipo_cambio" value="{{ old('tipo_cambio') }}">
                                 <span class="input-group-text">BOB</span>
                             </div>
+                            @error('tipo_cambio') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-12 d-none" id="contenedor_equivalente_gasto">
@@ -130,8 +147,9 @@
 
                         <div class="col-md-6">
                             <label class="form-label">FECHA <strong class="text-danger">(*)</strong></label>
-                            <input type="date" name="fecha" id="fecha" class="form-control" value="{{ date('Y-m-d') }}" required>
+                            <input type="date" name="fecha" id="fecha" class="form-control @error('fecha') is-invalid @enderror" value="{{ old('fecha', date('Y-m-d')) }}" required>
                             <small id="mensaje_fecha" class="text-muted">Seleccione la fecha del gasto.</small>
+                            @error('fecha') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6">
@@ -146,18 +164,20 @@
 
                         <div class="col-md-6" id="contenedor_metodo_pago">
                             <label class="form-label">MÉTODO DE PAGO<span id="asterisco_metodo_pago" class="text-danger">(*)</span></label>
-                            <select name="metodo_pago" id="metodo_pago" class="form-select" required onchange="actualizarCodigoSeguimientoGasto()">
+                            <select name="metodo_pago" id="metodo_pago" class="form-select @error('metodo_pago') is-invalid @enderror" required onchange="actualizarCodigoSeguimientoGasto()">
                                 <option value="">-- SELECCIONE --</option>
-                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                                <option value="QR">QR</option>
+                                <option value="TRANSFERENCIA" {{ old('metodo_pago') === 'TRANSFERENCIA' ? 'selected' : '' }}>TRANSFERENCIA</option>
+                                <option value="QR" {{ old('metodo_pago') === 'QR' ? 'selected' : '' }}>QR</option>
                             </select>
                             <small id="mensaje_metodo_pago" class="text-muted">Seleccione cómo se realizó el pago.</small>
+                            @error('metodo_pago') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6 d-none" id="contenedor_codigo_seguimiento">
                             <label class="form-label">CÓDIGO DE TRANSFERENCIA<span class="text-danger">(*)</span></label>
-                            <input type="text" name="codigo_seguimiento" id="codigo_seguimiento" class="form-control" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
+                            <input type="text" name="codigo_seguimiento" id="codigo_seguimiento" class="form-control @error('codigo_seguimiento') is-invalid @enderror" value="{{ old('codigo_seguimiento') }}" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
                             <small id="mensaje_codigo_seguimiento" class="text-muted">Ingrese el código de la transferencia.</small>
+                            @error('codigo_seguimiento') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="col-md-6 d-none" id="contenedor_codigo_qr_info">
@@ -331,6 +351,34 @@
                     if (dt && ht && tipoCambio > 0) { dt.value = _fmt(tipoCambio); ht.value = tipoCambio; }
                 };
             })();
+
+            @if($errors->any())
+            // Si el store()/update() falló (validación del FormRequest o un
+            // Alert::error manual del controller), Laravel redirige con los
+            // errores en sesión pero el modal ya se había cerrado al enviar
+            // el form: sin esto, el usuario solo ve un toast que desaparece
+            // y no sabe qué campo corregir. Se reabre el modal con los datos
+            // que había escrito (old()) y los mensajes ya impresos arriba.
+            document.addEventListener('DOMContentLoaded', function () {
+                var montoOld = parseFloat('{{ old('monto', '') }}') || 0;
+                var tcOld    = parseFloat('{{ old('tipo_cambio', '') }}') || 0;
+                if (window._cargarCajeroGasto) window._cargarCajeroGasto(montoOld, tcOld);
+
+                var monedaOld = '{{ old('moneda', 'BOB') }}';
+                if (window.toggleTipoCambioGasto) window.toggleTipoCambioGasto(monedaOld);
+
+                var metodoOld = '{{ old('metodo_pago', '') }}';
+                if (metodoOld && window.actualizarCodigoSeguimientoGasto) {
+                    document.getElementById('metodo_pago').value = metodoOld;
+                    actualizarCodigoSeguimientoGasto();
+                }
+
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('modalGastoExtra')).show();
+
+                var alerta = document.getElementById('alerta_errores_gasto');
+                if (alerta) alerta.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            @endif
             </script>
         </div>
     </div>

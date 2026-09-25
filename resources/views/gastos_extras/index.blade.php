@@ -38,15 +38,6 @@
 </div>
 
 <section class="section mt-3">
-    @if($errors->any())
-    <div class="alert alert-danger py-2">
-        <ul class="mb-0 ps-3">
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-    @endif
 
     <div class="row mb-3" id="ge-resumen">
         <div class="col-md-3">
