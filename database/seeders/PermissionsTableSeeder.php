@@ -154,6 +154,12 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'reglas_comision.edit',    'descripcion' => 'Editar Reglas de Comisión',   'grupo' => 'REGLAS_COMISION'],
             ['name' => 'reglas_comision.destroy', 'descripcion' => 'Eliminar Reglas de Comisión', 'grupo' => 'REGLAS_COMISION'],
 
+            // Reglas de comisión 2
+            ['name' => 'reglas_comision2.index',   'descripcion' => 'Ver Reglas de Comisión 2',      'grupo' => 'REGLAS_COMISION2'],
+            ['name' => 'reglas_comision2.create',  'descripcion' => 'Agregar Reglas de Comisión 2',  'grupo' => 'REGLAS_COMISION2'],
+            ['name' => 'reglas_comision2.edit',    'descripcion' => 'Editar Reglas de Comisión 2',   'grupo' => 'REGLAS_COMISION2'],
+            ['name' => 'reglas_comision2.destroy', 'descripcion' => 'Eliminar Reglas de Comisión 2', 'grupo' => 'REGLAS_COMISION2'],
+
             // Reglas de costo adicional
             ['name' => 'reglas_costo_adicional.index',   'descripcion' => 'Ver Reglas de Costo Adicional',      'grupo' => 'REGLAS_COSTO_ADICIONAL'],
             ['name' => 'reglas_costo_adicional.create',  'descripcion' => 'Agregar Reglas de Costo Adicional',  'grupo' => 'REGLAS_COSTO_ADICIONAL'],

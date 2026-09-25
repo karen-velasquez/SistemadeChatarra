@@ -15,6 +15,7 @@ use App\Models\Empresa;
 use App\Models\LoteEntrega;
 use App\Models\Parametro;
 use App\Models\ReglaComision;
+use App\Models\ReglaComision2;
 use App\Models\ReglaCostoAdicional;
 use App\Models\GastoExtra;
 use Illuminate\Support\Carbon;
@@ -69,10 +70,12 @@ class ContratoController extends Controller
         //   Importe compra = Tn entregadas x costo_unitario del contrato (prorrateo por tonelaje)
         //   Utilidad Bruta = Total ventas - Importe compra
         //   IT             = Total ventas x 3%
-        //   Comisión 1     = Tn entregadas x monto de la Regla de Comisión vigente
+        //   Comisión 1     = Tn entregadas x monto de la Regla de Comisión 1 vigente
         //                    (cliente + empresa facturadora, según fecha de entrega);
         //                    0 si no hay ninguna regla vigente para esa venta.
-        //   Comisión 2 ZPL = Total ventas x 1,1%
+        //   Comisión 2 ZPL = Tn entregadas x monto de la Regla de Comisión 2 vigente
+        //                    (cliente + empresa facturadora, según fecha de entrega);
+        //                    0 si no hay ninguna regla vigente para esa venta.
         //   Costo adicional = monto de la Regla de Costo Adicional vigente
         //                    (cliente + empresa facturadora, según fecha de entrega);
         //                    0 si no hay ninguna regla vigente para esa venta.
@@ -155,7 +158,8 @@ class ContratoController extends Controller
                 $it              = round($totalVentas * 0.03, 2);
                 $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $comision1       = round($e['tn_entregadas'] * $montoRegla, 2);
-                $comision2       = round($totalVentas * 0.011, 2);
+                $montoRegla2     = ReglaComision2::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
+                $comision2       = round($e['tn_entregadas'] * $montoRegla2, 2);
                 $costoAdicional  = ReglaCostoAdicional::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2 - $costoAdicional, 2);
 

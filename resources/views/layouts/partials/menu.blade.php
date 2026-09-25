@@ -277,8 +277,8 @@
       @endcan
 
        {{-- REPORTES --}}
-      @php $enReportes = request()->routeIs(['newReports.index','reportes.index','reportes.capital_utilidad','reglas_comision.index','reglas_costo_adicional.index']); @endphp
-      @if(auth()->user()->can('reportes.index') || auth()->user()->can('reglas_comision.index') || auth()->user()->can('reglas_costo_adicional.index'))
+      @php $enReportes = request()->routeIs(['newReports.index','reportes.index','reportes.capital_utilidad','reglas_comision.index','reglas_comision2.index','reglas_costo_adicional.index']); @endphp
+      @if(auth()->user()->can('reportes.index') || auth()->user()->can('reglas_comision.index') || auth()->user()->can('reglas_comision2.index') || auth()->user()->can('reglas_costo_adicional.index'))
       <li class="nav-item">
         <a class="nav-link {{ $enReportes ? '' : 'collapsed' }}"
            data-sidebar-target="menu-reportes" href="#">
@@ -319,6 +319,15 @@
             <a href="{{ route('reglas_comision.index') }}"
                class="{{ isActiveRoute(['reglas_comision.index']) ? 'active' : '' }}">
               <i class="bi bi-percent"></i><span>Reglas de Comisión 1</span>
+            </a>
+          </li>
+          @endcan
+
+          @can('reglas_comision2.index')
+          <li>
+            <a href="{{ route('reglas_comision2.index') }}"
+               class="{{ isActiveRoute(['reglas_comision2.index']) ? 'active' : '' }}">
+              <i class="bi bi-percent"></i><span>Reglas de Comisión 2</span>
             </a>
           </li>
           @endcan

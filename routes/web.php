@@ -312,6 +312,14 @@ use Illuminate\Support\Facades\Route;
     Route::post('reglas-comision/{uuid}/toggle-activo', [App\Http\Controllers\ReglaComisionController::class, 'toggleActivo'])->name('reglas_comision.toggle_activo')->middleware('permission:reglas_comision.edit');
     Route::get('reglas-comision/{uuid}/destroy', [App\Http\Controllers\ReglaComisionController::class, 'destroy'])->name('reglas_comision.destroy')->middleware('permission:reglas_comision.destroy');
 
+    // Reglas de comisión 2 (Comisión 2 ZPL especial por cliente + empresa facturadora)
+    Route::get('reglas-comision2', [App\Http\Controllers\ReglaComision2Controller::class, 'index'])->name('reglas_comision2.index')->middleware('permission:reglas_comision2.index');
+    Route::post('reglas-comision2', [App\Http\Controllers\ReglaComision2Controller::class, 'store'])->name('reglas_comision2.store')->middleware('permission:reglas_comision2.create');
+    Route::get('reglas-comision2/{uuid}/edit', [App\Http\Controllers\ReglaComision2Controller::class, 'edit'])->name('reglas_comision2.edit')->middleware('permission:reglas_comision2.edit');
+    Route::put('reglas-comision2/{uuid}', [App\Http\Controllers\ReglaComision2Controller::class, 'update'])->name('reglas_comision2.update')->middleware('permission:reglas_comision2.edit');
+    Route::post('reglas-comision2/{uuid}/toggle-activo', [App\Http\Controllers\ReglaComision2Controller::class, 'toggleActivo'])->name('reglas_comision2.toggle_activo')->middleware('permission:reglas_comision2.edit');
+    Route::get('reglas-comision2/{uuid}/destroy', [App\Http\Controllers\ReglaComision2Controller::class, 'destroy'])->name('reglas_comision2.destroy')->middleware('permission:reglas_comision2.destroy');
+
     // Reglas de costo adicional (por cliente + empresa facturadora)
     Route::get('reglas-costo-adicional', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'index'])->name('reglas_costo_adicional.index')->middleware('permission:reglas_costo_adicional.index');
     Route::post('reglas-costo-adicional', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'store'])->name('reglas_costo_adicional.store')->middleware('permission:reglas_costo_adicional.create');
