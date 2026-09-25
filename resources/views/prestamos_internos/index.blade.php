@@ -93,9 +93,9 @@
                             <th class="text-end">Devuelto</th>
                             <th class="text-end">Pendiente</th>
                             <th class="text-center">Estado</th>
-                            @can('prestamos_internos.create')
+                            @canany(['prestamos_internos.create', 'prestamos_internos.edit', 'prestamos_internos.destroy'])
                             <th class="text-center">Acción</th>
-                            @endcan
+                            @endcanany
                         </tr>
                     </thead>
                     <tbody>
@@ -129,16 +129,33 @@
                                     <span class="badge bg-danger">Pendiente</span>
                                 @endif
                             </td>
-                            @can('prestamos_internos.create')
-                            <td class="text-center">
+                            @canany(['prestamos_internos.create', 'prestamos_internos.edit', 'prestamos_internos.destroy'])
+                            <td class="text-center text-nowrap">
+                                @can('prestamos_internos.create')
                                 @if($p->estado !== 'pagado')
                                 <button class="btn btn-sm btn-outline-success"
                                         onclick="abrirDevolucion('{{ $p->uuid }}', '{{ $p->concepto }}', {{ $p->monto_pendiente }}, '{{ $p->moneda }}')">
                                     <i class="bi bi-arrow-return-left"></i> Devolver
                                 </button>
                                 @endif
+                                @endcan
+                                @if($p->estado === 'pendiente')
+                                    @can('prestamos_internos.edit')
+                                    <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                            onclick="abrirEditarPrestamo('{{ $p->uuid }}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @endcan
+                                    @can('prestamos_internos.destroy')
+                                    <a class="btn btn-sm btn-outline-danger" title="Eliminar"
+                                       href="{{ route('prestamos_internos.destroy', $p->uuid) }}"
+                                       onclick="return confirm('¿Eliminar este préstamo? Se revertirá el efecto en los saldos de ambas cuentas.')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                    @endcan
+                                @endif
                             </td>
-                            @endcan
+                            @endcanany
                         </tr>
                         @empty
                         <tr><td colspan="9" class="text-center text-muted">Sin préstamos registrados</td></tr>
@@ -199,7 +216,7 @@
                                 @foreach($empresas as $empresa)
                                     <optgroup label="{{ $empresa->nombre }}">
                                         @foreach($empresa->cuentas as $cuenta)
-                                            <option value="{{ $cuenta->id }}" data-moneda="{{ $cuenta->moneda }}">{{ $cuenta->nombre_cuenta }} ({{ $cuenta->moneda }})</option>
+                                            <option value="{{ $cuenta->id }}" data-moneda="{{ $cuenta->moneda }}" data-saldo="{{ $cuenta->saldo_actual }}">{{ $cuenta->nombre_cuenta }} ({{ $cuenta->moneda }}) — Saldo: {{ number_format($cuenta->saldo_actual, 2, ',', '.') }}</option>
                                         @endforeach
                                     </optgroup>
                                 @endforeach
@@ -277,6 +294,48 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success">Registrar Devolución</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL EDITAR PRÉSTAMO --}}
+<div class="modal fade" id="modalEditarPrestamo" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Préstamo Interno</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarPrestamo" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3" id="infoEditarPrestamo"></div>
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label">Monto <span class="text-danger">(*)</span></label>
+                            <input type="text" inputmode="numeric" id="montoEditarPrestamo_display" class="form-control" placeholder="0,00" autocomplete="off">
+                            <input type="hidden" name="monto" id="montoEditarPrestamo" value="">
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label">Fecha <span class="text-danger">(*)</span></label>
+                            <input type="date" name="fecha_prestamo" id="fechaEditarPrestamo" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label">Fecha de Vencimiento</label>
+                            <input type="date" name="fecha_vencimiento" id="fechaVencimientoEditarPrestamo" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
+                            <input type="text" name="concepto" id="conceptoEditarPrestamo" class="form-control" required placeholder="Motivo del préstamo">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -379,6 +438,50 @@ function abrirDevolucion(uuid, concepto, montoPendiente, moneda) {
         this.value   = n > 0 ? _fmtPI(n) : '';
         hidden.value = n > 0 ? n : '';
         validarMontoPrestamo();
+    });
+})();
+
+function abrirEditarPrestamo(uuid) {
+    fetch(url_global + '/prestamos-internos/' + uuid + '/edit')
+        .then(r => r.json())
+        .then(p => {
+            document.getElementById('formEditarPrestamo').action = url_global + '/prestamos-internos/' + uuid;
+            document.getElementById('infoEditarPrestamo').innerHTML =
+                'Editando préstamo: <strong>' + (p.concepto ?? '') + '</strong> (' + p.moneda + ')';
+            document.getElementById('montoEditarPrestamo').value = p.monto_original ?? '';
+            document.getElementById('montoEditarPrestamo_display').value = p.monto_original
+                ? _fmtPI(p.monto_original) : '';
+            document.getElementById('fechaEditarPrestamo').value = p.fecha_prestamo ? p.fecha_prestamo.substring(0, 10) : '';
+            document.getElementById('fechaVencimientoEditarPrestamo').value = p.fecha_vencimiento ? p.fecha_vencimiento.substring(0, 10) : '';
+            document.getElementById('conceptoEditarPrestamo').value = p.concepto ?? '';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarPrestamo')).show();
+        });
+}
+
+// ── Cajero monto editar préstamo ──
+(function() {
+    function _txt2num(v) { return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0; }
+    var disp   = document.getElementById('montoEditarPrestamo_display');
+    var hidden = document.getElementById('montoEditarPrestamo');
+    if (!disp || !hidden) return;
+    disp.addEventListener('input', function() {
+        var raw    = this.value.replace(/[^0-9,]/g, '');
+        var partes = raw.split(',');
+        if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+        partes = raw.split(',');
+        if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+        var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+        var diff  = nuevo.length - this.value.length;
+        var pos   = (this.selectionStart || 0) + diff;
+        this.value = nuevo;
+        try { this.setSelectionRange(pos, pos); } catch(_) {}
+        hidden.value = _txt2num(nuevo) || '';
+    });
+    disp.addEventListener('blur', function() {
+        var n = _txt2num(this.value);
+        this.value   = n > 0 ? _fmtPI(n) : '';
+        hidden.value = n > 0 ? n : '';
     });
 })();
 </script>

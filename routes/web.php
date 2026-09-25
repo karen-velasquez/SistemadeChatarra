@@ -290,6 +290,9 @@ use Illuminate\Support\Facades\Route;
     // Préstamos internos
     Route::get('prestamos-internos', [App\Http\Controllers\PrestamoInternoController::class, 'index'])->name('prestamos_internos.index')->middleware('permission:prestamos_internos.index');
     Route::post('prestamos-internos/store', [App\Http\Controllers\PrestamoInternoController::class, 'store'])->name('prestamos_internos.store')->middleware('permission:prestamos_internos.create');
+    Route::get('prestamos-internos/{uuid}/edit', [App\Http\Controllers\PrestamoInternoController::class, 'edit'])->name('prestamos_internos.edit')->middleware('permission:prestamos_internos.edit');
+    Route::put('prestamos-internos/{uuid}', [App\Http\Controllers\PrestamoInternoController::class, 'update'])->name('prestamos_internos.update')->middleware('permission:prestamos_internos.edit');
+    Route::get('prestamos-internos/{uuid}/destroy', [App\Http\Controllers\PrestamoInternoController::class, 'destroy'])->name('prestamos_internos.destroy')->middleware('permission:prestamos_internos.destroy');
     Route::post('prestamos-internos/{uuid}/devolver', [App\Http\Controllers\PrestamoInternoController::class, 'devolver'])->name('prestamos_internos.devolver')->middleware('permission:prestamos_internos.create');
 
     // Parámetros

@@ -101,6 +101,83 @@ class PrestamoInternoController extends Controller
         return redirect()->route('prestamos_internos.index');
     }
 
+    // Solo se puede editar mientras no tenga ninguna devolución registrada: una
+    // vez que hay movimientos de devolución asociados, cambiar el monto original
+    // dejaría el historial de devoluciones sin sentido (podría superar el monto).
+    public function update(Request $request, string $uuid)
+    {
+        $prestamo = PrestamoInterno::where('uuid', $uuid)->firstOrFail();
+
+        if ($prestamo->estado !== 'pendiente') {
+            Alert::error('No editable', 'Este préstamo ya tiene devoluciones registradas y no se puede editar.');
+            return redirect()->route('prestamos_internos.index');
+        }
+
+        $request->validate([
+            'monto'             => 'required|numeric|min:0.01',
+            'fecha_prestamo'    => 'required|date',
+            'fecha_vencimiento' => 'nullable|date|after:fecha_prestamo',
+            'concepto'          => 'nullable|string',
+        ]);
+
+        DB::transaction(function () use ($request, $prestamo) {
+            $prestamo->update([
+                'monto_original'    => $request->monto,
+                'fecha_prestamo'    => $request->fecha_prestamo,
+                'fecha_vencimiento' => $request->fecha_vencimiento,
+                'concepto'          => $request->concepto,
+                'updated_by'        => auth()->id(),
+            ]);
+
+            // Los hooks de Movimiento revierten el efecto anterior en la cuenta
+            // y aplican el nuevo automáticamente al detectar el cambio de monto/fecha.
+            Movimiento::where('origen_type', PrestamoInterno::class)
+                ->where('origen_id', $prestamo->id)
+                ->get()
+                ->each(function ($mov) use ($request) {
+                    $mov->update([
+                        'monto'    => $request->monto,
+                        'fecha'    => $request->fecha_prestamo,
+                        'concepto' => ($mov->tipo === 'egreso' ? 'Préstamo otorgado: ' : 'Préstamo recibido: ') . ($request->concepto ?? ''),
+                    ]);
+                });
+        });
+
+        Alert::success('Actualizado', 'Préstamo actualizado y saldos ajustados.');
+        return redirect()->route('prestamos_internos.index');
+    }
+
+    // Solo se puede eliminar mientras no tenga ninguna devolución registrada,
+    // por la misma razón que update(). Los movimientos se eliminan (soft delete)
+    // y su hook deleted() revierte el efecto en los saldos automáticamente.
+    public function destroy(string $uuid)
+    {
+        $prestamo = PrestamoInterno::where('uuid', $uuid)->firstOrFail();
+
+        if ($prestamo->estado !== 'pendiente') {
+            Alert::error('No se puede eliminar', 'Este préstamo ya tiene devoluciones registradas y no se puede eliminar.');
+            return redirect()->route('prestamos_internos.index');
+        }
+
+        DB::transaction(function () use ($prestamo) {
+            Movimiento::where('origen_type', PrestamoInterno::class)
+                ->where('origen_id', $prestamo->id)
+                ->get()
+                ->each->delete();
+
+            $prestamo->delete();
+        });
+
+        Alert::success('Eliminado', 'Préstamo eliminado y saldos revertidos.');
+        return redirect()->route('prestamos_internos.index');
+    }
+
+    public function edit(string $uuid)
+    {
+        $prestamo = PrestamoInterno::where('uuid', $uuid)->firstOrFail();
+        return response()->json($prestamo);
+    }
+
     // Registrar devolución parcial o total
     public function devolver(Request $request, string $uuid)
     {
