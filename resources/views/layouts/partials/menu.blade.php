@@ -318,7 +318,7 @@
           <li>
             <a href="{{ route('reglas_comision.index') }}"
                class="{{ isActiveRoute(['reglas_comision.index']) ? 'active' : '' }}">
-              <i class="bi bi-percent"></i><span>Reglas de Comisión</span>
+              <i class="bi bi-percent"></i><span>Reglas de Comisión 1</span>
             </a>
           </li>
           @endcan

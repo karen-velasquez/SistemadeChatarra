@@ -1,15 +1,15 @@
 @extends('layouts.app')
-@section('titulo','Reglas de Comisión')
+@section('titulo','Reglas de Comisión 1')
 @section('content')
 
 <div class="pagetitle">
     <div class="d-flex flex-row align-items-center justify-content-between">
         <div>
-            <h1>REGLAS DE COMISIÓN</h1>
+            <h1>REGLAS DE COMISIÓN 1</h1>
             <nav>
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ route('home') }}">Inicio</a></li>
-                    <li class="breadcrumb-item active">Reglas de Comisión</li>
+                    <li class="breadcrumb-item active">Reglas de Comisión 1</li>
                 </ol>
             </nav>
         </div>
@@ -17,7 +17,7 @@
             <button type="button"
                     class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                     data-steps='[
-                        {"intro":"💲 Las <b>Reglas de Comisión</b> definen la Comisión 1 (en el Excel de Contratos) como un monto fijo por tonelada, cuando la venta coincide con el cliente y/o la empresa facturadora que definas aquí, dentro de su rango de vigencia."},
+                        {"intro":"💲 Las <b>Reglas de Comisión 1</b> definen la Comisión 1 (en el Excel de Contratos) como un monto fijo por tonelada, cuando la venta coincide con el cliente y/o la empresa facturadora que definas aquí, dentro de su rango de vigencia."},
                         {"element":"#regla-tabla","intro":"📋 Cada regla indica: a qué cliente aplica (o cualquiera), a qué empresa facturadora aplica (o cualquiera), el monto por tonelada, y el rango de fechas en que rige. Debe cumplirse cliente Y empresa a la vez si ambos están definidos. Si ninguna regla vigente aplica a una venta, su Comisión 1 es 0.","position":"top"},
                         {"element":"#btnNuevaRegla","intro":"➕ Con <b>Nueva Regla</b> agregas una combinación nueva.","position":"left"}
                     ]'>
@@ -122,7 +122,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="tituloRegla"><i class="bi bi-percent"></i> Nueva Regla de Comisión</h5>
+                <h5 class="modal-title" id="tituloRegla"><i class="bi bi-percent"></i> Nueva Regla de Comisión 1</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="formRegla" method="POST" action="{{ route('reglas_comision.store') }}">
@@ -185,7 +185,7 @@ function nuevaRegla() {
     document.getElementById('formRegla').reset();
     document.getElementById('formRegla').action = "{{ route('reglas_comision.store') }}";
     document.getElementById('methodRegla').value = 'POST';
-    document.getElementById('tituloRegla').innerHTML = '<i class="bi bi-percent"></i> Nueva Regla de Comisión';
+    document.getElementById('tituloRegla').innerHTML = '<i class="bi bi-percent"></i> Nueva Regla de Comisión 1';
     document.getElementById('regla_monto_display').value = '';
     document.getElementById('regla_monto').value = '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalRegla')).show();
@@ -197,7 +197,7 @@ function editarRegla(uuid) {
         .then(r => {
             document.getElementById('formRegla').action = url_global + '/reglas-comision/' + uuid;
             document.getElementById('methodRegla').value = 'PUT';
-            document.getElementById('tituloRegla').innerHTML = '<i class="bi bi-pencil"></i> Editar Regla de Comisión';
+            document.getElementById('tituloRegla').innerHTML = '<i class="bi bi-pencil"></i> Editar Regla de Comisión 1';
             document.getElementById('regla_cliente_id').value = r.cliente_id ?? '';
             document.getElementById('regla_empresa_id').value = r.empresa_facturadora_id ?? '';
             document.getElementById('regla_monto').value = r.monto_por_tonelada ?? '';
