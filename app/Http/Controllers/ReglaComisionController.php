@@ -41,8 +41,10 @@ class ReglaComisionController extends Controller
             'cliente_id'              => 'nullable|exists:clientes,id',
             'empresa_facturadora_id'  => 'nullable|exists:empresas,id',
             'monto_por_tonelada'      => 'required|numeric|min:0',
-            'mes'                     => 'nullable|integer|min:1|max:12',
-            'anio'                    => 'required_with:mes|nullable|integer|min:2000|max:2100',
+            'fecha_inicio'            => 'nullable|date',
+            'fecha_fin'               => 'nullable|date|after_or_equal:fecha_inicio',
+        ], [
+            'fecha_fin.after_or_equal' => 'La fecha de fin no puede ser anterior a la fecha de inicio.',
         ]);
 
         if (!$request->cliente_id && !$request->empresa_facturadora_id) {
@@ -50,18 +52,20 @@ class ReglaComisionController extends Controller
             return null;
         }
 
-        $vigenteDesde = $request->filled('mes')
-            ? \Carbon\Carbon::create($request->anio, $request->mes, 1)->toDateString()
-            : null;
+        if ($request->filled('fecha_fin') && !$request->filled('fecha_inicio')) {
+            Alert::warning('Falta información', 'Si indica fecha de fin, debe indicar también la fecha de inicio.');
+            return null;
+        }
 
         $duplicado = ReglaComision::where('cliente_id', $request->cliente_id)
             ->where('empresa_facturadora_id', $request->empresa_facturadora_id)
-            ->where('vigente_desde', $vigenteDesde)
+            ->where('fecha_inicio', $request->fecha_inicio ?: null)
+            ->where('fecha_fin', $request->fecha_fin ?: null)
             ->when($exceptoId, fn($q) => $q->where('id', '!=', $exceptoId))
             ->exists();
 
         if ($duplicado) {
-            Alert::warning('Ya existe', 'Ya existe una regla con esa combinación de cliente, empresa facturadora y mes de vigencia.');
+            Alert::warning('Ya existe', 'Ya existe una regla con esa combinación de cliente, empresa facturadora y rango de vigencia.');
             return null;
         }
 
@@ -69,7 +73,8 @@ class ReglaComisionController extends Controller
             'cliente_id'             => $request->cliente_id ?: null,
             'empresa_facturadora_id' => $request->empresa_facturadora_id ?: null,
             'monto_por_tonelada'     => $request->monto_por_tonelada,
-            'vigente_desde'          => $vigenteDesde,
+            'fecha_inicio'           => $request->fecha_inicio ?: null,
+            'fecha_fin'              => $request->fecha_fin ?: null,
         ];
     }
 
