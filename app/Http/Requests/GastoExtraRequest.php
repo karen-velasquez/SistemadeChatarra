@@ -25,7 +25,7 @@ class GastoExtraRequest extends FormRequest
             'categoria' => 'required|string|max:50',
             'concepto' => 'required|string|max:255',
             'fecha' => 'required|date',
-            'monto' => 'required|',
+            'monto' => 'required|numeric|min:0.01',
             'moneda' => 'required|string|max:10',
             'tipo_cambio' => 'nullable',
             'comprobante_pago' => 'nullable',

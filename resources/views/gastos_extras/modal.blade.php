@@ -210,6 +210,19 @@
             document.getElementById('formGasto').addEventListener('submit', function(e) {
                 var btn = document.getElementById('btnGasto');
                 if (btn.disabled) { e.preventDefault(); return; }
+
+                // "monto" viaja en un input hidden (el visible es solo de texto formateado):
+                // el navegador no aplica "required" a inputs hidden, así que se valida aquí.
+                var montoInput = document.getElementById('monto');
+                var montoDisplay = document.getElementById('monto_display');
+                if (!montoInput.value || parseFloat(montoInput.value) <= 0) {
+                    e.preventDefault();
+                    montoDisplay.classList.add('is-invalid');
+                    document.getElementById('mensaje_monto').classList.add('text-danger');
+                    document.getElementById('mensaje_monto').classList.remove('text-muted');
+                    montoDisplay.focus();
+                    return;
+                }
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
             });
@@ -433,6 +446,20 @@ document.getElementById('pr_valor')?.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); guardarParametroRapido(); }
 });
 
+// Inserta la opción en orden alfabético en vez de al final, para que el
+// select se mantenga consistente con el orden que ya trae del servidor.
+function _insertarOpcionOrdenada(select, valor) {
+    const op = document.createElement('option');
+    op.value = valor;
+    op.textContent = valor;
+    const siguiente = Array.from(select.options).find(
+        o => o.value && o.textContent.localeCompare(valor, 'es', { sensitivity: 'base' }) > 0
+    );
+    if (siguiente) select.insertBefore(op, siguiente);
+    else select.appendChild(op);
+    return op;
+}
+
 function guardarParametroRapido() {
     const input = document.getElementById('pr_valor');
     const feedback = document.getElementById('pr_feedback');
@@ -471,10 +498,7 @@ function guardarParametroRapido() {
         if (status === 409) {
             feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> ' + data.message + '</span>';
             if (data.existente && !Array.from(select.options).some(o => o.value == data.existente.id)) {
-                const op = document.createElement('option');
-                op.value = data.existente.valor;
-                op.textContent = data.existente.valor;
-                select.appendChild(op);
+                _insertarOpcionOrdenada(select, data.existente.valor);
             }
             if (data.existente) select.value = data.existente.valor;
             return;
@@ -484,10 +508,7 @@ function guardarParametroRapido() {
             return;
         }
 
-        const op = document.createElement('option');
-        op.value = data.item.valor;
-        op.textContent = data.item.valor;
-        select.appendChild(op);
+        _insertarOpcionOrdenada(select, data.item.valor);
         select.value = data.item.valor;
         select.dispatchEvent(new Event('change'));
 

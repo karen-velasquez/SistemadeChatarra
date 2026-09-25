@@ -22,7 +22,7 @@ class GastoExtraController extends Controller
     public function index(Request $request)
     {
         $contratos = Contrato::whereNull('deleted_at')->get();
-        $categorias = Parametro::where('tipo','categoria_gasto_extra')->get();
+        $categorias = Parametro::where('tipo','categoria_gasto_extra')->orderBy('valor')->get();
         $proveedores = Proveedor::whereNull('deleted_at')->orderBy('nombre')->get();
 
         // Incluye también las cuentas ya usadas por algún gasto aunque estén
