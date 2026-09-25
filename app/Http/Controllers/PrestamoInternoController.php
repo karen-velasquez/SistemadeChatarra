@@ -38,62 +38,70 @@ class PrestamoInternoController extends Controller
             return redirect()->route('prestamos_internos.index');
         }
         $request->validate([
-            'cuenta_origen_id'  => 'required|exists:cuentas_empresa,id',
-            'cuenta_destino_id' => 'required|exists:cuentas_empresa,id|different:cuenta_origen_id',
-            'monto'             => 'required|numeric|min:0.01',
-            'moneda'            => 'required|string|max:10',
-            'fecha_prestamo'    => 'required|date',
-            'fecha_vencimiento' => 'nullable|date|after:fecha_prestamo',
-            'concepto'          => 'nullable|string',
+            'cuenta_origen_id'   => 'required|exists:cuentas_empresa,id',
+            'cuenta_destino_id'  => 'required|exists:cuentas_empresa,id|different:cuenta_origen_id',
+            'monto'              => 'required|numeric|min:0.01',
+            'moneda'             => 'required|string|max:10',
+            'fecha_prestamo'     => 'required|date',
+            'fecha_vencimiento'  => 'nullable|date|after:fecha_prestamo',
+            'concepto'           => 'nullable|string',
+            'metodo_pago'        => 'nullable|in:TRANSFERENCIA,QR',
+            'codigo_seguimiento' => 'required_if:metodo_pago,TRANSFERENCIA|nullable|string|max:100',
+        ], [
+            'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
         ]);
 
         DB::transaction(function () use ($request) {
             $prestamo = PrestamoInterno::create([
-                'cuenta_origen_id'  => $request->cuenta_origen_id,
-                'cuenta_destino_id' => $request->cuenta_destino_id,
-                'monto_original'    => $request->monto,
-                'monto_devuelto'    => 0,
-                'moneda'            => $request->moneda,
-                'fecha_prestamo'    => $request->fecha_prestamo,
-                'fecha_vencimiento' => $request->fecha_vencimiento,
-                'estado'            => 'pendiente',
-                'concepto'          => $request->concepto,
-                'created_by'        => auth()->id(),
-                'updated_by'        => auth()->id(),
+                'cuenta_origen_id'   => $request->cuenta_origen_id,
+                'cuenta_destino_id'  => $request->cuenta_destino_id,
+                'monto_original'     => $request->monto,
+                'monto_devuelto'     => 0,
+                'moneda'             => $request->moneda,
+                'fecha_prestamo'     => $request->fecha_prestamo,
+                'fecha_vencimiento'  => $request->fecha_vencimiento,
+                'estado'             => 'pendiente',
+                'concepto'           => $request->concepto,
+                'metodo_pago'        => $request->metodo_pago,
+                'codigo_seguimiento' => $this->resolverCodigoSeguimiento($request->metodo_pago, $request->codigo_seguimiento),
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
             ]);
 
             // Egreso de la cuenta origen
             Movimiento::create([
-                'cuenta_empresa_id' => $request->cuenta_origen_id,
-                'tipo'              => 'egreso',
-                'categoria'         => 'prestamo_otorgado',
-                'monto'             => $request->monto,
-                'moneda'            => $request->moneda,
-                'tipo_cambio'       => 1,
-                'monto_bolivianos'  => $request->monto,
-                'fecha'             => $request->fecha_prestamo,
-                'concepto'          => 'Préstamo otorgado: ' . ($request->concepto ?? ''),
-                'origen_type'       => PrestamoInterno::class,
-                'origen_id'         => $prestamo->id,
-                'created_by'        => auth()->id(),
-                'updated_by'        => auth()->id(),
+                'cuenta_empresa_id'  => $request->cuenta_origen_id,
+                'tipo'               => 'egreso',
+                'categoria'          => 'prestamo_otorgado',
+                'monto'              => $request->monto,
+                'moneda'             => $request->moneda,
+                'tipo_cambio'        => 1,
+                'monto_bolivianos'   => $request->monto,
+                'fecha'              => $request->fecha_prestamo,
+                'concepto'           => 'Préstamo otorgado: ' . ($request->concepto ?? ''),
+                'codigo_seguimiento' => $prestamo->codigo_seguimiento,
+                'origen_type'        => PrestamoInterno::class,
+                'origen_id'          => $prestamo->id,
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
             ]);
 
             // Ingreso en la cuenta destino
             Movimiento::create([
-                'cuenta_empresa_id' => $request->cuenta_destino_id,
-                'tipo'              => 'ingreso',
-                'categoria'         => 'prestamo_recibido',
-                'monto'             => $request->monto,
-                'moneda'            => $request->moneda,
-                'tipo_cambio'       => 1,
-                'monto_bolivianos'  => $request->monto,
-                'fecha'             => $request->fecha_prestamo,
-                'concepto'          => 'Préstamo recibido: ' . ($request->concepto ?? ''),
-                'origen_type'       => PrestamoInterno::class,
-                'origen_id'         => $prestamo->id,
-                'created_by'        => auth()->id(),
-                'updated_by'        => auth()->id(),
+                'cuenta_empresa_id'  => $request->cuenta_destino_id,
+                'tipo'               => 'ingreso',
+                'categoria'          => 'prestamo_recibido',
+                'monto'              => $request->monto,
+                'moneda'             => $request->moneda,
+                'tipo_cambio'        => 1,
+                'monto_bolivianos'   => $request->monto,
+                'fecha'              => $request->fecha_prestamo,
+                'concepto'           => 'Préstamo recibido: ' . ($request->concepto ?? ''),
+                'codigo_seguimiento' => $prestamo->codigo_seguimiento,
+                'origen_type'        => PrestamoInterno::class,
+                'origen_id'          => $prestamo->id,
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
             ]);
         });
 
@@ -114,19 +122,27 @@ class PrestamoInternoController extends Controller
         }
 
         $request->validate([
-            'monto'             => 'required|numeric|min:0.01',
-            'fecha_prestamo'    => 'required|date',
-            'fecha_vencimiento' => 'nullable|date|after:fecha_prestamo',
-            'concepto'          => 'nullable|string',
+            'monto'              => 'required|numeric|min:0.01',
+            'fecha_prestamo'     => 'required|date',
+            'fecha_vencimiento'  => 'nullable|date|after:fecha_prestamo',
+            'concepto'           => 'nullable|string',
+            'metodo_pago'        => 'nullable|in:TRANSFERENCIA,QR',
+            'codigo_seguimiento' => 'required_if:metodo_pago,TRANSFERENCIA|nullable|string|max:100',
+        ], [
+            'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
         ]);
 
         DB::transaction(function () use ($request, $prestamo) {
+            $codigoActualSiEraQr = $prestamo->metodo_pago === 'QR' ? $prestamo->codigo_seguimiento : null;
+
             $prestamo->update([
-                'monto_original'    => $request->monto,
-                'fecha_prestamo'    => $request->fecha_prestamo,
-                'fecha_vencimiento' => $request->fecha_vencimiento,
-                'concepto'          => $request->concepto,
-                'updated_by'        => auth()->id(),
+                'monto_original'     => $request->monto,
+                'fecha_prestamo'     => $request->fecha_prestamo,
+                'fecha_vencimiento'  => $request->fecha_vencimiento,
+                'concepto'           => $request->concepto,
+                'metodo_pago'        => $request->metodo_pago,
+                'codigo_seguimiento' => $this->resolverCodigoSeguimiento($request->metodo_pago, $request->codigo_seguimiento, $codigoActualSiEraQr),
+                'updated_by'         => auth()->id(),
             ]);
 
             // Los hooks de Movimiento revierten el efecto anterior en la cuenta
@@ -134,11 +150,12 @@ class PrestamoInternoController extends Controller
             Movimiento::where('origen_type', PrestamoInterno::class)
                 ->where('origen_id', $prestamo->id)
                 ->get()
-                ->each(function ($mov) use ($request) {
+                ->each(function ($mov) use ($request, $prestamo) {
                     $mov->update([
-                        'monto'    => $request->monto,
-                        'fecha'    => $request->fecha_prestamo,
-                        'concepto' => ($mov->tipo === 'egreso' ? 'Préstamo otorgado: ' : 'Préstamo recibido: ') . ($request->concepto ?? ''),
+                        'monto'              => $request->monto,
+                        'fecha'              => $request->fecha_prestamo,
+                        'concepto'           => ($mov->tipo === 'egreso' ? 'Préstamo otorgado: ' : 'Préstamo recibido: ') . ($request->concepto ?? ''),
+                        'codigo_seguimiento' => $prestamo->codigo_seguimiento,
                     ]);
                 });
         });
@@ -233,5 +250,24 @@ class PrestamoInternoController extends Controller
 
         Alert::success('Guardado', 'Devolución registrada correctamente.');
         return redirect()->route('prestamos_internos.index');
+    }
+
+    // QR: se genera un código interno único, el usuario no lo escribe.
+    // Transferencia: se usa el código que el usuario ingresó (obligatorio, ya validado).
+    private function resolverCodigoSeguimiento(?string $metodoPago, ?string $codigoIngresado, ?string $codigoActual = null): ?string
+    {
+        if ($metodoPago !== 'QR') {
+            return $codigoIngresado ?: null;
+        }
+
+        if ($codigoActual) {
+            return $codigoActual;
+        }
+
+        do {
+            $codigo = 'QR-' . strtoupper(bin2hex(random_bytes(4)));
+        } while (PrestamoInterno::withTrashed()->where('codigo_seguimiento', $codigo)->exists());
+
+        return $codigo;
     }
 }

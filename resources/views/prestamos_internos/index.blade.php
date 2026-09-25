@@ -89,6 +89,7 @@
                             <th>Origen</th>
                             <th>Destino</th>
                             <th>Concepto</th>
+                            <th>Código</th>
                             <th class="text-end">Monto Original</th>
                             <th class="text-end">Devuelto</th>
                             <th class="text-end">Pendiente</th>
@@ -111,6 +112,14 @@
                                 <span class="text-muted small">{{ $p->cuentaDestino->nombre_cuenta ?? '-' }}</span>
                             </td>
                             <td>{{ $p->concepto }}</td>
+                            <td>
+                                @if($p->codigo_seguimiento)
+                                    <span class="small text-muted d-block">{{ $p->metodo_pago }}</span>
+                                    <code class="small">{{ $p->codigo_seguimiento }}</code>
+                                @else
+                                    <span class="text-muted small">—</span>
+                                @endif
+                            </td>
                             <td class="text-end fw-semibold">
                                 {{ $p->moneda }} {{ number_format($p->monto_original, 2, ',', '.') }}
                             </td>
@@ -158,7 +167,7 @@
                             @endcanany
                         </tr>
                         @empty
-                        <tr><td colspan="9" class="text-center text-muted">Sin préstamos registrados</td></tr>
+                        <tr><td colspan="10" class="text-center text-muted">Sin préstamos registrados</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -241,6 +250,25 @@
                             <label class="form-label">Fecha de Vencimiento</label>
                             <input type="date" name="fecha_vencimiento" class="form-control">
                         </div>
+                        <div class="col-md-6" id="contenedor_metodo_pago_prestamo">
+                            <label class="form-label">Método de Pago<span id="asterisco_metodo_pago_prestamo" class="text-danger">(*)</span></label>
+                            <select name="metodo_pago" id="metodo_pago_prestamo" class="form-select" required onchange="actualizarCodigoSeguimientoPrestamo()">
+                                <option value="">-- SELECCIONE --</option>
+                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                <option value="QR">QR</option>
+                            </select>
+                            <small class="text-muted">Cómo se transfirió el dinero entre cuentas.</small>
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_seguimiento_prestamo">
+                            <label class="form-label">Código de Transferencia<span class="text-danger">(*)</span></label>
+                            <input type="text" name="codigo_seguimiento" id="codigo_seguimiento_prestamo" class="form-control" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
+                            <small class="text-muted">Ingrese el código de la transferencia.</small>
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_qr_info_prestamo">
+                            <label class="form-label">Código QR</label>
+                            <input type="text" id="codigo_qr_info_prestamo" class="form-control" readonly>
+                            <small class="text-muted">Código interno generado automáticamente.</small>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
                             <input type="text" name="concepto" class="form-control" required placeholder="Motivo del préstamo">
@@ -259,6 +287,27 @@
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
             });
+
+            // Mismo patrón que Gastos Extra: QR genera código interno (el campo se
+            // muestra de solo lectura con un placeholder), Transferencia exige código.
+            function actualizarCodigoSeguimientoPrestamo() {
+                var metodo = document.getElementById('metodo_pago_prestamo').value;
+                var contCodigo = document.getElementById('contenedor_codigo_seguimiento_prestamo');
+                var contQrInfo = document.getElementById('contenedor_codigo_qr_info_prestamo');
+                var inpCodigo = document.getElementById('codigo_seguimiento_prestamo');
+
+                contCodigo.classList.add('d-none');
+                contQrInfo.classList.add('d-none');
+                inpCodigo.required = false;
+
+                if (metodo === 'TRANSFERENCIA') {
+                    contCodigo.classList.remove('d-none');
+                    inpCodigo.required = true;
+                } else if (metodo === 'QR') {
+                    contQrInfo.classList.remove('d-none');
+                    document.getElementById('codigo_qr_info_prestamo').value = 'Se generará automáticamente al guardar';
+                }
+            }
             </script>
         </div>
     </div>
@@ -326,6 +375,22 @@
                         <div class="col-12 col-sm-4">
                             <label class="form-label">Fecha de Vencimiento</label>
                             <input type="date" name="fecha_vencimiento" id="fechaVencimientoEditarPrestamo" class="form-control">
+                        </div>
+                        <div class="col-md-6" id="contenedor_metodo_pago_editar_prestamo">
+                            <label class="form-label">Método de Pago<span class="text-danger">(*)</span></label>
+                            <select name="metodo_pago" id="metodoPagoEditarPrestamo" class="form-select" required onchange="actualizarCodigoSeguimientoEditarPrestamo()">
+                                <option value="">-- SELECCIONE --</option>
+                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                <option value="QR">QR</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_seguimiento_editar_prestamo">
+                            <label class="form-label">Código de Transferencia<span class="text-danger">(*)</span></label>
+                            <input type="text" name="codigo_seguimiento" id="codigoSeguimientoEditarPrestamo" class="form-control" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_qr_info_editar_prestamo">
+                            <label class="form-label">Código QR</label>
+                            <input type="text" id="codigoQrInfoEditarPrestamo" class="form-control" readonly>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
@@ -454,8 +519,32 @@ function abrirEditarPrestamo(uuid) {
             document.getElementById('fechaEditarPrestamo').value = p.fecha_prestamo ? p.fecha_prestamo.substring(0, 10) : '';
             document.getElementById('fechaVencimientoEditarPrestamo').value = p.fecha_vencimiento ? p.fecha_vencimiento.substring(0, 10) : '';
             document.getElementById('conceptoEditarPrestamo').value = p.concepto ?? '';
+            document.getElementById('metodoPagoEditarPrestamo').value = p.metodo_pago ?? '';
+            document.getElementById('codigoSeguimientoEditarPrestamo').value = p.metodo_pago === 'TRANSFERENCIA' ? (p.codigo_seguimiento ?? '') : '';
+            actualizarCodigoSeguimientoEditarPrestamo();
+            if (p.metodo_pago === 'QR') {
+                document.getElementById('codigoQrInfoEditarPrestamo').value = p.codigo_seguimiento ?? '';
+            }
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarPrestamo')).show();
         });
+}
+
+function actualizarCodigoSeguimientoEditarPrestamo() {
+    var metodo = document.getElementById('metodoPagoEditarPrestamo').value;
+    var contCodigo = document.getElementById('contenedor_codigo_seguimiento_editar_prestamo');
+    var contQrInfo = document.getElementById('contenedor_codigo_qr_info_editar_prestamo');
+    var inpCodigo = document.getElementById('codigoSeguimientoEditarPrestamo');
+
+    contCodigo.classList.add('d-none');
+    contQrInfo.classList.add('d-none');
+    inpCodigo.required = false;
+
+    if (metodo === 'TRANSFERENCIA') {
+        contCodigo.classList.remove('d-none');
+        inpCodigo.required = true;
+    } else if (metodo === 'QR') {
+        contQrInfo.classList.remove('d-none');
+    }
 }
 
 // ── Cajero monto editar préstamo ──

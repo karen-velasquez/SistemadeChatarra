@@ -15,7 +15,8 @@ class PrestamoInterno extends Model
     protected $fillable = [
         'uuid', 'cuenta_origen_id', 'cuenta_destino_id', 'monto_original',
         'monto_devuelto', 'moneda', 'fecha_prestamo', 'fecha_vencimiento',
-        'estado', 'concepto', 'created_by', 'updated_by',
+        'estado', 'concepto', 'metodo_pago', 'codigo_seguimiento',
+        'created_by', 'updated_by',
     ];
 
     protected $casts = [
