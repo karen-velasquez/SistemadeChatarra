@@ -143,6 +143,11 @@
                       <i class="bi bi-pencil-square text-primary me-2"></i> Códigos reales por pago
                     </button>
                   </li>
+                  <li>
+                    <button class="dropdown-item" onclick="abrirModalFecha('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('Y-m-d') }}')">
+                      <i class="bi bi-calendar-event text-primary me-2"></i> Editar fecha
+                    </button>
+                  </li>
                   @endcan
                   @can('lotes_pago.destroy')
                   <li><hr class="dropdown-divider"></li>
@@ -194,6 +199,36 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="btn_guardar_codigo" disabled>
+            <i class="bi bi-save me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- Modal de edición de fecha del lote --}}
+<div class="modal fade" id="modalFecha" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-event me-2"></i>Editar fecha del lote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="form_fecha" method="POST">
+        @csrf
+        <div class="modal-body">
+          <p class="small text-muted mb-3" id="lbl_info_lote_fecha"></p>
+          <div class="alert alert-warning small py-2 mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Se actualizará la fecha del lote, de todos sus pagos individuales y de los movimientos de tesorería asociados.
+          </div>
+          <label class="form-label">Nueva fecha <span class="text-danger">(*)</span></label>
+          <input type="date" name="fecha_pago" id="input_fecha_lote" class="form-control" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
             <i class="bi bi-save me-1"></i>Guardar
           </button>
         </div>
@@ -270,6 +305,14 @@
 @section('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+function abrirModalFecha(uuid, tipo, fechaISO) {
+    document.getElementById('form_fecha').action = `${url_global}/lotes-pago/${uuid}/fecha`;
+    document.getElementById('lbl_info_lote_fecha').textContent = `Lote ${tipo}`;
+    document.getElementById('input_fecha_lote').value = fechaISO;
+
+    new bootstrap.Modal(document.getElementById('modalFecha')).show();
+}
+
 function abrirModalCodigo(uuid, tipo, fecha) {
     document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;

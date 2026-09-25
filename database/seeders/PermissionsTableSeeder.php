@@ -141,7 +141,7 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'lotes_entrega.pago',   'descripcion' => 'Registrar Pagos Extra en Lote',  'grupo' => 'LOTES_ENTREGA'],
             // Lotes de pago
             ['name' => 'lotes_pago.index',   'descripcion' => 'Ver Lotes de Pago',                     'grupo' => 'LOTES_PAGO'],
-            ['name' => 'lotes_pago.edit',    'descripcion' => 'Editar Código Real de Lotes de Pago',   'grupo' => 'LOTES_PAGO'],
+            ['name' => 'lotes_pago.edit',    'descripcion' => 'Editar Código Real y Fecha de Lotes de Pago', 'grupo' => 'LOTES_PAGO'],
             ['name' => 'lotes_pago.destroy', 'descripcion' => 'Eliminar Lotes de Pago y sus pagos',    'grupo' => 'LOTES_PAGO'],
             // Parámetros
             ['name' => 'parametros.index',   'descripcion' => 'Ver Parámetros',      'grupo' => 'PARAMETROS'],

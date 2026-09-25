@@ -136,6 +136,34 @@ class LotePagoController extends Controller
     }
 
     /**
+     * Corrige la fecha del lote. Se propaga a los pagos individuales y a los
+     * movimientos de tesorería asociados para que todo quede consistente,
+     * igual criterio que actualizarCodigo() con el código real.
+     */
+    public function actualizarFecha(Request $request, $uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+        $modeloClase = $this->modeloDelLote($lote);
+
+        $request->validate([
+            'fecha_pago' => ['required', 'date'],
+        ]);
+
+        DB::transaction(function () use ($request, $lote, $modeloClase) {
+            $lote->update(['fecha_pago' => $request->fecha_pago]);
+
+            $modeloClase::where('lote_pago_id', $lote->id)
+                ->update(['fecha_pago' => $request->fecha_pago]);
+
+            Movimiento::where('lote_pago_id', $lote->id)
+                ->update(['fecha' => $request->fecha_pago]);
+        });
+
+        Alert::success('Éxito', 'Fecha actualizada en el lote, sus pagos y movimientos.');
+        return back();
+    }
+
+    /**
      * Detalle de los pagos que se eliminarían junto con el lote — se
      * muestra en el modal de confirmación antes de borrar.
      */

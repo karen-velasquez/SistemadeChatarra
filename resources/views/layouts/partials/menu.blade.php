@@ -178,8 +178,8 @@
       @endif
 
       {{-- TESORERÍA --}}
-      @if(auth()->user()->canAny(['tesoreria.index','empresas.index','prestamos_internos.index','lotes_pago.index','adquisiciones.index']))
-      @php $enTesoreria = request()->routeIs(['tesoreria.*','empresas.*','prestamos_internos.*','lotes_pago.*','adquisiciones.*']); @endphp
+      @if(auth()->user()->canAny(['tesoreria.index','prestamos_internos.index','lotes_pago.index','adquisiciones.index']))
+      @php $enTesoreria = request()->routeIs(['tesoreria.*','prestamos_internos.*','lotes_pago.*','adquisiciones.*']); @endphp
       <li class="nav-item">
         <a class="nav-link {{ $enTesoreria ? '' : 'collapsed' }}"
            data-sidebar-target="menu-tesoreria" href="#">
@@ -194,14 +194,6 @@
             <a href="{{ route('tesoreria.index') }}"
                class="{{ isActiveRoute(['tesoreria.index','tesoreria.cuenta']) ? 'active' : '' }}">
               <i class="bi bi-cash-stack"></i><span>Movimientos</span>
-            </a>
-          </li>
-          @endcan
-          @can('empresas.index')
-          <li>
-            <a href="{{ route('empresas.index') }}"
-               class="{{ isActiveRoute(['empresas.index','empresas.cuentas']) ? 'active' : '' }}">
-              <i class="bi bi-building"></i><span>Empresas y Cuentas</span>
             </a>
           </li>
           @endcan
@@ -233,15 +225,37 @@
       </li>
       @endif
 
-      {{-- Bancos y Cuentas --}}
-      @can('bancos.index')
+      {{-- EMPRESAS Y BANCOS --}}
+      @if(auth()->user()->canAny(['empresas.index','bancos.index']))
+      @php $enEmpresasBancos = request()->routeIs(['empresas.*','bancos.*']); @endphp
       <li class="nav-item">
-        <a class="nav-link {{ isActiveRoute(['bancos.index']) }}" href="{{ route('bancos.index') }}">
-          <i class="bi bi-bank"></i>
-          <span>Bancos y Cuentas</span>
+        <a class="nav-link {{ $enEmpresasBancos ? '' : 'collapsed' }}"
+           data-sidebar-target="menu-empresas-bancos" href="#">
+          <i class="bi bi-building"></i>
+          <span>Empresas y Bancos</span>
+          <i class="bi bi-chevron-down ms-auto"></i>
         </a>
+        <ul id="menu-empresas-bancos"
+            class="nav-content sidebar-submenu {{ $enEmpresasBancos ? 'submenu-open' : '' }}">
+          @can('empresas.index')
+          <li>
+            <a href="{{ route('empresas.index') }}"
+               class="{{ isActiveRoute(['empresas.index','empresas.cuentas']) ? 'active' : '' }}">
+              <i class="bi bi-building"></i><span>Empresas y Cuentas</span>
+            </a>
+          </li>
+          @endcan
+          @can('bancos.index')
+          <li>
+            <a href="{{ route('bancos.index') }}"
+               class="{{ isActiveRoute(['bancos.index']) ? 'active' : '' }}">
+              <i class="bi bi-bank"></i><span>Bancos y Cuentas</span>
+            </a>
+          </li>
+          @endcan
+        </ul>
       </li>
-      @endcan
+      @endif
 
       {{-- Empleados --}}
       @can('empleados.index')
