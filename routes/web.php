@@ -320,6 +320,14 @@ use Illuminate\Support\Facades\Route;
     Route::post('reglas-comision2/{uuid}/toggle-activo', [App\Http\Controllers\ReglaComision2Controller::class, 'toggleActivo'])->name('reglas_comision2.toggle_activo')->middleware('permission:reglas_comision2.edit');
     Route::get('reglas-comision2/{uuid}/destroy', [App\Http\Controllers\ReglaComision2Controller::class, 'destroy'])->name('reglas_comision2.destroy')->middleware('permission:reglas_comision2.destroy');
 
+    // Reglas de IT (por cliente + empresa facturadora)
+    Route::get('reglas-it', [App\Http\Controllers\ReglaItController::class, 'index'])->name('reglas_it.index')->middleware('permission:reglas_it.index');
+    Route::post('reglas-it', [App\Http\Controllers\ReglaItController::class, 'store'])->name('reglas_it.store')->middleware('permission:reglas_it.create');
+    Route::get('reglas-it/{uuid}/edit', [App\Http\Controllers\ReglaItController::class, 'edit'])->name('reglas_it.edit')->middleware('permission:reglas_it.edit');
+    Route::put('reglas-it/{uuid}', [App\Http\Controllers\ReglaItController::class, 'update'])->name('reglas_it.update')->middleware('permission:reglas_it.edit');
+    Route::post('reglas-it/{uuid}/toggle-activo', [App\Http\Controllers\ReglaItController::class, 'toggleActivo'])->name('reglas_it.toggle_activo')->middleware('permission:reglas_it.edit');
+    Route::get('reglas-it/{uuid}/destroy', [App\Http\Controllers\ReglaItController::class, 'destroy'])->name('reglas_it.destroy')->middleware('permission:reglas_it.destroy');
+
     // Reglas de costo adicional (por cliente + empresa facturadora)
     Route::get('reglas-costo-adicional', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'index'])->name('reglas_costo_adicional.index')->middleware('permission:reglas_costo_adicional.index');
     Route::post('reglas-costo-adicional', [App\Http\Controllers\ReglaCostoAdicionalController::class, 'store'])->name('reglas_costo_adicional.store')->middleware('permission:reglas_costo_adicional.create');

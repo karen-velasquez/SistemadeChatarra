@@ -16,6 +16,7 @@ use App\Models\LoteEntrega;
 use App\Models\Parametro;
 use App\Models\ReglaComision;
 use App\Models\ReglaComision2;
+use App\Models\ReglaIt;
 use App\Models\ReglaCostoAdicional;
 use App\Models\GastoExtra;
 use Illuminate\Support\Carbon;
@@ -69,7 +70,9 @@ class ContratoController extends Controller
         //   Total ventas   = Tn entregadas x Precio de venta
         //   Importe compra = Tn entregadas x costo_unitario del contrato (prorrateo por tonelaje)
         //   Utilidad Bruta = Total ventas - Importe compra
-        //   IT             = Total ventas x 3%
+        //   IT             = Tn entregadas x monto de la Regla de IT vigente
+        //                    (cliente + empresa facturadora, según fecha de entrega);
+        //                    0 si no hay ninguna regla vigente para esa venta.
         //   Comisión 1     = Tn entregadas x monto de la Regla de Comisión 1 vigente
         //                    (cliente + empresa facturadora, según fecha de entrega);
         //                    0 si no hay ninguna regla vigente para esa venta.
@@ -155,7 +158,8 @@ class ContratoController extends Controller
                 $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
                 $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
                 $utilidadBruta = round($totalVentas - $importeCompra, 2);
-                $it              = round($totalVentas * 0.03, 2);
+                $montoReglaIt    = ReglaIt::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
+                $it              = round($e['tn_entregadas'] * $montoReglaIt, 2);
                 $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $comision1       = round($e['tn_entregadas'] * $montoRegla, 2);
                 $montoRegla2     = ReglaComision2::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
