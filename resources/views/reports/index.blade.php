@@ -472,6 +472,7 @@
                                 <th>Tipo</th>
                                 <th>Categoría</th>
                                 <th>Concepto</th>
+                                <th>Código</th>
                                 <th class="text-end">Monto (Bs)</th>
                             </tr>
                         </thead>
@@ -483,10 +484,11 @@
                                     <td><span class="badge {{ $m->tipo === 'ingreso' ? 'bg-success' : 'bg-danger' }}">{{ ucfirst($m->tipo) }}</span></td>
                                     <td>{{ \App\Models\Movimiento::categoriaLabel($m->categoria) }}</td>
                                     <td>{{ $m->concepto }}</td>
+                                    <td>{{ $m->codigo_seguimiento ?? '—' }}</td>
                                     <td class="text-end">{{ number_format($m->monto_bolivianos, 2) }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6" class="text-center text-muted py-4">No hay movimientos para los filtros seleccionados.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted py-4">No hay movimientos para los filtros seleccionados.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

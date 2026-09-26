@@ -306,16 +306,17 @@ class NewReportController extends Controller
 
             case 'flujo_caja':
                 return [
-                    ['Fecha', 'Cuenta', 'Tipo', 'Categoría', 'Concepto', 'Monto (Bs)'],
+                    ['Fecha', 'Cuenta', 'Tipo', 'Categoría', 'Concepto', 'Código', 'Monto (Bs)'],
                     $reporte['items']->map(fn ($m) => [
                         $m->fecha->format('d/m/Y'),
                         $m->cuentaEmpresa->nombre_cuenta ?? '—',
                         ucfirst($m->tipo),
                         Movimiento::categoriaLabel($m->categoria),
                         $m->concepto,
+                        $m->codigo_seguimiento ?? '—',
                         (float) $m->monto_bolivianos,
                     ])->toArray(),
-                    ['centro', 'texto', 'centro', 'texto', 'texto', 'numero'],
+                    ['centro', 'texto', 'centro', 'texto', 'texto', 'texto', 'numero'],
                 ];
 
             default: // deudas_proveedores
