@@ -107,6 +107,9 @@
                         </div>
                     </div>
                 </div>
+                @if($reporte['items']->isEmpty())
+                    <div class="alert alert-light border text-center text-muted py-4 mb-0">No hay resultados para los filtros seleccionados.</div>
+                @else
                 <div class="table-responsive">
                     <table id="datos" class="table table-sm table-striped align-middle">
                         <thead>
@@ -123,7 +126,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($reporte['items'] as $c)
+                            @foreach($reporte['items'] as $c)
                                 <tr>
                                     <td>{{ $c->fecha_inicio?->format('d/m/Y') ?? '—' }}</td>
                                     <td>{{ $c->numero_contrato }}</td>
@@ -135,12 +138,11 @@
                                     <td class="text-end">{{ number_format($c->saldo_pendiente_proveedor, 2) }}</td>
                                     <td>{{ $c->moneda }}</td>
                                 </tr>
-                            @empty
-                                <tr><td colspan="9" class="text-center text-muted py-4">No hay resultados para los filtros seleccionados.</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
             @endif
             @if($tab === 'deudas_fletes')
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
@@ -214,6 +216,9 @@
                     </div>
                 </div>
 
+                @if($reporte['items']->isEmpty())
+                    <div class="alert alert-light border text-center text-muted py-4 mb-0">No hay resultados para los filtros seleccionados.</div>
+                @else
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle">
                         <thead>
@@ -228,7 +233,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($reporte['items'] as $cc)
+                            @foreach($reporte['items'] as $cc)
                                 <tr>
                                     <td>{{ $cc->contrato->numero_contrato ?? '—' }}</td>
                                     <td>{{ $cc->contrato->proveedor->nombre ?? '—' }}</td>
@@ -238,12 +243,11 @@
                                     <td class="text-end">{{ number_format($cc->saldo_pendiente, 2) }}</td>
                                     <td>{{ $cc->moneda_flete }}</td>
                                 </tr>
-                            @empty
-                                <tr><td colspan="7" class="text-center text-muted py-4">No hay resultados para los filtros seleccionados.</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
             @endif
             @if($tab === 'cuentas_cobrar')
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
@@ -332,6 +336,9 @@
                     <div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>{{ $reporte['sinCobro']->count() }} entrega(s) marcadas como "Entregado" sin ningún cobro registrado.</div>
                 @endif
 
+                @if($reporte['items']->isEmpty())
+                    <div class="alert alert-light border text-center text-muted py-4 mb-0">No hay resultados para los filtros seleccionados.</div>
+                @else
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle">
                         <thead>
@@ -347,7 +354,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($reporte['items'] as $t)
+                            @foreach($reporte['items'] as $t)
                                 <tr>
                                     <td>{{ $t->contratoCamion->contrato->numero_contrato ?? '—' }}</td>
                                     <td>{{ $t->cliente->nombre ?? '—' }}</td>
@@ -358,12 +365,11 @@
                                     <td class="text-end">{{ number_format($t->saldo_cliente, 2) }}</td>
                                     <td>{{ $t->moneda_venta }}</td>
                                 </tr>
-                            @empty
-                                <tr><td colspan="8" class="text-center text-muted py-4">No hay resultados para los filtros seleccionados.</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
             @endif
 
             @if($tab === 'flujo_caja')
@@ -463,6 +469,9 @@
                 </div>
                 @endif
 
+                @if($reporte['items']->isEmpty())
+                    <div class="alert alert-light border text-center text-muted py-4 mb-0">No hay movimientos para los filtros seleccionados.</div>
+                @else
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle">
                         <thead>
@@ -477,7 +486,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($reporte['items'] as $m)
+                            @foreach($reporte['items'] as $m)
                                 <tr>
                                     <td>{{ $m->fecha->format('d/m/Y') }}</td>
                                     <td>{{ $m->cuentaEmpresa->nombre_cuenta ?? '—' }}</td>
@@ -487,12 +496,11 @@
                                     <td>{{ $m->codigo_seguimiento ?? '—' }}</td>
                                     <td class="text-end">{{ number_format($m->monto_bolivianos, 2) }}</td>
                                 </tr>
-                            @empty
-                                <tr><td colspan="7" class="text-center text-muted py-4">No hay movimientos para los filtros seleccionados.</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
             @endif
         </div>
     </div>
