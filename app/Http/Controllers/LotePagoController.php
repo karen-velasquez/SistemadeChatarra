@@ -201,9 +201,14 @@ class LotePagoController extends Controller
             $cta        = $p->cuentaDestino;
             $banco      = $cta?->banco?->nombre ?? '';
             $esGanadero = $banco === 'Banco Ganadero';
-            $nombre     = $lote->tipo === 'proveedor'
-                ? ($cta?->nombre_titular ?: ($p->contrato?->proveedor?->nombre ?? ''))
-                : ($cta?->nombre_titular ?: ($p->receptor?->nombre ?? ''));
+            // nombre_titular_excel arma "APELLIDO_PATERNO APELLIDO_MATERNO NOMBRE" (o el
+            // nombre completo de la entidad relacionada si no hay nombre manual en la
+            // cuenta) — mismo formato que usa el pop-up de Pago Masivo. Usar el campo
+            // plano nombre_titular aquí (sin el accessor) dejaba el nombre incompleto.
+            $nombre     = $cta?->nombre_titular_excel
+                ?: ($lote->tipo === 'proveedor'
+                    ? ($p->contrato?->proveedor?->nombre ?? '')
+                    : ($p->receptor?->nombre ?? ''));
             $glosa      = $lote->tipo === 'proveedor'
                 ? 'Pago proveedor ' . ($p->contrato?->numero_contrato ?? '#' . $p->contrato_id)
                 : '';
