@@ -89,20 +89,10 @@ class ContratoController extends Controller
 
         foreach ($contratos as $c) {
             $entregas = collect();
+            $cobrosCliente = collect();
             foreach ($c->contratoCamiones as $cc) {
                 foreach ($cc->tramos as $t) {
                     if ($t->tramosHijos->isNotEmpty() || $t->estado !== 'Entregado') continue;
-
-                    // El cobro es por envío (tramo_id), no por contrato completo.
-                    $montoCobradoEnvio = 0;
-                    $codigosCobroEnvio = [];
-                    $fechasCobroEnvio = [];
-                    foreach ($t->pagosCliente as $p) {
-                        if ($p->deleted_at) continue;
-                        $montoCobradoEnvio += (float) $p->monto;
-                        if ($p->codigo_seguimiento) $codigosCobroEnvio[] = $p->codigo_seguimiento;
-                        if ($p->fecha_pago) $fechasCobroEnvio[] = $p->fecha_pago->format('d/m/Y');
-                    }
 
                     $entregas->push([
                         'placa'          => $cc->camion->placa ?? '',
@@ -113,10 +103,24 @@ class ContratoController extends Controller
                         'tn_entregadas'  => (float) $t->peso_llegada,
                         'precio_venta'   => (float) $t->precio_por_tonelada,
                         'fecha_entrega'  => $t->fecha_llegada?->format('Y-m-d') ?? '',
-                        'monto_cobrado_cliente' => round($montoCobradoEnvio, 2),
-                        'codigo_cobro_cliente'  => implode(', ', $codigosCobroEnvio),
-                        'fecha_cobro_cliente'   => implode(', ', $fechasCobroEnvio),
                     ]);
+
+                    // Un cobro puede venir en moneda distinta a BOB: se convierte
+                    // aquí mismo (monto x su propio tipo_cambio) para que cada
+                    // cobro sea su propia fila en el Excel, no una suma ciega
+                    // que mezclaría tipos de cambio distintos en una sola celda.
+                    foreach ($t->pagosCliente as $p) {
+                        if ($p->deleted_at) continue;
+                        $tc = $p->moneda_pago === 'BOB' ? 1 : ((float) $p->tipo_cambio ?: 1);
+                        $montoBs = $p->moneda_pago === 'BOB' ? (float) $p->monto : round((float) $p->monto * $tc, 2);
+                        $cobrosCliente->push([
+                            'cliente'      => $t->cliente->nombre ?? '',
+                            'monto_bs'     => $montoBs,
+                            'tipo_cambio'  => $tc,
+                            'codigo'       => $p->codigo_seguimiento ?? '',
+                            'fecha'        => $p->fecha_pago ? $p->fecha_pago->format('Y-m-d') : '',
+                        ]);
+                    }
                 }
             }
             $montoPagadoProveedor = 0;
@@ -124,7 +128,8 @@ class ContratoController extends Controller
             $fechasPagoProveedor = [];
             foreach ($c->pagosProveedor as $p) {
                 if ($p->deleted_at) continue;
-                $montoPagadoProveedor += (float) $p->monto;
+                $tcP = $p->moneda_pago === 'BOB' ? 1 : ((float) $p->tipo_cambio ?: 1);
+                $montoPagadoProveedor += $p->moneda_pago === 'BOB' ? (float) $p->monto : round((float) $p->monto * $tcP, 2);
                 if ($p->codigo_seguimiento) $codigosPagoProveedor[] = $p->codigo_seguimiento;
                 if ($p->fecha_pago) $fechasPagoProveedor[] = $p->fecha_pago->format('d/m/Y');
             }
@@ -174,7 +179,6 @@ class ContratoController extends Controller
                 $sumaCom2     += $comision2;
                 $sumaCostoAdicional += $costoAdicional;
                 $sumaUtilNeta += $utilidadNeta;
-                $sumaMontoCobrado += $e['monto_cobrado_cliente'];
 
                 $contratosExcelData->push($filaBase + [
                     'placa'            => $e['placa'],
@@ -192,9 +196,33 @@ class ContratoController extends Controller
                     'comision_2_zpl'   => $comision2,
                     'costo_adicional'  => $costoAdicional,
                     'utilidad_neta'    => $utilidadNeta,
-                    'monto_cobrado_cliente' => $e['monto_cobrado_cliente'],
-                    'codigo_cobro_cliente'  => $e['codigo_cobro_cliente'],
-                    'fecha_cobro_cliente'   => $e['fecha_cobro_cliente'],
+                    'es_subtotal'      => false,
+                ]);
+            }
+
+            // Una fila por cada cobro individual al cliente — separado de la
+            // fila de la entrega para que cada cobro conserve su propio tipo
+            // de cambio y no se mezclen varios TC en una sola celda sumada.
+            foreach ($cobrosCliente as $cob) {
+                $sumaMontoCobrado += $cob['monto_bs'];
+                $contratosExcelData->push(['moneda' => 'BOB'] + $filaBase + [
+                    'placa'            => '',
+                    'cliente'          => 'COBRO CLIENTE: ' . $cob['cliente'],
+                    'tn_entregadas'    => '',
+                    'precio_venta'     => '',
+                    'total_ventas'     => '',
+                    'precio_compra'    => '',
+                    'importe_compra'   => '',
+                    'utilidad_bruta'   => '',
+                    'it_3'             => '',
+                    'comision_1_3'     => '',
+                    'comision_2_zpl'   => '',
+                    'costo_adicional'  => '',
+                    'utilidad_neta'    => '',
+                    'monto_cobrado_cliente' => $cob['monto_bs'],
+                    'tipo_cambio_cobro'     => $cob['tipo_cambio'],
+                    'codigo_cobro_cliente'  => $cob['codigo'],
+                    'fecha_cobro_cliente'   => $cob['fecha'],
                     'es_subtotal'      => false,
                 ]);
             }
@@ -204,7 +232,9 @@ class ContratoController extends Controller
             // celda del subtotal (implode), ahora cada pago es su propia fila.
             foreach ($c->pagosProveedor as $p) {
                 if ($p->deleted_at) continue;
-                $contratosExcelData->push($filaBase + [
+                $tcPago = $p->moneda_pago === 'BOB' ? 1 : ((float) $p->tipo_cambio ?: 1);
+                $montoPagoBs = $p->moneda_pago === 'BOB' ? (float) $p->monto : round((float) $p->monto * $tcPago, 2);
+                $contratosExcelData->push(['moneda' => 'BOB'] + $filaBase + [
                     'placa'            => '',
                     'cliente'          => 'PAGO PROVEEDOR',
                     'tn_entregadas'    => '',
@@ -218,7 +248,8 @@ class ContratoController extends Controller
                     'comision_2_zpl'   => '',
                     'costo_adicional'  => '',
                     'utilidad_neta'    => '',
-                    'monto_pagado_proveedor' => (float) $p->monto,
+                    'monto_pagado_proveedor' => $montoPagoBs,
+                    'tipo_cambio_pago' => $tcPago,
                     'codigo_pago_proveedor'  => $p->codigo_seguimiento ?? '',
                     'fecha_pago_proveedor'   => $p->fecha_pago ? $p->fecha_pago->format('Y-m-d') : '',
                     'es_subtotal'      => false,
@@ -232,7 +263,7 @@ class ContratoController extends Controller
             foreach ($c->gastosExtras as $ge) {
                 if ($ge->estado !== 'PAGADO') continue;
                 $sumaGastoExtra += (float) $ge->monto_bolivianos;
-                $contratosExcelData->push($filaBase + [
+                $contratosExcelData->push(['moneda' => 'BOB'] + $filaBase + [
                     'placa'            => '',
                     'cliente'          => 'GASTO EXTRA: ' . $ge->categoria,
                     'tn_entregadas'    => '',
@@ -247,6 +278,7 @@ class ContratoController extends Controller
                     'costo_adicional'  => '',
                     'utilidad_neta'    => '',
                     'gasto_extra'      => (float) $ge->monto_bolivianos,
+                    'tipo_cambio_gasto_extra' => $ge->moneda === 'BOB' ? 1 : ((float) $ge->tipo_cambio ?: 1),
                     'codigo_gasto_extra' => $ge->codigo_seguimiento ?? '',
                     // El registro/edición debe ser del propio gasto extra, no
                     // del contrato al que está asociado (que ya viene en $filaBase).

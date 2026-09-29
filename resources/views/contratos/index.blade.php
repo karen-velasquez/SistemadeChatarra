@@ -460,7 +460,10 @@
         );
         const visibles = _contratosExcelData.filter(c => numerosVisibles.has(c.numero_contrato));
 
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        // TIPO DE CAMBIO: junto a cada monto que puede venir en moneda distinta a BOB
+        // (Gasto Extra, Cobro Cliente, Pago Proveedor) — 1 si el pago fue en BOB,
+        // vacío en filas que no son de pago (entregas, subtotal ya viene convertido).
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -486,10 +489,10 @@
                     c.cliente, '', '', '', c.placa, '', '', c.moneda,
                     c.tn_entregadas, c.precio_venta, '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
-                    c.gasto_extra, '', c.utilidad_neta,
+                    c.gasto_extra, '', '', c.utilidad_neta,
                     c.estado_envios,
-                    c.monto_cobrado_cliente, '', '',
-                    c.monto_pagado_proveedor, '', '',
+                    c.monto_cobrado_cliente, '', '', '',
+                    c.monto_pagado_proveedor, '', '', '',
                     '', '', '', '',
                 ]);
                 rowStyles.push(
@@ -507,12 +510,14 @@
                     c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.empresa_facturadora, c.cliente, c.moneda,
                     c.tn_entregadas, c.precio_venta, c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
-                    c.gasto_extra ?? '', c.codigo_gasto_extra ?? '', c.utilidad_neta,
+                    c.gasto_extra ?? '', c.codigo_gasto_extra ?? '', c.tipo_cambio_gasto_extra ?? '', c.utilidad_neta,
                     '',
                     c.es_pago_proveedor ? '' : c.monto_cobrado_cliente,
+                    c.es_pago_proveedor ? '' : c.tipo_cambio_cobro,
                     c.es_pago_proveedor ? '' : c.codigo_cobro_cliente,
                     c.es_pago_proveedor ? '' : c.fecha_cobro_cliente,
                     c.es_pago_proveedor ? c.monto_pagado_proveedor : '',
+                    c.es_pago_proveedor ? c.tipo_cambio_pago : '',
                     c.es_pago_proveedor ? c.codigo_pago_proveedor : '',
                     c.es_pago_proveedor ? c.fecha_pago_proveedor : '',
                     c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
@@ -550,10 +555,10 @@
                     fila[6]  = item.concepto + (item.fecha ? ' (' + item.fecha + ')' : '');
                     fila[20] = item.monto;
                     fila[21] = item.codigo;
-                    fila[30] = item.fecha_registro;
-                    fila[31] = item.registrado_por;
-                    fila[32] = item.fecha_edicion;
-                    fila[33] = item.editado_por;
+                    fila[33] = item.fecha_registro;
+                    fila[34] = item.registrado_por;
+                    fila[35] = item.fecha_edicion;
+                    fila[36] = item.editado_por;
                     dataRows.push(fila);
                     rowStyles.push('gasto_extra');
                 });
@@ -585,9 +590,9 @@
             filaTotal[18] = sumar(comision2Entregas);
             filaTotal[19] = sumar(costoAdicionalEntregas);
             filaTotal[20] = sumar(gastoExtraContratos);
-            filaTotal[22] = sumar(utilidadNetaContratos);
-            filaTotal[24] = sumar(montoCobradoContratos);
-            filaTotal[27] = sumar(montoPagadoContratos);
+            filaTotal[23] = sumar(utilidadNetaContratos);
+            filaTotal[25] = sumar(montoCobradoContratos);
+            filaTotal[29] = sumar(montoPagadoContratos);
             dataRows.push(filaTotal);
             rowStyles.push('subtotal_cerrado');
         }
