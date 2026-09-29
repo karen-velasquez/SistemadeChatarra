@@ -181,14 +181,14 @@
         <h5 class="modal-title"><i class="bi bi-hash me-2"></i>Códigos reales del banco</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form id="form_codigo" method="POST">
+      <form id="form_codigo" method="POST" enctype="multipart/form-data">
         @csrf
         <div class="modal-body">
           <p class="small text-muted mb-2" id="lbl_info_lote"></p>
           <p class="small text-muted mb-3">
             <i class="bi bi-info-circle me-1"></i>
-            El banco entrega un código distinto por cada transferencia. Ingresa el que corresponda a cada pago;
-            los que dejes vacíos quedan pendientes y puedes completarlos después.
+            El banco entrega un código distinto por cada transferencia. Ingresa el que corresponda a cada pago
+            y adjunta su voucher si lo tienes; los que dejes vacíos quedan pendientes y puedes completarlos después.
           </p>
           <div id="codigo_body">
             <div class="text-center text-muted py-3">
@@ -332,7 +332,7 @@ function abrirModalCodigo(uuid, tipo, fecha) {
                 return;
             }
             let html = `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
-                <thead class="table-light"><tr><th>Referencia</th><th class="text-end">Monto</th><th>Fecha</th><th style="width:220px">Código real</th></tr></thead>
+                <thead class="table-light"><tr><th>Referencia</th><th class="text-end">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:160px">Voucher</th></tr></thead>
                 <tbody>`;
             let totalMonto = 0;
             const moneda = d.pagos[0]?.moneda ?? '';
@@ -347,11 +347,16 @@ function abrirModalCodigo(uuid, tipo, fecha) {
                         <input type="text" class="form-control form-control-sm" name="codigos[${i}][codigo_real]"
                                value="${p.codigo ?? ''}" placeholder="Ej: TRF-2026052500123" maxlength="100">
                     </td>
+                    <td>
+                        ${p.tiene_voucher ? `<a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm mb-1 w-100"><i class="bi bi-file-earmark-check me-1"></i>Ver</a>` : ''}
+                        <input type="file" class="form-control form-control-sm" name="codigos[${i}][voucher]" accept=".jpg,.jpeg,.png,.pdf">
+                    </td>
                 </tr>`;
             });
             html += `<tr class="table-light fw-bold">
                     <td class="text-end">TOTAL</td>
                     <td class="text-end">${_fmtLote(totalMonto, moneda)}</td>
+                    <td></td>
                     <td></td>
                     <td></td>
                 </tr>`;

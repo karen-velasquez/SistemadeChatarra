@@ -29,6 +29,7 @@ class PagoCamion extends Model
         'metodo_pago',
         'codigo_seguimiento',
         'observaciones',
+        'voucher',
         'created_by',
         'updated_by',
     ];

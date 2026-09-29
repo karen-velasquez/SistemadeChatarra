@@ -769,13 +769,19 @@ function irAPaso2() {
                 bodyHtml += `</tbody></table></div>`;
             }
             bodyHtml += `
-                <div class="mb-1">
+                <div class="mb-1" id="voucher_unico_${ctr.id}">
                   <label class="form-label small mb-1"><i class="bi bi-paperclip me-1"></i>Voucher de este pago (opcional)</label>
                   <input type="file" class="form-control form-control-sm voucher_input" style="max-width:320px"
                          id="voucher_input_${ctr.id}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
                          onchange="marcarVoucher(${ctr.id}, this)">
                   <span class="small text-success ms-1 d-none" id="voucher_ok_${ctr.id}"><i class="bi bi-check-circle"></i> adjuntado</span>
-                </div>`;
+                </div>
+                <div class="mt-2">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btn_dividir_${ctr.id}" onclick="dividirPago(${ctr.id})">
+                    <i class="bi bi-arrows-collapse me-1"></i>Dividir en varios pagos
+                  </button>
+                </div>
+                <div class="mt-2 d-none" id="split_body_${ctr.id}"></div>`;
             bodyHtml += `</div>`;
         });
 
@@ -826,10 +832,120 @@ function marcarVoucher(contratoId, input) {
     if (ok) ok.classList.toggle('d-none', !input.files.length);
 }
 
+// Convierte el pago único de un contrato en 2 sub-pagos editables (mismo
+// contrato y cuenta destino, montos independientes que deben sumar el total).
+// Cada sub-pago lleva su propio voucher: son transferencias reales distintas.
+function dividirPago(contratoId) {
+    const entry = _seleccionados[contratoId];
+    if (!entry) return;
+
+    document.getElementById(`voucher_unico_${contratoId}`).classList.add('d-none');
+    document.getElementById(`btn_dividir_${contratoId}`).classList.add('d-none');
+
+    entry.splits = [
+        { monto: entry.monto },
+        { monto: 0 },
+    ];
+    renderSplits(contratoId);
+}
+
+function agregarSplit(contratoId) {
+    _seleccionados[contratoId].splits.push({ monto: 0 });
+    renderSplits(contratoId);
+}
+
+function quitarSplit(contratoId, idx) {
+    const entry = _seleccionados[contratoId];
+    entry.splits.splice(idx, 1);
+    if (entry.splits.length < 2) {
+        // Con menos de 2 filas ya no es "dividir": se vuelve al pago único.
+        delete entry.splits;
+        document.getElementById(`voucher_unico_${contratoId}`).classList.remove('d-none');
+        document.getElementById(`btn_dividir_${contratoId}`).classList.remove('d-none');
+        document.getElementById(`split_body_${contratoId}`).classList.add('d-none');
+        document.getElementById(`split_body_${contratoId}`).innerHTML = '';
+        actualizarBtnConfirmar();
+        return;
+    }
+    renderSplits(contratoId);
+}
+
+function onSplitMontoInput(contratoId, idx, input) {
+    formatearMontoInput(input);
+    _seleccionados[contratoId].splits[idx].monto = _txt2numM(input.value);
+    actualizarSplitTotal(contratoId);
+    actualizarBtnConfirmar();
+}
+
+function onSplitVoucher(contratoId, idx, input) {
+    _seleccionados[contratoId].splits[idx].voucherInputId = `split_voucher_${contratoId}_${idx}`;
+    const ok = document.getElementById(`split_voucher_ok_${contratoId}_${idx}`);
+    if (ok) ok.classList.toggle('d-none', !input.files.length);
+}
+
+function actualizarSplitTotal(contratoId) {
+    const entry = _seleccionados[contratoId];
+    const sumaSplits = entry.splits.reduce((s, sp) => s + (sp.monto || 0), 0);
+    const dif = Math.round((entry.monto - sumaSplits) * 100) / 100;
+    const lbl = document.getElementById(`split_dif_${contratoId}`);
+    if (!lbl) return;
+    lbl.textContent = `${entry.moneda} ${_fmtM(sumaSplits)} de ${entry.moneda} ${_fmtM(entry.monto)}`
+        + (dif !== 0 ? ` — falta ${entry.moneda} ${_fmtM(Math.abs(dif))}` : ' ✓');
+    lbl.className = dif !== 0 ? 'small text-danger' : 'small text-success';
+}
+
+function renderSplits(contratoId) {
+    const entry = _seleccionados[contratoId];
+    const cont  = document.getElementById(`split_body_${contratoId}`);
+    cont.classList.remove('d-none');
+
+    let html = `<div class="border rounded-3 p-2 bg-light">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small fw-semibold"><i class="bi bi-arrows-collapse me-1"></i>Pago dividido en ${entry.splits.length} transferencias</span>
+          <span id="split_dif_${contratoId}"></span>
+        </div>`;
+
+    entry.splits.forEach((sp, idx) => {
+        html += `
+          <div class="d-flex align-items-start gap-2 mb-2">
+            <div class="input-group input-group-sm" style="max-width:180px">
+              <span class="input-group-text">${entry.moneda}</span>
+              <input type="text" inputmode="numeric" class="form-control text-end split_monto_input"
+                     value="${sp.monto ? _fmtM(sp.monto) : ''}" placeholder="0,00" autocomplete="off"
+                     oninput="onSplitMontoInput(${contratoId}, ${idx}, this)">
+            </div>
+            <input type="file" class="form-control form-control-sm" style="max-width:260px"
+                   id="split_voucher_${contratoId}_${idx}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                   onchange="onSplitVoucher(${contratoId}, ${idx}, this)">
+            <span class="small text-success d-none" id="split_voucher_ok_${contratoId}_${idx}"><i class="bi bi-check-circle"></i></span>
+            <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarSplit(${contratoId}, ${idx})" title="Quitar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>`;
+    });
+
+    html += `
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarSplit(${contratoId})">
+          <i class="bi bi-plus-lg me-1"></i>Otro pago
+        </button>
+      </div>`;
+
+    cont.innerHTML = html;
+    actualizarSplitTotal(contratoId);
+}
+
 function actualizarBtnConfirmar() {
     const ids = Object.keys(_seleccionados);
     const todosConCuenta = ids.length > 0 && ids.every(id => _seleccionados[id].cuentaDestinoId);
-    document.getElementById('btn_confirmar').disabled = !todosConCuenta;
+    const splitsOk = ids.every(id => {
+        const e = _seleccionados[id];
+        if (!e.splits) return true;
+        const suma = e.splits.reduce((s, sp) => s + (sp.monto || 0), 0);
+        const cuadra = Math.abs(e.monto - suma) < 0.01;
+        const todosConMonto = e.splits.every(sp => sp.monto > 0);
+        return cuadra && todosConMonto;
+    });
+    document.getElementById('btn_confirmar').disabled = !(todosConCuenta && splitsOk);
 }
 
 function volverPaso1() {
@@ -851,43 +967,48 @@ function _buildRows() {
     const ctaOrigenSel = document.getElementById('cuenta_origen_id');
     const monedaOrigen = ctaOrigenSel.options[ctaOrigenSel.selectedIndex]?.dataset?.moneda ?? 'BOB';
 
-    return ids.map((id, i) => {
+    const rows = [];
+    ids.forEach(id => {
         const e   = _seleccionados[id];
         const cta = e.cuentaDestinoLabel ?? '—';
         const ctaId = e.cuentaDestinoId;
 
-        // Extraer banco y número de la etiqueta
-        const [bancoParte, ...resto] = cta.split(' ');
         const numeroCuenta = cta.match(/\d{6,}/)?.[0] ?? '';
-        const bancoNombre  = cta.split(' ')[0] ?? '—';
+        const nombreExcel  = e.cuentaTitularNombre || e.provNombre;
+        const ganadero     = e.esGanadero;
 
-        const nombreExcel = e.cuentaTitularNombre || e.provNombre;
-        const ganadero    = e.esGanadero;
+        // Sin dividir: una fila con el monto completo. Dividido: una fila por
+        // sub-pago, todas contra la misma cuenta/contrato pero con su propio importe.
+        const montos = e.splits ? e.splits.map(sp => sp.monto) : [e.monto];
 
-        return {
-            nro:         i + 1,
-            nro_orden:   i + 1,
-            cod_cliente: 0,
-            nro_cuenta:  numeroCuenta,
-            nombre:      nombreExcel,
-            doc_id:      e.cuentaNroDocumento || '',
-            importe:     e.monto.toFixed(2).replace('.', ','),
-            fecha:       fecha,
-            forma_pago:  ganadero ? 1 : 3,
-            moneda:      ganadero ? 0 : (e.moneda === 'USD' ? 2 : 1),
-            entidad:     ganadero ? 0 : (e.cuentaCodigoBanco || ''),
-            sucursal:    ganadero ? 0 : (e.cuentaSiglaSucursal || ''),
-            glosa:       `Pago proveedor ${e.contratoNum}`,
-            codigo:      '',
-            email:       e.cuentaEmailNotificacion || '',
-            nro_doc_ter: '',
-            nombre_ter:  '',
-            // para el form
-            contratoId:  id,
-            ctaId:       ctaId,
-            pct:         e.pct,
-        };
+        montos.forEach((monto, splitIdx) => {
+            rows.push({
+                nro_orden:   rows.length + 1,
+                cod_cliente: 0,
+                nro_cuenta:  numeroCuenta,
+                nombre:      nombreExcel,
+                doc_id:      e.cuentaNroDocumento || '',
+                importe:     monto.toFixed(2).replace('.', ','),
+                fecha:       fecha,
+                forma_pago:  ganadero ? 1 : 3,
+                moneda:      ganadero ? 0 : (e.moneda === 'USD' ? 2 : 1),
+                entidad:     ganadero ? 0 : (e.cuentaCodigoBanco || ''),
+                sucursal:    ganadero ? 0 : (e.cuentaSiglaSucursal || ''),
+                glosa:       `Pago proveedor ${e.contratoNum}`,
+                codigo:      '',
+                email:       e.cuentaEmailNotificacion || '',
+                nro_doc_ter: '',
+                nombre_ter:  '',
+                // para el form
+                contratoId:  id,
+                ctaId:       ctaId,
+                pct:         e.pct,
+                montoAbs:    monto,
+                splitIdx:    e.splits ? splitIdx : null,
+            });
+        });
     });
+    return rows;
 }
 
 function abrirConfirmacion() {
@@ -935,23 +1056,39 @@ function confirmarYEnviar() {
     const contenedor = document.getElementById('h_contratos_dinamicos');
     contenedor.innerHTML = '';
 
-    rows.forEach(r => {
-        const addHidden = (name, val) => {
-            const inp = document.createElement('input');
-            inp.type  = 'hidden';
-            inp.name  = name;
-            inp.value = val;
-            contenedor.appendChild(inp);
-        };
-        addHidden(`contrato_ids[]`, r.contratoId);
-        addHidden(`porcentaje[${r.contratoId}]`, r.pct);
-        addHidden(`cuenta_destino[${r.contratoId}]`, r.ctaId);
+    const addHidden = (name, val) => {
+        const inp = document.createElement('input');
+        inp.type  = 'hidden';
+        inp.name  = name;
+        inp.value = val;
+        contenedor.appendChild(inp);
+    };
 
-        // Mover (no clonar) el input file al form oculto para que viaje en el submit
-        const fileInput = document.getElementById(`voucher_input_${r.contratoId}`);
-        if (fileInput && fileInput.files.length) {
-            fileInput.name = `vouchers[${r.contratoId}]`;
-            contenedor.appendChild(fileInput);
+    // contrato_ids[] queda una sola vez por contrato (no por sub-pago); el
+    // detalle de cada pago (monto, cuenta, voucher) va indexado por contrato
+    // y, si está dividido, por índice de sub-pago.
+    const contratosVistos = new Set();
+    rows.forEach(r => {
+        if (!contratosVistos.has(r.contratoId)) {
+            contratosVistos.add(r.contratoId);
+            addHidden(`contrato_ids[]`, r.contratoId);
+            addHidden(`porcentaje[${r.contratoId}]`, r.pct);
+            addHidden(`cuenta_destino[${r.contratoId}]`, r.ctaId);
+        }
+
+        if (r.splitIdx === null) {
+            const fileInput = document.getElementById(`voucher_input_${r.contratoId}`);
+            if (fileInput && fileInput.files.length) {
+                fileInput.name = `vouchers[${r.contratoId}]`;
+                contenedor.appendChild(fileInput);
+            }
+        } else {
+            addHidden(`splits[${r.contratoId}][${r.splitIdx}]`, r.montoAbs);
+            const fileInput = document.getElementById(`split_voucher_${r.contratoId}_${r.splitIdx}`);
+            if (fileInput && fileInput.files.length) {
+                fileInput.name = `split_vouchers[${r.contratoId}][${r.splitIdx}]`;
+                contenedor.appendChild(fileInput);
+            }
         }
     });
 

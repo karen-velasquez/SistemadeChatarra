@@ -802,6 +802,15 @@ function irAPaso2() {
                 fletem.appendChild(tbl);
             }
 
+            const splitZona = document.createElement('div');
+            splitZona.className = 'px-3 py-2';
+            splitZona.innerHTML = `
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn_dividir_f_${ccId}" onclick="dividirPagoFlete(${ccId})">
+                    <i class="bi bi-arrows-collapse me-1"></i>Dividir en varios pagos
+                </button>
+                <div class="mt-2 d-none" id="split_body_f_${ccId}"></div>`;
+            fletem.appendChild(splitZona);
+
             cardBody.appendChild(fletem);
         });
 
@@ -821,6 +830,91 @@ function volverAPaso1() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Un flete puede llegar como varios pagos reales (mismo monto total) en vez de
+// una sola transferencia: { ccId: [monto1, monto2, ...] }
+let _splitsFlete = {};
+
+function dividirPagoFlete(ccId) {
+    const montoTotal = montoAPagarFlete(ccId);
+    document.getElementById(`btn_dividir_f_${ccId}`).classList.add('d-none');
+    _splitsFlete[ccId] = [montoTotal, 0];
+    renderSplitsFlete(ccId);
+}
+
+function agregarSplitFlete(ccId) {
+    _splitsFlete[ccId].push(0);
+    renderSplitsFlete(ccId);
+}
+
+function quitarSplitFlete(ccId, idx) {
+    _splitsFlete[ccId].splice(idx, 1);
+    if (_splitsFlete[ccId].length < 2) {
+        delete _splitsFlete[ccId];
+        document.getElementById(`btn_dividir_f_${ccId}`).classList.remove('d-none');
+        const cont = document.getElementById(`split_body_f_${ccId}`);
+        cont.classList.add('d-none');
+        cont.innerHTML = '';
+        validarPaso2();
+        return;
+    }
+    renderSplitsFlete(ccId);
+}
+
+function onSplitFleteMontoInput(ccId, idx, input) {
+    formatearMontoFlete(input);
+    _splitsFlete[ccId][idx] = _txt2numFlete(input.value);
+    actualizarSplitFleteTotal(ccId);
+    validarPaso2();
+}
+
+function actualizarSplitFleteTotal(ccId) {
+    const info  = _contratosData[ccId];
+    const total = montoAPagarFlete(ccId);
+    const suma  = _splitsFlete[ccId].reduce((s, m) => s + (m || 0), 0);
+    const dif   = Math.round((total - suma) * 100) / 100;
+    const lbl = document.getElementById(`split_dif_f_${ccId}`);
+    if (!lbl) return;
+    lbl.textContent = `${info.moneda} ${_fmtMonto(suma)} de ${info.moneda} ${_fmtMonto(total)}`
+        + (dif !== 0 ? ` — falta ${info.moneda} ${_fmtMonto(Math.abs(dif))}` : ' ✓');
+    lbl.className = dif !== 0 ? 'small text-danger' : 'small text-success';
+}
+
+function renderSplitsFlete(ccId) {
+    const info = _contratosData[ccId];
+    const cont = document.getElementById(`split_body_f_${ccId}`);
+    cont.classList.remove('d-none');
+
+    let html = `<div class="border rounded-3 p-2 bg-light">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small fw-semibold"><i class="bi bi-arrows-collapse me-1"></i>Pago dividido en ${_splitsFlete[ccId].length} transferencias</span>
+          <span id="split_dif_f_${ccId}"></span>
+        </div>`;
+
+    _splitsFlete[ccId].forEach((monto, idx) => {
+        html += `
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="input-group input-group-sm" style="max-width:180px">
+              <span class="input-group-text">${info.moneda}</span>
+              <input type="text" inputmode="numeric" class="form-control text-end"
+                     value="${monto ? _fmtMonto(monto) : ''}" placeholder="0,00" autocomplete="off"
+                     oninput="onSplitFleteMontoInput(${ccId}, ${idx}, this)">
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarSplitFlete(${ccId}, ${idx})" title="Quitar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>`;
+    });
+
+    html += `
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarSplitFlete(${ccId})">
+          <i class="bi bi-plus-lg me-1"></i>Otro pago
+        </button>
+      </div>`;
+
+    cont.innerHTML = html;
+    actualizarSplitFleteTotal(ccId);
+}
+
 function validarPaso2() {
     const radiosGroups = {};
     document.querySelectorAll('#paso2_contenido .cuenta-radio').forEach(r => {
@@ -828,7 +922,15 @@ function validarPaso2() {
         radiosGroups[r.dataset.cc].push(r);
     });
     const todosOk = Object.values(radiosGroups).every(radios => radios.some(r => r.checked));
-    document.getElementById('btn_registrar').disabled = !todosOk;
+
+    const splitsOk = Object.keys(_splitsFlete).every(ccId => {
+        const total = montoAPagarFlete(ccId);
+        const suma  = _splitsFlete[ccId].reduce((s, m) => s + (m || 0), 0);
+        const todosConMonto = _splitsFlete[ccId].every(m => m > 0);
+        return todosConMonto && Math.abs(total - suma) < 0.01;
+    });
+
+    document.getElementById('btn_registrar').disabled = !(todosOk && splitsOk);
 }
 
 // ===== Confirmación + Vista Previa =====
@@ -876,17 +978,22 @@ function _buildRows() {
         const [y, m, d] = fecha.split('-');
         const fechaFmt  = d ? `${d}/${m}/${y}` : fecha;
 
-        rows.push({
-            orden, codigo_cliente: 0, nro_cuenta: nroCuenta, nombre_cliente: nombreCliente,
-            doc_identidad: docIdentidad, importe: montoAPagarFlete(ccId).toFixed(2).replace('.', ','), fecha_pago: fechaFmt,
-            forma_pago: esGanadero ? 1 : 3,
-            moneda_destino:  esGanadero ? 0 : (monedaCuenta === 'USD' ? 2 : 1),
-            entidad_destino: esGanadero ? 0 : codigoBanco,
-            sucursal:        esGanadero ? 0 : siglaSucursal,
-            glosa: '', codigo_unico: '', email: emailNotificacion, nro_doc_tercero: '', nombre_tercero: '',
-            _moneda: info.moneda, _saldo: montoAPagarFlete(ccId),
+        // Sin dividir: una fila con el monto completo. Dividido: una fila por sub-pago.
+        const montos = _splitsFlete[ccId] ? _splitsFlete[ccId] : [montoAPagarFlete(ccId)];
+
+        montos.forEach(monto => {
+            rows.push({
+                orden, codigo_cliente: 0, nro_cuenta: nroCuenta, nombre_cliente: nombreCliente,
+                doc_identidad: docIdentidad, importe: monto.toFixed(2).replace('.', ','), fecha_pago: fechaFmt,
+                forma_pago: esGanadero ? 1 : 3,
+                moneda_destino:  esGanadero ? 0 : (monedaCuenta === 'USD' ? 2 : 1),
+                entidad_destino: esGanadero ? 0 : codigoBanco,
+                sucursal:        esGanadero ? 0 : siglaSucursal,
+                glosa: '', codigo_unico: '', email: emailNotificacion, nro_doc_tercero: '', nombre_tercero: '',
+                _moneda: info.moneda, _saldo: monto,
+            });
+            orden++;
         });
-        orden++;
     });
     return rows;
 }
@@ -931,6 +1038,17 @@ function abrirConfirmacion() {
 }
 
 function confirmarYEnviar() {
+    const cont = document.getElementById('h_contrato_ids_container');
+    Object.entries(_splitsFlete).forEach(([ccId, montos]) => {
+        montos.forEach((monto, idx) => {
+            const inp = document.createElement('input');
+            inp.type  = 'hidden';
+            inp.name  = `splits[${ccId}][${idx}]`;
+            inp.value = monto.toFixed(2);
+            cont.appendChild(inp);
+        });
+    });
+
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConfirmacion')).hide();
     document.getElementById('formPaso2').submit();
 }

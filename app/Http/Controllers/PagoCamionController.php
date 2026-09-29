@@ -11,6 +11,7 @@ use App\Models\Empresa;
 use App\Models\Movimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class PagoCamionController extends Controller
@@ -75,6 +76,7 @@ class PagoCamionController extends Controller
                 }
             }],
             'observaciones'      => 'nullable|string|max:500',
+            'voucher'            => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'contrato_camion_id.required' => 'Debe seleccionar la asignación.',
             'tipo_pago.required'          => 'Debe indicar el tipo de pago.',
@@ -85,6 +87,8 @@ class PagoCamionController extends Controller
             'tipo_cambio.min'             => 'El tipo de cambio debe ser mayor a cero.',
             'fecha_pago.required'         => 'La fecha de pago es obligatoria.',
             'metodo_pago.required'        => 'Debe indicar el método de pago.',
+            'voucher.mimes'               => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'                 => 'El comprobante no debe superar los 5 MB.',
         ]);
 
         $receptorType = null;
@@ -117,6 +121,7 @@ class PagoCamionController extends Controller
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $codigoSeguimiento,
                 'observaciones'      => $request->observaciones ?: null,
+                'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_camion', 'public') : null,
                 'created_by'         => auth()->id(),
                 'updated_by'         => auth()->id(),
             ]);
@@ -160,6 +165,10 @@ class PagoCamionController extends Controller
                     $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
                 }
             }],
+            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'   => 'El comprobante no debe superar los 5 MB.',
         ]);
 
         // En QR el código lo genera el sistema y el campo no es editable:
@@ -170,7 +179,7 @@ class PagoCamionController extends Controller
         }
 
         DB::transaction(function () use ($request, $pago, $codigo) {
-            $pago->update([
+            $datos = [
                 'tipo_pago'          => $request->tipo_pago,
                 'monto'              => $request->monto,
                 'moneda_pago'        => $request->moneda_pago,
@@ -179,7 +188,17 @@ class PagoCamionController extends Controller
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $codigo,
                 'updated_by'         => auth()->id(),
-            ]);
+            ];
+
+            if ($request->hasFile('voucher')) {
+                $anterior = $pago->voucher;
+                $datos['voucher'] = $request->file('voucher')->store('vouchers_pago_camion', 'public');
+                if ($anterior) {
+                    Storage::disk('public')->delete($anterior);
+                }
+            }
+
+            $pago->update($datos);
 
             // El movimiento de tesorería es espejo del pago: debe reflejar la edición.
             // El hook updated() de Movimiento recalcula monto_bolivianos y ajusta el saldo.
@@ -197,6 +216,19 @@ class PagoCamionController extends Controller
 
         Alert::success('Éxito', 'Pago actualizado y movimiento en tesorería sincronizado.');
         return redirect()->route('seguimiento.index');
+    }
+
+    public function verVoucher($uuid)
+    {
+        $pago = PagoCamion::where('uuid', $uuid)->firstOrFail();
+
+        abort_if(!$pago->voucher, 404, 'Este pago no tiene voucher adjunto.');
+
+        $path = Storage::disk('public')->path($pago->voucher);
+
+        abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+
+        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
     }
 
     public function destroy($uuid)
@@ -307,6 +339,8 @@ class PagoCamionController extends Controller
                 'metodo_raw'  => $p->metodo_pago,
                 'receptor'        => $p->nombre_receptor,
                 'codigo'          => $p->codigo_seguimiento,
+                'tiene_voucher'   => (bool) $p->voucher,
+                'voucher_url'     => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
                 'cuenta_destino'  => $p->cuentaDestino ? [
                     'banco'          => $p->cuentaDestino->banco->nombre ?? '—',
                     'numero'         => $p->cuentaDestino->numero_cuenta,
@@ -387,6 +421,11 @@ class PagoCamionController extends Controller
             'montos'               => 'nullable|array',
             'montos.*'             => 'nullable|numeric|min:0.01',
             'observaciones'        => 'nullable|string|max:500',
+            // Un flete puede llegar como varios pagos reales (mismo monto total,
+            // misma cuenta) en vez de una sola transferencia.
+            'splits'               => 'nullable|array',
+            'splits.*'             => 'array',
+            'splits.*.*'           => 'numeric|min:0.01',
         ], [
             'contrato_camion_ids.required' => 'Debe seleccionar al menos un camión.',
             'cuenta_origen_id.required'    => 'Debe seleccionar la cuenta desde donde se realiza el pago.',
@@ -484,35 +523,47 @@ class PagoCamionController extends Controller
                     }
                 }
 
-                $pago = PagoCamion::create([
-                    'lote_pago_id'       => $lote->id,
-                    'contrato_camion_id' => $cc->id,
-                    'tipo_pago'          => $tipoPago,
-                    'monto'              => $montoPago,
-                    'moneda_pago'        => $monedaPago,
-                    'tipo_cambio'        => $tipoCambio,
-                    'fecha_pago'         => $request->fecha_pago,
-                    'metodo_pago'        => $request->metodo_pago,
-                    'codigo_seguimiento' => $codigoLote,
-                    'cuenta_origen_id'   => $request->cuenta_origen_id,
-                    'cuenta_destino_id'  => $ctaDestId ?: null,
-                    'receptor_type'      => $receptorType,
-                    'receptor_id'        => $receptorId,
-                    'observaciones'      => $observaciones,
-                    'created_by'         => auth()->id(),
-                    'updated_by'         => auth()->id(),
-                ]);
+                // Sin dividir: un solo pago con el monto completo. Dividido: un
+                // PagoCamion por cada sub-monto, mismo contrato y cuenta destino.
+                $splitsFlete = $request->input("splits.$cc->id");
+                $montosAPagar = $splitsFlete
+                    ? array_values(array_filter($splitsFlete, fn($m) => (float) $m > 0))
+                    : [$montoPago];
 
-                Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')', $observaciones);
+                foreach ($montosAPagar as $montoSub) {
+                    $montoSub = round((float) $montoSub, 2);
+                    $tipoPagoSub = $montoSub >= round((float) $saldo, 2) ? 'pago_final' : 'adelanto';
 
-                $lineas[] = [
-                    'proveedor'     => $proveedor,
-                    'camion'        => $placa,
-                    'contrato'      => $contrato,
-                    'cuenta_destino'=> $ctaDestLabel,
-                    'monto'         => $monedaPago . ' ' . number_format($montoPago, 2),
-                    'tipo'          => $tipoPago === 'adelanto' ? 'Adelanto' : 'Pago Final',
-                ];
+                    $pago = PagoCamion::create([
+                        'lote_pago_id'       => $lote->id,
+                        'contrato_camion_id' => $cc->id,
+                        'tipo_pago'          => $tipoPagoSub,
+                        'monto'              => $montoSub,
+                        'moneda_pago'        => $monedaPago,
+                        'tipo_cambio'        => $tipoCambio,
+                        'fecha_pago'         => $request->fecha_pago,
+                        'metodo_pago'        => $request->metodo_pago,
+                        'codigo_seguimiento' => $codigoLote,
+                        'cuenta_origen_id'   => $request->cuenta_origen_id,
+                        'cuenta_destino_id'  => $ctaDestId ?: null,
+                        'receptor_type'      => $receptorType,
+                        'receptor_id'        => $receptorId,
+                        'observaciones'      => $observaciones,
+                        'created_by'         => auth()->id(),
+                        'updated_by'         => auth()->id(),
+                    ]);
+
+                    Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')', $observaciones);
+
+                    $lineas[] = [
+                        'proveedor'     => $proveedor,
+                        'camion'        => $placa,
+                        'contrato'      => $contrato,
+                        'cuenta_destino'=> $ctaDestLabel,
+                        'monto'         => $monedaPago . ' ' . number_format($montoSub, 2),
+                        'tipo'          => $tipoPagoSub === 'adelanto' ? 'Adelanto' : 'Pago Final',
+                    ];
+                }
             }
 
             return $lineas;

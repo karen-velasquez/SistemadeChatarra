@@ -9,6 +9,7 @@ use App\Models\PagoProveedor;
 use App\Models\PagoCliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class LotePagoController extends Controller
@@ -48,28 +49,34 @@ class LotePagoController extends Controller
     {
         return match ($lote->tipo) {
             'proveedor' => $lote->pagosProveedor()->with('contrato.proveedor')->get()->map(fn($p) => [
-                'uuid'       => $p->uuid,
-                'referencia' => trim(($p->contrato?->numero_contrato ?? ('#' . $p->contrato_id)) . ' — ' . ($p->contrato?->proveedor?->nombre ?? '')),
-                'monto'      => (float) $p->monto,
-                'moneda'     => $p->moneda_pago,
-                'fecha'      => $p->fecha_pago->format('d/m/Y'),
-                'codigo'     => $p->codigo_seguimiento,
+                'uuid'          => $p->uuid,
+                'referencia'    => trim(($p->contrato?->numero_contrato ?? ('#' . $p->contrato_id)) . ' — ' . ($p->contrato?->proveedor?->nombre ?? '')),
+                'monto'         => (float) $p->monto,
+                'moneda'        => $p->moneda_pago,
+                'fecha'         => $p->fecha_pago->format('d/m/Y'),
+                'codigo'        => $p->codigo_seguimiento,
+                'tiene_voucher' => (bool) $p->voucher,
+                'voucher_url'   => $p->voucher ? route('pagos.proveedores.voucher', $p->uuid) : null,
             ]),
             'cliente' => $lote->pagosCliente()->with('tramo.cliente', 'tramo.contratoCamion.contrato')->get()->map(fn($p) => [
-                'uuid'       => $p->uuid,
-                'referencia' => trim(($p->tramo?->contratoCamion?->contrato?->numero_contrato ?? ('Tramo #' . $p->tramo_id)) . ' — ' . ($p->tramo?->cliente?->nombre ?? '')),
-                'monto'      => (float) $p->monto,
-                'moneda'     => $p->moneda_pago,
-                'fecha'      => $p->fecha_pago->format('d/m/Y'),
-                'codigo'     => $p->codigo_seguimiento,
+                'uuid'          => $p->uuid,
+                'referencia'    => trim(($p->tramo?->contratoCamion?->contrato?->numero_contrato ?? ('Tramo #' . $p->tramo_id)) . ' — ' . ($p->tramo?->cliente?->nombre ?? '')),
+                'monto'         => (float) $p->monto,
+                'moneda'        => $p->moneda_pago,
+                'fecha'         => $p->fecha_pago->format('d/m/Y'),
+                'codigo'        => $p->codigo_seguimiento,
+                'tiene_voucher' => (bool) $p->voucher,
+                'voucher_url'   => $p->voucher ? route('pagos.clientes.voucher', $p->uuid) : null,
             ]),
             default => $lote->pagosCamion()->with('receptor', 'contratoCamion.contrato')->get()->map(fn($p) => [
-                'uuid'       => $p->uuid,
-                'referencia' => trim(($p->contratoCamion?->contrato?->numero_contrato ?? '') . ' — ' . ($p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'))),
-                'monto'      => (float) $p->monto,
-                'moneda'     => $p->moneda_pago,
-                'fecha'      => $p->fecha_pago->format('d/m/Y'),
-                'codigo'     => $p->codigo_seguimiento,
+                'uuid'          => $p->uuid,
+                'referencia'    => trim(($p->contratoCamion?->contrato?->numero_contrato ?? '') . ' — ' . ($p->receptor?->nombre ?? ucfirst($p->receptor_type ?? 'Camión'))),
+                'monto'         => (float) $p->monto,
+                'moneda'        => $p->moneda_pago,
+                'fecha'         => $p->fecha_pago->format('d/m/Y'),
+                'codigo'        => $p->codigo_seguimiento,
+                'tiene_voucher' => (bool) $p->voucher,
+                'voucher_url'   => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
             ]),
         };
     }
@@ -87,17 +94,25 @@ class LotePagoController extends Controller
     {
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();
         $modeloClase = $this->modeloDelLote($lote);
+        $carpetaVoucher = 'vouchers_pago_' . $lote->tipo;
 
         $request->validate([
             'codigos'                 => ['required', 'array', 'min:1'],
             'codigos.*.pago_uuid'     => ['required', 'string'],
             'codigos.*.codigo_real'   => ['nullable', 'string', 'max:100'],
+            'codigos.*.voucher'       => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+        ], [
+            'codigos.*.voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
+            'codigos.*.voucher.max'   => 'El comprobante no debe superar los 5 MB.',
         ]);
 
-        $filas = collect($request->input('codigos'))->filter(fn($f) => filled($f['codigo_real'] ?? null));
+        $filas = collect($request->input('codigos'))->map(function ($f, $i) use ($request) {
+            $f['voucher'] = $request->file("codigos.$i.voucher");
+            return $f;
+        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher']);
 
         if ($filas->isEmpty()) {
-            Alert::error('Nada que guardar', 'No ingresaste ningún código.');
+            Alert::error('Nada que guardar', 'No ingresaste ningún código ni adjuntaste un voucher.');
             return back();
         }
 
@@ -108,7 +123,7 @@ class LotePagoController extends Controller
 
         foreach ($filas as $fila) {
             $pago = $pagos->get($fila['pago_uuid']);
-            if (!$pago) continue;
+            if (!$pago || !filled($fila['codigo_real'] ?? null)) continue;
 
             $codigoReal = trim($fila['codigo_real']);
             if (!$this->codigoDisponible($codigoReal, $pago->id, $modeloClase)) {
@@ -117,21 +132,35 @@ class LotePagoController extends Controller
             }
         }
 
-        DB::transaction(function () use ($filas, $pagos, $modeloClase) {
+        DB::transaction(function () use ($filas, $pagos, $modeloClase, $carpetaVoucher) {
             foreach ($filas as $fila) {
                 $pago = $pagos->get($fila['pago_uuid']);
                 if (!$pago) continue;
 
-                $codigoReal = trim($fila['codigo_real']);
-                $pago->update(['codigo_seguimiento' => $codigoReal]);
+                $datos = [];
+                if (filled($fila['codigo_real'] ?? null)) {
+                    $datos['codigo_seguimiento'] = trim($fila['codigo_real']);
+                }
+                if ($fila['voucher']) {
+                    $anterior = $pago->voucher;
+                    $datos['voucher'] = $fila['voucher']->store($carpetaVoucher, 'public');
+                    if ($anterior) {
+                        Storage::disk('public')->delete($anterior);
+                    }
+                }
+                if (empty($datos)) continue;
+
+                $pago->update($datos);
+
+                if (!isset($datos['codigo_seguimiento'])) continue;
 
                 Movimiento::where('origen_type', $modeloClase)
                     ->where('origen_id', $pago->id)
-                    ->update(['codigo_seguimiento' => $codigoReal]);
+                    ->update(['codigo_seguimiento' => $datos['codigo_seguimiento']]);
             }
         });
 
-        Alert::success('Éxito', 'Código real actualizado en ' . $filas->count() . ' pago(s).');
+        Alert::success('Éxito', 'Datos actualizados en ' . $filas->count() . ' pago(s).');
         return back();
     }
 

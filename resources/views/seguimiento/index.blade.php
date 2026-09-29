@@ -809,7 +809,7 @@
                 <h5 class="modal-title"><i class="bi bi-cash-coin"></i> Registrar Pago</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ route('pagos.camiones.store') }}">
+            <form method="POST" action="{{ route('pagos.camiones.store') }}" enctype="multipart/form-data">
                 @csrf
                 {{-- Token de idempotencia: sin él, store() rechaza el pago como duplicado --}}
                 <input type="hidden" name="_idempotency_token" id="segIdempotencyToken" value="{{ $idempotencyToken ?? '' }}">
@@ -969,6 +969,11 @@
                             <textarea class="form-control" name="observaciones" rows="2" maxlength="500" placeholder="Notas del pago..."></textarea>
                         </div>
 
+                        <div class="col-12">
+                            <label class="form-label">Voucher / Comprobante</label>
+                            <input type="file" class="form-control" name="voucher" accept=".jpg,.jpeg,.png,.pdf">
+                        </div>
+
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -994,7 +999,7 @@
                 <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Editar Pago</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="formEditarPago" method="POST" action="">
+            <form id="formEditarPago" method="POST" action="" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-body">
@@ -1061,6 +1066,16 @@
                             <div class="form-text d-none" id="edit_codigo_ayuda">
                                 Generado por el sistema para pagos por QR.
                             </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Voucher / Comprobante</label>
+                            <div class="mb-1" id="edit_voucher_actual" style="display:none;">
+                                <a href="#" target="_blank" id="edit_voucher_link" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-file-earmark-check me-1"></i>Ver voucher actual
+                                </a>
+                            </div>
+                            <input type="file" class="form-control" name="voucher" accept=".jpg,.jpeg,.png,.pdf">
+                            <div class="form-text">Subir un archivo nuevo reemplaza al anterior.</div>
                         </div>
                     </div>
                 </div>
@@ -2382,7 +2397,7 @@ function abrirModalEditarLote(tramoUuid, proveedorId, loteActualId) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarLote')).show();
 }
 
-function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo) {
+function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo, voucherUrl) {
     document.getElementById('formEditarPago').action = url_global + '/pagos/camiones/' + uuid;
     document.getElementById('edit_tipo_pago').value   = tipo;
     document.getElementById('edit_monto').value       = monto;
@@ -2390,6 +2405,15 @@ function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, meto
     document.getElementById('edit_fecha_pago').value  = fecha;
     document.getElementById('edit_metodo_pago').value = metodo;
     document.getElementById('edit_codigo').value      = codigo;
+
+    const voucherActual = document.getElementById('edit_voucher_actual');
+    const voucherLink   = document.getElementById('edit_voucher_link');
+    if (voucherUrl) {
+        voucherLink.href = voucherUrl;
+        voucherActual.style.display = 'block';
+    } else {
+        voucherActual.style.display = 'none';
+    }
 
     // La moneda es la del flete del contrato, no la que traiga el pago
     const monedaFlete = _segMonedaFlete || moneda || 'BOB';
@@ -3089,6 +3113,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                             <th>Receptor</th>
                             <th>Cuenta origen</th>
                             <th>Código</th>
+                            <th>Voucher</th>
                             ${(segCanEditPago || segCanDeletePago) ? '<th class="text-center">Acciones</th>' : ''}
                         </tr>
                     </thead>
@@ -3100,7 +3125,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                 if (segCanEditPago || segCanDeletePago) {
                     const editar = segCanEditPago
                         ? `<button class="btn btn-sm btn-outline-secondary border-0"
-                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}')"
+                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}', ${p.voucher_url ? `'${p.voucher_url}'` : 'null'})"
                                    title="Editar"><i class="bi bi-pencil"></i></button>`
                         : '';
                     const eliminar = segCanDeletePago
@@ -3125,6 +3150,9 @@ function abrirHistorialPagos(ccId, camionLabel) {
                     <td class="small">${p.receptor ?? '—'}</td>
                     <td class="small">${origen}</td>
                     <td class="small text-muted">${p.codigo ?? '—'}</td>
+                    <td class="small">${p.tiene_voucher
+                        ? `<a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-check"></i></a>`
+                        : '<span class="text-muted">—</span>'}</td>
                     ${acciones}
                 </tr>`;
             });

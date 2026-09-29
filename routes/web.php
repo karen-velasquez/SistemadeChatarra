@@ -217,6 +217,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('pagos/camiones/pago-masivo',[App\Http\Controllers\PagoCamionController::class,'pagoMasivoView'])->name('pagos.camiones.pago_masivo')->middleware('permission:pagos_camiones.create');
     Route::post('pagos/camiones/pago-masivo',[App\Http\Controllers\PagoCamionController::class,'pagoMasivoStore'])->name('pagos.camiones.pago_masivo.store')->middleware('permission:pagos_camiones.create');
     Route::put('pagos/camiones/{uuid}',[App\Http\Controllers\PagoCamionController::class,'update'])->name('pagos.camiones.update')->middleware('permission:pagos_camiones.edit');
+    Route::get('pagos/camiones/{uuid}/voucher',[App\Http\Controllers\PagoCamionController::class,'verVoucher'])->name('pagos.camiones.voucher')->middleware('permission:pagos_camiones.index');
     Route::get('pagos/camiones/{uuid}/destroy',[App\Http\Controllers\PagoCamionController::class,'destroy'])->name('pagos.camiones.destroy')->middleware('permission:pagos_camiones.destroy');
     Route::get('api/pagos/camiones/{id}/detalle',[App\Http\Controllers\PagoCamionController::class,'detalle'])->name('pagos.camiones.detalle');
     Route::get('api/pagos/cuentas-receptor',[App\Http\Controllers\PagoCamionController::class,'cuentasReceptor'])->name('pagos.cuentas-receptor');

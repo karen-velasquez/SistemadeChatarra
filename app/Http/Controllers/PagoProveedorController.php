@@ -311,6 +311,13 @@ class PagoProveedorController extends Controller
             'cuenta_destino.*' => 'nullable|exists:cuentas_bancarias,id',
             'vouchers'         => 'nullable|array',
             'vouchers.*'       => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            // Un contrato puede llegar como varios pagos reales al mismo monto/cuenta
+            // (ej. dos transferencias de 400 y 600 en vez de una de 1000).
+            'splits'           => 'nullable|array',
+            'splits.*'         => 'array',
+            'splits.*.*'       => 'numeric|min:0.01',
+            'split_vouchers'   => 'nullable|array',
+            'split_vouchers.*.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
         ]);
 
         $cuentaOrigen = CuentaEmpresa::with('empresa')->findOrFail($request->cuenta_origen_id);
@@ -364,14 +371,8 @@ class PagoProveedorController extends Controller
                 $monto = round($saldo * $pct / 100, 2);
                 if ($monto <= 0) continue;
 
-                // Si el pago cubre el saldo pendiente liquida el contrato; si no, es un adelanto
-                $tipoPago = $monto >= round($saldo, 2) ? 'pago_final' : 'adelanto';
-
                 $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
                 if (!$ctaDest) continue;
-
-                $voucherFile = $request->file("vouchers.$contratoId");
-                $voucherPath = $voucherFile ? $voucherFile->store('vouchers_pago_proveedor', 'public') : null;
 
                 // Dejar constancia de que el pago vino de un lote masivo, se hayan
                 // escrito observaciones o no.
@@ -380,39 +381,59 @@ class PagoProveedorController extends Controller
                     ? trim($request->observaciones) . ' — ' . $notaMasivo
                     : $notaMasivo;
 
-                $pago = PagoProveedor::create([
-                    'lote_pago_id'       => $lote->id,
-                    'contrato_id'        => $contratoId,
-                    'tipo_pago'          => $tipoPago,
-                    'monto'              => $monto,
-                    'moneda_pago'        => $monedaPago,
-                    'tipo_cambio'        => $tipoCambio,
-                    'fecha_pago'         => $request->fecha_pago,
-                    'metodo_pago'        => $request->metodo_pago,
-                    'codigo_seguimiento' => $codigoLote,
-                    'cuenta_origen_id'   => $request->cuenta_origen_id,
-                    'cuenta_destino_id'  => $ctaDest->id,
-                    'voucher'            => $voucherPath,
-                    'observaciones'      => $observaciones,
-                    'created_by'         => auth()->id(),
-                    'updated_by'         => auth()->id(),
-                ]);
-
                 $conceptoDetalle = ($contrato->proveedor->nombre ?? 'Proveedor');
                 if ($contrato->numero_contrato) {
                     $conceptoDetalle .= ' - Contrato ' . $contrato->numero_contrato;
                 }
 
-                Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago masivo proveedor: ' . $conceptoDetalle, $observaciones);
+                // Un contrato puede llegar como varios pagos reales (mismo monto total,
+                // misma cuenta) en vez de una sola transferencia: se crea un PagoProveedor
+                // por cada sub-monto, cada uno con su propio voucher.
+                $splitsContrato = $request->input("splits.$contratoId");
+                $montosAPagar = $splitsContrato
+                    ? array_values(array_filter($splitsContrato, fn($m) => (float) $m > 0))
+                    : [$monto];
 
-                $resumen[] = [
-                    'proveedor'      => $contrato->proveedor->nombre ?? '—',
-                    'contrato'       => $contrato->numero_contrato ?? '#' . $contrato->id,
-                    'porcentaje'     => $pct,
-                    'monto'          => $monto,
-                    'moneda'         => $monedaPago,
-                    'cuenta_destino' => ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta,
-                ];
+                foreach ($montosAPagar as $idxSplit => $montoPago) {
+                    $montoPago = round((float) $montoPago, 2);
+                    // Si el pago cubre el saldo pendiente liquida el contrato; si no, es un adelanto.
+                    // Con splits, solo el último puede llegar a liquidar (se evalúa contra el saldo real).
+                    $tipoPago = $montoPago >= round($saldo, 2) ? 'pago_final' : 'adelanto';
+
+                    $voucherFile = $splitsContrato
+                        ? $request->file("split_vouchers.$contratoId.$idxSplit")
+                        : $request->file("vouchers.$contratoId");
+                    $voucherPath = $voucherFile ? $voucherFile->store('vouchers_pago_proveedor', 'public') : null;
+
+                    $pago = PagoProveedor::create([
+                        'lote_pago_id'       => $lote->id,
+                        'contrato_id'        => $contratoId,
+                        'tipo_pago'          => $tipoPago,
+                        'monto'              => $montoPago,
+                        'moneda_pago'        => $monedaPago,
+                        'tipo_cambio'        => $tipoCambio,
+                        'fecha_pago'         => $request->fecha_pago,
+                        'metodo_pago'        => $request->metodo_pago,
+                        'codigo_seguimiento' => $codigoLote,
+                        'cuenta_origen_id'   => $request->cuenta_origen_id,
+                        'cuenta_destino_id'  => $ctaDest->id,
+                        'voucher'            => $voucherPath,
+                        'observaciones'      => $observaciones,
+                        'created_by'         => auth()->id(),
+                        'updated_by'         => auth()->id(),
+                    ]);
+
+                    Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago masivo proveedor: ' . $conceptoDetalle, $observaciones);
+
+                    $resumen[] = [
+                        'proveedor'      => $contrato->proveedor->nombre ?? '—',
+                        'contrato'       => $contrato->numero_contrato ?? '#' . $contrato->id,
+                        'porcentaje'     => $pct,
+                        'monto'          => $montoPago,
+                        'moneda'         => $monedaPago,
+                        'cuenta_destino' => ($ctaDest->banco->nombre ?? '') . ' ' . $ctaDest->numero_cuenta,
+                    ];
+                }
             }
 
             return $resumen;
