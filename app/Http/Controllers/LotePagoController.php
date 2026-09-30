@@ -82,6 +82,46 @@ class LotePagoController extends Controller
     }
 
     /**
+     * Confirma que el banco ya ejecutó el lote: recién aquí se crean los
+     * movimientos de tesorería (y se descuenta el saldo de la cuenta origen).
+     * Antes de confirmar, el pago masivo es solo una orden generada — ya
+     * descuenta el saldo pendiente del contrato/flete, pero no afecta la
+     * cuenta bancaria real hasta que se confirme. Solo aplica a proveedor y
+     * camión: cobro masivo a clientes no pasa por este flujo.
+     */
+    public function confirmar($uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        abort_if($lote->tipo === 'cliente', 404);
+        abort_if($lote->estado === 'confirmado', 400, 'Este lote ya fue confirmado.');
+
+        $categoria = $lote->tipo === 'proveedor' ? 'pago_proveedor' : 'pago_camion';
+        $pagos     = $lote->tipo === 'proveedor'
+            ? $lote->pagosProveedor()->with('contrato.proveedor')->get()
+            : $lote->pagosCamion()->with('receptor', 'contratoCamion.contrato.proveedor', 'contratoCamion.camion')->get();
+
+        DB::transaction(function () use ($lote, $categoria, $pagos) {
+            foreach ($pagos as $pago) {
+                $conceptoDetalle = match ($lote->tipo) {
+                    'proveedor' => 'Pago masivo proveedor: ' . ($pago->contrato?->proveedor?->nombre ?? 'Proveedor')
+                        . ($pago->contrato?->numero_contrato ? ' - Contrato ' . $pago->contrato->numero_contrato : ''),
+                    default => 'Pago flete: ' . ($pago->contratoCamion?->camion?->placa ?? '—')
+                        . ' — ' . ($pago->contratoCamion?->contrato?->proveedor?->nombre ?? '—')
+                        . ' (' . ($pago->contratoCamion?->contrato?->numero_contrato ?? '—') . ')',
+                };
+
+                Movimiento::registrarDePago($pago, 'egreso', $categoria, $lote->cuenta_origen_id, $conceptoDetalle, $pago->observaciones);
+            }
+
+            $lote->update(['estado' => 'confirmado']);
+        });
+
+        Alert::success('Éxito', 'Lote confirmado: se registraron ' . $pagos->count() . ' movimiento(s) en tesorería.');
+        return back();
+    }
+
+    /**
      * El código provisional del lote sigue siendo el identificador que agrupa
      * los pagos como "un mismo pago masivo". El código real, en cambio, lo da
      * el banco por CADA transferencia individual — así que se edita pago por

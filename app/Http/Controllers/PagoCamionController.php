@@ -469,6 +469,7 @@ class PagoCamionController extends Controller
         $lineas = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote, $observaciones, $montosSolicitados) {
             $lote = LotePago::create([
                 'tipo'               => 'camion',
+                'estado'             => 'pendiente',
                 'codigo_provisional' => $codigoLote,
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
@@ -553,7 +554,9 @@ class PagoCamionController extends Controller
                         'updated_by'         => auth()->id(),
                     ]);
 
-                    Movimiento::registrarDePago($pago, 'egreso', 'pago_camion', $request->cuenta_origen_id, 'Pago flete: ' . $placa . ' — ' . $proveedor . ' (' . $contrato . ')', $observaciones);
+                    // El movimiento de tesorería (y el descuento del saldo de la cuenta) se
+                    // crea al confirmar el lote, no aquí: hasta entonces el pago es solo una
+                    // orden generada, no una transferencia que el banco ya haya ejecutado.
 
                     $lineas[] = [
                         'proveedor'     => $proveedor,

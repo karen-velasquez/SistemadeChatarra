@@ -62,7 +62,8 @@
             <th>Método</th>
             <th>Código provisional</th>
             <th>Código real (banco)</th>
-            <th>Estado</th>
+            <th>Estado código</th>
+            <th>Pago</th>
             <th></th>
           </tr>
         </thead>
@@ -124,6 +125,15 @@
                 <span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pendiente</span>
               @endif
             </td>
+            <td>
+              @if($lote->tipo === 'cliente')
+                <span class="text-muted small">—</span>
+              @elseif($lote->estado === 'confirmado')
+                <span class="badge bg-success"><i class="bi bi-bank2 me-1"></i>Confirmado</span>
+              @else
+                <span class="badge bg-secondary"><i class="bi bi-hourglass-split me-1"></i>Pendiente de confirmar</span>
+              @endif
+            </td>
             <td class="text-center">
               <div class="dropdown">
                 <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -138,6 +148,13 @@
                   </li>
                   @endif
                   @can('lotes_pago.edit')
+                  @if($lote->tipo !== 'cliente' && $lote->estado !== 'confirmado')
+                  <li>
+                    <button class="dropdown-item" onclick="confirmarPagoLote('{{ $lote->uuid }}', '{{ $labelTipo }}')">
+                      <i class="bi bi-bank2 text-success me-2"></i> Confirmar pago
+                    </button>
+                  </li>
+                  @endif
                   <li>
                     <button class="dropdown-item" onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
                       <i class="bi bi-pencil-square text-primary me-2"></i> Códigos reales por pago
@@ -206,6 +223,11 @@
     </div>
   </div>
 </div>
+
+{{-- Form oculto: confirmar que el banco ya ejecutó el lote (crea los movimientos) --}}
+<form id="form_confirmar_lote" method="POST" style="display:none">
+  @csrf
+</form>
 
 {{-- Modal de edición de fecha del lote --}}
 <div class="modal fade" id="modalFecha" tabindex="-1" aria-hidden="true">
@@ -305,6 +327,15 @@
 @section('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+function confirmarPagoLote(uuid, tipo) {
+    if (!confirm(`¿Confirmar que el banco ya ejecutó este lote ${tipo}?\n\nSe registrarán los movimientos en tesorería y se descontará el saldo de la cuenta origen. Esta acción no se puede deshacer desde aquí.`)) {
+        return;
+    }
+    const form = document.getElementById('form_confirmar_lote');
+    form.action = `${url_global}/lotes-pago/${uuid}/confirmar`;
+    form.submit();
+}
+
 function abrirModalFecha(uuid, tipo, fechaISO) {
     document.getElementById('form_fecha').action = `${url_global}/lotes-pago/${uuid}/fecha`;
     document.getElementById('lbl_info_lote_fecha').textContent = `Lote ${tipo}`;

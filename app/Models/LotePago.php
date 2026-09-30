@@ -14,6 +14,7 @@ class LotePago extends Model
 
     protected $fillable = [
         'tipo',
+        'estado',
         'codigo_provisional',
         'codigo_real',
         'fecha_pago',

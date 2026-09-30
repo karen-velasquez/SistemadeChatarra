@@ -348,6 +348,7 @@ class PagoProveedorController extends Controller
         $resumen = DB::transaction(function () use ($request, $monedaPago, $tipoCambio, $codigoLote) {
             $lote = LotePago::create([
                 'tipo'               => 'proveedor',
+                'estado'             => 'pendiente',
                 'codigo_provisional' => $codigoLote,
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
@@ -423,7 +424,9 @@ class PagoProveedorController extends Controller
                         'updated_by'         => auth()->id(),
                     ]);
 
-                    Movimiento::registrarDePago($pago, 'egreso', 'pago_proveedor', $request->cuenta_origen_id, 'Pago masivo proveedor: ' . $conceptoDetalle, $observaciones);
+                    // El movimiento de tesorería (y el descuento del saldo de la cuenta) se
+                    // crea al confirmar el lote, no aquí: hasta entonces el pago es solo una
+                    // orden generada, no una transferencia que el banco ya haya ejecutado.
 
                     $resumen[] = [
                         'proveedor'      => $contrato->proveedor->nombre ?? '—',

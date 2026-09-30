@@ -196,6 +196,7 @@ use Illuminate\Support\Facades\Route;
     // Lotes de pago masivo
     Route::get('lotes-pago', [App\Http\Controllers\LotePagoController::class, 'index'])->name('lotes_pago.index')->middleware('permission:lotes_pago.index');
     Route::post('lotes-pago/{uuid}/codigo', [App\Http\Controllers\LotePagoController::class, 'actualizarCodigo'])->name('lotes_pago.codigo')->middleware('permission:lotes_pago.edit');
+    Route::post('lotes-pago/{uuid}/confirmar', [App\Http\Controllers\LotePagoController::class, 'confirmar'])->name('lotes_pago.confirmar')->middleware('permission:lotes_pago.edit');
     Route::post('lotes-pago/{uuid}/fecha', [App\Http\Controllers\LotePagoController::class, 'actualizarFecha'])->name('lotes_pago.fecha')->middleware('permission:lotes_pago.edit');
     Route::delete('lotes-pago/{uuid}', [App\Http\Controllers\LotePagoController::class, 'destroy'])->name('lotes_pago.destroy')->middleware('permission:lotes_pago.destroy');
     Route::get('api/lotes-pago/{uuid}/detalle', [App\Http\Controllers\LotePagoController::class, 'detalle'])->name('lotes_pago.detalle')->middleware('permission:lotes_pago.index');
