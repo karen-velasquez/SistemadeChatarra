@@ -274,6 +274,10 @@ class PagoClienteController extends Controller
             // de transferencia real después desde Tesorería → Lotes de Pago.
             $lote = LotePago::create([
                 'tipo'               => 'cliente',
+                // Cobro a cliente no pasa por el flujo pendiente/confirmar de pago
+                // masivo proveedor/camión: el movimiento se crea aquí mismo, así que
+                // nace confirmado (el default de la columna es 'pendiente').
+                'estado'             => 'confirmado',
                 'codigo_provisional' => $esProvisional ? $codigo : null,
                 'codigo_real'        => $esProvisional ? null : $codigo,
                 'fecha_pago'         => $request->fecha_pago,
