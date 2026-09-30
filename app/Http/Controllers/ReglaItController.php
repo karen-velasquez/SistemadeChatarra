@@ -40,7 +40,7 @@ class ReglaItController extends Controller
         $request->validate([
             'cliente_id'              => 'nullable|exists:clientes,id',
             'empresa_facturadora_id'  => 'nullable|exists:empresas,id',
-            'monto_por_tonelada'      => 'required|numeric|min:0',
+            'porcentaje'              => 'required|numeric|min:0|max:100',
             'fecha_inicio'            => 'nullable|date',
             'fecha_fin'               => 'nullable|date|after_or_equal:fecha_inicio',
         ], [
@@ -72,7 +72,7 @@ class ReglaItController extends Controller
         return [
             'cliente_id'             => $request->cliente_id ?: null,
             'empresa_facturadora_id' => $request->empresa_facturadora_id ?: null,
-            'monto_por_tonelada'     => $request->monto_por_tonelada,
+            'porcentaje'             => $request->porcentaje,
             'fecha_inicio'           => $request->fecha_inicio ?: null,
             'fecha_fin'              => $request->fecha_fin ?: null,
         ];

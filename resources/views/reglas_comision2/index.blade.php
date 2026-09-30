@@ -17,8 +17,8 @@
             <button type="button"
                     class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                     data-steps='[
-                        {"intro":"💲 Las <b>Reglas de Comisión 2</b> definen la Comisión 2 ZPL (en el Excel de Contratos) como un monto fijo por tonelada, cuando la venta coincide con el cliente y/o la empresa facturadora que definas aquí, dentro de su rango de vigencia."},
-                        {"element":"#regla-tabla","intro":"📋 Cada regla indica: a qué cliente aplica (o cualquiera), a qué empresa facturadora aplica (o cualquiera), el monto por tonelada, y el rango de fechas en que rige. Debe cumplirse cliente Y empresa a la vez si ambos están definidos. Si ninguna regla vigente aplica a una venta, su Comisión 2 es 0.","position":"top"},
+                        {"intro":"💲 Las <b>Reglas de Comisión 2</b> definen la Comisión 2 ZPL (en el Excel de Contratos) como un % del total de venta, cuando la venta coincide con el cliente y/o la empresa facturadora que definas aquí, dentro de su rango de vigencia."},
+                        {"element":"#regla-tabla","intro":"📋 Cada regla indica: a qué cliente aplica (o cualquiera), a qué empresa facturadora aplica (o cualquiera), el % de comisión, y el rango de fechas en que rige. Debe cumplirse cliente Y empresa a la vez si ambos están definidos. Si ninguna regla vigente aplica a una venta, su Comisión 2 es 0.","position":"top"},
                         {"element":"#btnNuevaRegla","intro":"➕ Con <b>Nueva Regla</b> agregas una combinación nueva.","position":"left"}
                     ]'>
                 <i class="bi bi-question-circle"></i>
@@ -39,11 +39,11 @@
             <p class="text-muted small mb-0">
                 <i class="bi bi-info-circle me-1"></i>
                 Al descargar el Excel de Contratos, la Comisión 2 ZPL de cada venta se calcula como
-                <strong>monto por tonelada × toneladas entregadas</strong>, usando la regla de esta lista (cliente y/o empresa
+                <strong>% × total de venta (toneladas × precio)</strong>, usando la regla de esta lista (cliente y/o empresa
                 facturadora) cuyo rango de vigencia incluya la <strong>fecha de entrega</strong> de la venta.
                 Deje un campo en blanco para que la regla aplique a cualquier cliente o cualquier empresa en ese campo.
                 Si ninguna regla vigente aplica a una venta, su Comisión 2 es <strong>0</strong>.
-                El monto puede variar en el tiempo: registra una regla nueva con el mismo cliente/empresa y otro rango de fechas.
+                El % puede variar en el tiempo: registra una regla nueva con el mismo cliente/empresa y otro rango de fechas.
             </p>
         </div>
     </div>
@@ -64,7 +64,7 @@
                             <th>Empresa Facturadora</th>
                             <th>Fecha inicio</th>
                             <th>Fecha fin</th>
-                            <th class="text-end">Monto por Tonelada</th>
+                            <th class="text-end">Porcentaje</th>
                             <th>Estado</th>
                             <th style="width:160px"></th>
                         </tr>
@@ -76,7 +76,7 @@
                             <td>{{ $r->empresaFacturadora->nombre ?? '— Cualquier empresa —' }}</td>
                             <td>{{ $r->fecha_inicio?->format('d/m/Y') ?? '— Sin límite —' }}</td>
                             <td>{{ $r->fecha_fin?->format('d/m/Y') ?? '— Sin límite —' }}</td>
-                            <td class="text-end">BOB {{ number_format($r->monto_por_tonelada, 2, ',', '.') }} / t</td>
+                            <td class="text-end">{{ number_format($r->porcentaje, 2, ',', '.') }} %</td>
                             <td>
                                 @if($r->activo)
                                     <span class="badge bg-success">Activa</span>
@@ -151,11 +151,13 @@
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Monto por Tonelada (BOB) <span class="text-danger">*</span></label>
-                            <input type="text" inputmode="numeric" id="regla_monto_display"
-                                   class="form-control" required placeholder="0,00" autocomplete="off">
-                            <input type="hidden" name="monto_por_tonelada" id="regla_monto">
-                            <div class="form-text">Reemplaza el 1,1% de Comisión 2 ZPL por este monto fijo × toneladas entregadas.</div>
+                            <label class="form-label">Porcentaje (%) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="porcentaje" id="regla_porcentaje"
+                                       class="form-control" required min="0" max="100" step="0.01" placeholder="0,00">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="form-text">Reemplaza el 1,1% de Comisión 2 ZPL por este % × total de venta (toneladas × precio).</div>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Fecha inicio de vigencia</label>
@@ -186,8 +188,7 @@ function nuevaRegla() {
     document.getElementById('formRegla').action = "{{ route('reglas_comision2.store') }}";
     document.getElementById('methodRegla').value = 'POST';
     document.getElementById('tituloRegla').innerHTML = '<i class="bi bi-percent"></i> Nueva Regla de Comisión 2';
-    document.getElementById('regla_monto_display').value = '';
-    document.getElementById('regla_monto').value = '';
+    document.getElementById('regla_porcentaje').value = '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalRegla')).show();
 }
 
@@ -200,10 +201,7 @@ function editarRegla(uuid) {
             document.getElementById('tituloRegla').innerHTML = '<i class="bi bi-pencil"></i> Editar Regla de Comisión 2';
             document.getElementById('regla_cliente_id').value = r.cliente_id ?? '';
             document.getElementById('regla_empresa_id').value = r.empresa_facturadora_id ?? '';
-            document.getElementById('regla_monto').value = r.monto_por_tonelada ?? '';
-            document.getElementById('regla_monto_display').value = r.monto_por_tonelada
-                ? new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(r.monto_por_tonelada)
-                : '';
+            document.getElementById('regla_porcentaje').value = r.porcentaje ?? '';
             document.getElementById('regla_fecha_inicio').value = r.fecha_inicio ? r.fecha_inicio.substring(0, 10) : '';
             document.getElementById('regla_fecha_fin').value = r.fecha_fin ? r.fecha_fin.substring(0, 10) : '';
             document.getElementById('regla_fecha_fin').min = '';
@@ -220,36 +218,5 @@ document.getElementById('regla_fecha_inicio')?.addEventListener('change', functi
         fin.value = '';
     }
 });
-
-// Cajero para monto por tonelada (mismo patrón de miles/decimales del resto del sistema)
-(function () {
-    var fmt = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    function textoANum(txt) { return parseFloat((txt || '').replace(/\./g, '').replace(',', '.')) || 0; }
-
-    var disp = document.getElementById('regla_monto_display');
-    var hidd = document.getElementById('regla_monto');
-    if (!disp) return;
-
-    disp.addEventListener('input', function () {
-        var raw = this.value.replace(/[^0-9,]/g, '');
-        var p = raw.split(',');
-        if (p.length > 2) raw = p[0] + ',' + p.slice(1).join('');
-        if (p[1] !== undefined && p[1].length > 2) raw = p[0] + ',' + p[1].substring(0, 2);
-        var partes = raw.split(',');
-        var entF   = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        var nuevo  = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
-        var diff   = nuevo.length - this.value.length;
-        var pos    = (this.selectionStart || 0) + diff;
-        this.value = nuevo;
-        try { this.setSelectionRange(pos, pos); } catch(_) {}
-        hidd.value = nuevo ? textoANum(nuevo) : '';
-    });
-
-    disp.addEventListener('blur', function () {
-        var n = textoANum(this.value);
-        this.value = n > 0 ? fmt.format(n) : '';
-        hidd.value = n >= 0 ? n : '';
-    });
-})();
 </script>
 @endsection

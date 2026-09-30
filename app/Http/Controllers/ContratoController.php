@@ -163,12 +163,12 @@ class ContratoController extends Controller
                 $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
                 $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
                 $utilidadBruta = round($totalVentas - $importeCompra, 2);
-                $montoReglaIt    = ReglaIt::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
-                $it              = round($e['tn_entregadas'] * $montoReglaIt, 2);
+                $pctIt           = ReglaIt::porcentajeParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
+                $it              = round($totalVentas * $pctIt / 100, 2);
                 $montoRegla      = ReglaComision::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $comision1       = round($e['tn_entregadas'] * $montoRegla, 2);
-                $montoRegla2     = ReglaComision2::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
-                $comision2       = round($e['tn_entregadas'] * $montoRegla2, 2);
+                $pctComision2    = ReglaComision2::porcentajeParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
+                $comision2       = round($totalVentas * $pctComision2 / 100, 2);
                 $costoAdicional  = ReglaCostoAdicional::montoParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
                 $utilidadNeta  = round($utilidadBruta - $it - $comision1 - $comision2 - $costoAdicional, 2);
 

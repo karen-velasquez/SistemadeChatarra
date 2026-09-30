@@ -15,7 +15,7 @@ class ReglaComision2 extends Model
     protected $fillable = [
         'cliente_id',
         'empresa_facturadora_id',
-        'monto_por_tonelada',
+        'porcentaje',
         'fecha_inicio',
         'fecha_fin',
         'activo',
@@ -24,10 +24,10 @@ class ReglaComision2 extends Model
     ];
 
     protected $casts = [
-        'monto_por_tonelada' => 'decimal:4',
-        'fecha_inicio'       => 'date',
-        'fecha_fin'          => 'date',
-        'activo'             => 'boolean',
+        'porcentaje'   => 'decimal:4',
+        'fecha_inicio' => 'date',
+        'fecha_fin'    => 'date',
+        'activo'       => 'boolean',
     ];
 
     protected static function boot()
@@ -47,7 +47,7 @@ class ReglaComision2 extends Model
     }
 
     /**
-     * Busca la comisión 2 especial por tonelada para un cliente + empresa
+     * Busca el % de Comisión 2 especial para un cliente + empresa
      * facturadora dados, vigente en la fecha de la venta (dentro del rango
      * fecha_inicio..fecha_fin; cualquiera de los dos puede quedar abierto).
      * Prioriza la regla más específica (cliente+empresa exactos, antes que
@@ -56,7 +56,7 @@ class ReglaComision2 extends Model
      * Devuelve 0.0 si no hay ninguna regla vigente que aplique: sin regla,
      * la Comisión 2 de esa venta es 0, no un porcentaje por defecto.
      */
-    public static function montoParaVenta(?int $clienteId, ?int $empresaId, $fecha = null): float
+    public static function porcentajeParaVenta(?int $clienteId, ?int $empresaId, $fecha = null): float
     {
         if (!$clienteId && !$empresaId) return 0.0;
 
@@ -80,6 +80,6 @@ class ReglaComision2 extends Model
             ->orderByDesc('fecha_inicio')
             ->first();
 
-        return $regla ? (float) $regla->monto_por_tonelada : 0.0;
+        return $regla ? (float) $regla->porcentaje : 0.0;
     }
 }
