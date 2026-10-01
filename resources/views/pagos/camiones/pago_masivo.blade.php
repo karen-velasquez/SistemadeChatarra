@@ -875,7 +875,9 @@ function actualizarSplitFleteTotal(ccId) {
     const lbl = document.getElementById(`split_dif_f_${ccId}`);
     if (!lbl) return;
     lbl.textContent = `${info.moneda} ${_fmtMonto(suma)} de ${info.moneda} ${_fmtMonto(total)}`
-        + (dif !== 0 ? ` — falta ${info.moneda} ${_fmtMonto(Math.abs(dif))}` : ' ✓');
+        + (dif > 0 ? ` — falta ${info.moneda} ${_fmtMonto(dif)}`
+            : dif < 0 ? ` — sobra ${info.moneda} ${_fmtMonto(Math.abs(dif))}`
+            : ' ✓');
     lbl.className = dif !== 0 ? 'small text-danger' : 'small text-success';
 }
 

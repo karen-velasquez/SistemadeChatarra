@@ -7,6 +7,7 @@ use App\Models\Movimiento;
 use App\Models\PagoCamion;
 use App\Models\PagoProveedor;
 use App\Models\PagoCliente;
+use App\Models\Parametro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -266,7 +267,11 @@ class LotePagoController extends Controller
             ? $lote->pagosProveedor()->with(['contrato', 'cuentaDestino.banco'])->orderBy('id')->get()
             : $lote->pagosCamion()->with(['receptor', 'cuentaDestino.banco'])->orderBy('id')->get();
 
-        $filas = $pagos->values()->map(function ($p, $i) use ($lote) {
+        // Mismo mapeo que usa el pop-up de Pago Masivo: la sucursal va abreviada
+        // (sigla), no el nombre completo del departamento.
+        $sucMap = Parametro::where('tipo', 'sucursal_cuenta')->whereNull('deleted_at')->pluck('valor', 'descripcion');
+
+        $filas = $pagos->values()->map(function ($p, $i) use ($lote, $sucMap) {
             $cta        = $p->cuentaDestino;
             $banco      = $cta?->banco?->nombre ?? '';
             $esGanadero = $banco === 'Banco Ganadero';
@@ -293,9 +298,11 @@ class LotePagoController extends Controller
                 $esGanadero ? 1 : 3,
                 $esGanadero ? 0 : ($p->moneda_pago === 'USD' ? 2 : 1),
                 $esGanadero ? 0 : ($cta?->banco?->codigo_banco ?? ''),
-                $esGanadero ? 0 : ($cta?->sucursal_departamento ?? ''),
+                $esGanadero ? 0 : ($sucMap[$cta?->sucursal_departamento] ?? ''),
                 $glosa,
-                $p->codigo_seguimiento ?? '',
+                // El código único lo completa el banco: va vacío igual que en el
+                // pop-up de Pago Masivo, no el código de seguimiento del sistema.
+                '',
                 $cta?->email_notificacion ?? '',
                 '',
                 '',

@@ -890,7 +890,9 @@ function actualizarSplitTotal(contratoId) {
     const lbl = document.getElementById(`split_dif_${contratoId}`);
     if (!lbl) return;
     lbl.textContent = `${entry.moneda} ${_fmtM(sumaSplits)} de ${entry.moneda} ${_fmtM(entry.monto)}`
-        + (dif !== 0 ? ` — falta ${entry.moneda} ${_fmtM(Math.abs(dif))}` : ' ✓');
+        + (dif > 0 ? ` — falta ${entry.moneda} ${_fmtM(dif)}`
+            : dif < 0 ? ` — sobra ${entry.moneda} ${_fmtM(Math.abs(dif))}`
+            : ' ✓');
     lbl.className = dif !== 0 ? 'small text-danger' : 'small text-success';
 }
 
