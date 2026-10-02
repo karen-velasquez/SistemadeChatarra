@@ -105,7 +105,7 @@
     <div class="card" id="cta-movimientos">
         <div class="card-body">
             <h5 class="card-title mb-3">Movimientos</h5>
-            @include('movimientos._tabla', ['movimientos' => $movimientos, 'mostrarCuenta' => false, 'mostrarEliminar' => false])
+            @include('movimientos._tabla', ['movimientos' => $movimientos, 'mostrarCuenta' => false, 'mostrarEliminar' => true, 'mostrarEditar' => true])
         </div>
     </div>
 </section>
@@ -169,7 +169,9 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Monto <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.01" name="monto" class="form-control" required min="0.01">
+                            <input type="text" inputmode="numeric" id="monto_mov_display" class="form-control"
+                                   placeholder="0,00" autocomplete="off" required>
+                            <input type="hidden" name="monto" id="monto_mov">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Moneda</label>
@@ -178,12 +180,10 @@
                         </div>
                         <div class="col-md-6" id="row_tipo_cambio" style="{{ $cuenta->moneda === 'BOB' ? 'display:none' : '' }}">
                             <label class="form-label">Tipo de Cambio <span class="text-danger">(*)</span></label>
-                            <input type="number" step="0.0001" name="tipo_cambio" id="tipo_cambio_mov" class="form-control"
-                                   value="1" {{ $cuenta->moneda === 'BOB' ? '' : 'required' }} min="0.0001">
+                            <input type="text" inputmode="numeric" id="tc_mov_display" class="form-control"
+                                   placeholder="1,0000" autocomplete="off" {{ $cuenta->moneda === 'BOB' ? '' : 'required' }}>
+                            <input type="hidden" name="tipo_cambio" id="tc_mov" value="1">
                         </div>
-                        @if($cuenta->moneda === 'BOB')
-                        <input type="hidden" name="tipo_cambio" value="1">
-                        @endif
                         <div class="col-12">
                             <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
                             <input type="text" name="concepto" class="form-control" required>
@@ -211,6 +211,59 @@
     </div>
 </div>
 
+{{-- MODAL EDITAR MOVIMIENTO MANUAL --}}
+<div class="modal fade" id="modalEditarMovimiento" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Movimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarMovimiento" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <div><span class="badge fs-6" id="edit_mov_tipo_badge"></span></div>
+                            <div class="form-text">El tipo no se puede cambiar: elimina el movimiento y registra uno nuevo si lo necesitas distinto.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha <span class="text-danger">(*)</span></label>
+                            <input type="date" name="fecha" id="edit_mov_fecha" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Monto ({{ $cuenta->moneda }}) <span class="text-danger">(*)</span></label>
+                            <input type="text" inputmode="numeric" id="edit_mov_monto_display" class="form-control"
+                                   placeholder="0,00" autocomplete="off" required>
+                            <input type="hidden" name="monto" id="edit_mov_monto">
+                        </div>
+                        <div class="col-md-6" style="{{ $cuenta->moneda === 'BOB' ? 'display:none' : '' }}">
+                            <label class="form-label">Tipo de Cambio <span class="text-danger">(*)</span></label>
+                            <input type="text" inputmode="numeric" id="edit_mov_tc_display" class="form-control"
+                                   placeholder="1,0000" autocomplete="off" {{ $cuenta->moneda === 'BOB' ? '' : 'required' }}>
+                            <input type="hidden" name="tipo_cambio" id="edit_mov_tc" value="1">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
+                            <input type="text" name="concepto" id="edit_mov_concepto" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Observaciones</label>
+                            <textarea name="observaciones" id="edit_mov_obs" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnEditarMovimiento">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -220,5 +273,71 @@
 // igual que en Seguimiento de Cargas y en Movimientos. Sin filtro propio que lo
 // reemplace, se pierde la búsqueda y el reordenar por columna, pero se gana la
 // cabecera fija.
+
+// ── Cajero monto y tipo_cambio (mismo formateo de dinero del resto del sistema) ──
+(function() {
+    function _txt2num(v) {
+        return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+    }
+    function _fmt2(n) {
+        return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    }
+    function _fmt4(n) {
+        return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(n);
+    }
+    function _initCajero(displayId, hiddenId, decimals) {
+        var disp   = document.getElementById(displayId);
+        var hidden = document.getElementById(hiddenId);
+        if (!disp || !hidden) return;
+        disp.addEventListener('input', function() {
+            var raw    = this.value.replace(/[^0-9,]/g, '');
+            var partes = raw.split(',');
+            if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+            partes = raw.split(',');
+            if (partes[1] !== undefined) partes[1] = partes[1].slice(0, decimals);
+            var entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+            var diff  = nuevo.length - this.value.length;
+            var pos   = (this.selectionStart || 0) + diff;
+            this.value = nuevo;
+            try { this.setSelectionRange(pos, pos); } catch(_) {}
+            hidden.value = _txt2num(nuevo) || '';
+        });
+        disp.addEventListener('blur', function() {
+            var n = _txt2num(this.value);
+            this.value   = n > 0 ? (decimals === 4 ? _fmt4(n) : _fmt2(n)) : '';
+            hidden.value = n > 0 ? n : '';
+        });
+    }
+    window._cajeroFmt2 = _fmt2;
+    window._cajeroFmt4 = _fmt4;
+
+    _initCajero('monto_mov_display', 'monto_mov', 2);
+    _initCajero('tc_mov_display',    'tc_mov',    4);
+    _initCajero('edit_mov_monto_display', 'edit_mov_monto', 2);
+    _initCajero('edit_mov_tc_display',    'edit_mov_tc',    4);
+})();
+
+function abrirEditarMovimiento(uuid, tipo, monto, tipoCambio, fecha, concepto, observaciones) {
+    document.getElementById('formEditarMovimiento').action = url_global + '/tesoreria/movimiento/' + uuid;
+    var badge = document.getElementById('edit_mov_tipo_badge');
+    badge.textContent = tipo === 'ingreso' ? 'Ingreso' : 'Egreso';
+    badge.className = 'badge fs-6 ' + (tipo === 'ingreso' ? 'bg-success' : 'bg-danger');
+    document.getElementById('edit_mov_monto').value = monto;
+    document.getElementById('edit_mov_monto_display').value = monto > 0 ? window._cajeroFmt2(parseFloat(monto)) : '';
+    document.getElementById('edit_mov_tc').value = tipoCambio;
+    document.getElementById('edit_mov_tc_display').value = tipoCambio > 0 ? window._cajeroFmt4(parseFloat(tipoCambio)) : '';
+    document.getElementById('edit_mov_fecha').value = fecha;
+    document.getElementById('edit_mov_concepto').value = concepto;
+    document.getElementById('edit_mov_obs').value = observaciones;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarMovimiento')).show();
+}
+
+document.getElementById('formEditarMovimiento').addEventListener('submit', function () {
+    var btn = document.getElementById('btnEditarMovimiento');
+    if (btn.disabled) { return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+});
 </script>
 @endsection

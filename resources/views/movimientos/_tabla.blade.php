@@ -3,12 +3,15 @@
     Variables requeridas:
       $movimientos  — colección o paginador de Movimiento (con cuentaEmpresa.empresa cargado)
     Variables opcionales:
-      $mostrarCuenta  — bool, muestra columna Empresa/Cuenta (default true)
+      $mostrarCuenta   — bool, muestra columna Empresa/Cuenta (default true)
       $mostrarEliminar — bool, muestra botón eliminar (default false)
+      $mostrarEditar   — bool, muestra botón editar junto al de eliminar, solo
+                         en movimientos manuales (categoría "otro") (default false)
 --}}
 @php
     $mostrarCuenta   = $mostrarCuenta   ?? true;
     $mostrarEliminar = $mostrarEliminar ?? false;
+    $mostrarEditar   = $mostrarEditar   ?? false;
 @endphp
 
 <div class="table-responsive">
@@ -210,16 +213,27 @@
                     </button>
                 </td>
                 @if($mostrarEliminar)
-                <td class="text-center">
+                <td class="text-center text-nowrap">
+                    @if($mostrarEditar && !$anulado && !$m->origen_type && $m->categoria === 'otro')
+                    @can('tesoreria.edit')
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
+                        onclick="abrirEditarMovimiento('{{ $m->uuid }}', '{{ $m->tipo }}', '{{ number_format((float) $m->monto, 2, '.', '') }}', '{{ number_format((float) $m->tipo_cambio, 4, '.', '') }}', '{{ $m->fecha->format('Y-m-d') }}', {{ Illuminate\Support\Js::from($m->concepto) }}, {{ Illuminate\Support\Js::from($m->observaciones ?? '') }})"
+                        title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    @endcan
+                    @endif
                     @can('tesoreria.destroy')
                     @if($anulado)
-                        <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled"
-                              title="Este movimiento ya fue anulado.">
+                        <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled" tabindex="0"
+                              data-bs-toggle="tooltip" data-bs-trigger="hover focus"
+                              title="Este movimiento ya fue eliminado.">
                             <i class="bi bi-slash-circle"></i>
                         </span>
                     @elseif($m->origen_type)
-                        <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled"
-                              title="Generado por un pago. Anúlalo desde el módulo de pagos.">
+                        <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled" tabindex="0"
+                              data-bs-toggle="tooltip" data-bs-trigger="hover focus"
+                              title="Las ediciones de estos movimientos son desde sus respectivos módulos.">
                             <i class="bi bi-lock"></i>
                         </span>
                     @else
@@ -502,6 +516,10 @@ function verDetalleMovimiento(btn) {
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalleMovimiento')).show();
 }
+
+// Tooltips de los botones bloqueados (candado/anulado): un <span disabled> no
+// dispara el title nativo de forma confiable en todos los navegadores.
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 </script>
 @endpush
 @endonce

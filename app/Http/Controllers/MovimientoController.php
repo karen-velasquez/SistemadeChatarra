@@ -109,6 +109,40 @@ class MovimientoController extends Controller
         return redirect()->back();
     }
 
+    // Solo movimientos manuales (categoría "otro", sin origen de pago) son
+    // editables desde aquí — mismo criterio que destroy().
+    public function update(Request $request, string $uuid)
+    {
+        $movimiento = Movimiento::where('uuid', $uuid)->firstOrFail();
+
+        if ($movimiento->origen_type || $movimiento->categoria !== 'otro') {
+            Alert::error('No permitido', 'Solo los movimientos manuales (categoría "Otro") se pueden editar desde aquí.');
+            return redirect()->back();
+        }
+
+        $request->validate([
+            'monto'       => 'required|numeric|min:0.01',
+            'tipo_cambio' => 'required|numeric|min:0.0001',
+            'fecha'       => 'required|date',
+            'concepto'    => 'required|string|max:255',
+        ]);
+
+        // El tipo (ingreso/egreso) no se edita: cambiarlo significaría revertir
+        // el saldo en una dirección y aplicarlo en la otra, fuera del alcance
+        // de una simple corrección de monto/fecha/concepto.
+        $movimiento->update([
+            'monto'         => $request->monto,
+            'tipo_cambio'   => $request->tipo_cambio,
+            'fecha'         => $request->fecha,
+            'concepto'      => $request->concepto,
+            'observaciones' => $request->observaciones,
+            'updated_by'    => auth()->id(),
+        ]);
+
+        Alert::success('Actualizado', 'Movimiento actualizado correctamente.');
+        return redirect()->back();
+    }
+
     public function destroy(string $uuid)
     {
         $movimiento = Movimiento::where('uuid', $uuid)->firstOrFail();

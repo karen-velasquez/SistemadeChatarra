@@ -124,6 +124,7 @@ class PermissionsTableSeeder extends Seeder
             // Tesorería (movimientos de cuentas)
             ['name' => 'tesoreria.index',   'descripcion' => 'Ver Movimientos de Tesorería',      'grupo' => 'TESORERIA'],
             ['name' => 'tesoreria.create',  'descripcion' => 'Registrar Movimientos de Tesorería', 'grupo' => 'TESORERIA'],
+            ['name' => 'tesoreria.edit',    'descripcion' => 'Editar Movimientos de Tesorería',   'grupo' => 'TESORERIA'],
             ['name' => 'tesoreria.destroy', 'descripcion' => 'Eliminar Movimientos de Tesorería',  'grupo' => 'TESORERIA'],
             // Préstamos internos entre empresas
             ['name' => 'prestamos_internos.index',   'descripcion' => 'Ver Préstamos Internos',       'grupo' => 'PRESTAMOS_INTERNOS'],

@@ -244,7 +244,7 @@ class NewReportController extends Controller
 
     private function reporteFlujoCaja(Request $request, string $fechaInicio, string $fechaFin): array
     {
-        $query = Movimiento::with('cuentaEmpresa')->whereNull('deleted_at')->whereDate('fecha', '>=', $fechaInicio)->whereDate('fecha', '<=', $fechaFin);
+        $query = Movimiento::with('cuentaEmpresa', 'origen')->whereNull('deleted_at')->whereDate('fecha', '>=', $fechaInicio)->whereDate('fecha', '<=', $fechaFin);
 
         if ($request->filled('cuenta_empresa_id')) {
             $query->where('cuenta_empresa_id', $request->cuenta_empresa_id);
@@ -311,7 +311,10 @@ class NewReportController extends Controller
                         $m->fecha->format('d/m/Y'),
                         $m->cuentaEmpresa->nombre_cuenta ?? '—',
                         ucfirst($m->tipo),
-                        Movimiento::categoriaLabel($m->categoria),
+                        // Gasto Extra lleva su categoría específica (LUZ, AGUA, etc.) al lado.
+                        $m->categoria === 'gasto_extra' && optional($m->origen)->categoria
+                            ? Movimiento::categoriaLabel($m->categoria) . ' - ' . $m->origen->categoria
+                            : Movimiento::categoriaLabel($m->categoria),
                         $m->concepto,
                         $m->codigo_seguimiento ?? '—',
                         (float) $m->monto_bolivianos,

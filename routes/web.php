@@ -271,6 +271,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('tesoreria', [App\Http\Controllers\MovimientoController::class, 'index'])->name('tesoreria.index')->middleware('permission:tesoreria.index');
     Route::get('tesoreria/cuenta/{uuid}', [App\Http\Controllers\MovimientoController::class, 'porCuenta'])->name('tesoreria.cuenta')->middleware('permission:tesoreria.index');
     Route::post('tesoreria/movimiento/store', [App\Http\Controllers\MovimientoController::class, 'store'])->name('tesoreria.movimiento.store')->middleware('permission:tesoreria.create');
+    Route::put('tesoreria/movimiento/{uuid}', [App\Http\Controllers\MovimientoController::class, 'update'])->name('tesoreria.movimiento.update')->middleware('permission:tesoreria.edit');
     Route::get('tesoreria/movimiento/{uuid}/destroy', [App\Http\Controllers\MovimientoController::class, 'destroy'])->name('tesoreria.movimiento.destroy')->middleware('permission:tesoreria.destroy');
 
     // Créditos y Adquisiciones (bienes por crédito bancario o capital, plan de pagos)
