@@ -16,6 +16,9 @@ use App\Models\OperadorTransporte;
 use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
 
+
+
+
 class BancoController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
