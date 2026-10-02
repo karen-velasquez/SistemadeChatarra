@@ -70,7 +70,8 @@ class MovimientoController extends Controller
         }
         $totalIngresos = Movimiento::where('cuenta_empresa_id', $cuenta->id)->where('tipo', 'ingreso')->whereNull('deleted_at')->sum('monto_bolivianos');
         $totalEgresos  = Movimiento::where('cuenta_empresa_id', $cuenta->id)->where('tipo', 'egreso')->whereNull('deleted_at')->sum('monto_bolivianos');
-        return view('movimientos.por_cuenta', compact('cuenta', 'movimientos', 'totalIngresos', 'totalEgresos'));
+        $idempotencyToken = $this->generarToken('movimiento_store_token');
+        return view('movimientos.por_cuenta', compact('cuenta', 'movimientos', 'totalIngresos', 'totalEgresos', 'idempotencyToken'));
 }
     // Registrar movimiento manual
     public function store(Request $request)

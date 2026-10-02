@@ -133,8 +133,9 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form method="POST" action="{{ route('tesoreria.movimiento.store') }}">
+            <form id="formMovimiento" method="POST" action="{{ route('tesoreria.movimiento.store') }}">
                 @csrf
+                <input type="hidden" name="_idempotency_token" value="{{ $idempotencyToken ?? '' }}">
                 <input type="hidden" name="cuenta_empresa_id" value="{{ $cuenta->id }}">
                 <div class="modal-body">
                     <div class="row g-3">
@@ -195,9 +196,17 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Registrar</button>
+                    <button type="submit" class="btn btn-primary" id="btnMovimiento">Registrar</button>
                 </div>
             </form>
+            <script>
+            document.getElementById('formMovimiento').addEventListener('submit', function(e) {
+                var btn = document.getElementById('btnMovimiento');
+                if (btn.disabled) { e.preventDefault(); return; }
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+            });
+            </script>
         </div>
     </div>
 </div>
