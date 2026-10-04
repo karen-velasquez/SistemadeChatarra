@@ -54,6 +54,11 @@
                     {{-- ===== FILTROS ===== --}}
                     <div class="row g-2 align-items-end mb-3">
                         <div class="col-md-3">
+                            <label class="form-label fw-semibold mb-1"><i class="bi bi-search"></i> N° Contrato</label>
+                            <input type="text" class="form-control" id="filtro_numero_contrato"
+                                   placeholder="Ej: CT0926-066" oninput="aplicarFiltrosContratos()">
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold mb-1"><i class="bi bi-tag"></i> Tipo</label>
                             <select class="form-select" id="filtro_tipo" onchange="aplicarFiltrosContratos()">
                                 <option value="">— Todos —</option>
@@ -963,18 +968,20 @@
     $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
         if (settings.nTable.id !== 'datos') return true;
         const fila         = tablaContratos.row(dataIndex).node();
+        const numeroContrato = (document.getElementById('filtro_numero_contrato').value || '').trim().toUpperCase();
         const tipo         = document.getElementById('filtro_tipo').value;
         const proveedorId  = document.getElementById('filtro_proveedor_contrato').value;
         const clienteId    = document.getElementById('filtro_cliente_contrato').value;
         const envios       = document.getElementById('filtro_envios_contrato').value;
 
+        const okNumero    = !numeroContrato || (fila.dataset.numeroContrato || '').toUpperCase().includes(numeroContrato);
         const okTipo      = !tipo || fila.dataset.tipo === tipo;
         const okProveedor = !proveedorId || fila.dataset.proveedorId === proveedorId;
         const clientesIds = (fila.dataset.clientesIds || '').split(',');
         const okCliente   = !clienteId || clientesIds.includes(clienteId);
         const okEnvios    = !envios || fila.dataset.tieneEnvios === envios;
 
-        return okTipo && okProveedor && okCliente && okEnvios;
+        return okNumero && okTipo && okProveedor && okCliente && okEnvios;
     });
 
     tablaContratos.on('draw', function () {
@@ -986,6 +993,7 @@
     }
 
     function limpiarFiltrosContratos() {
+        document.getElementById('filtro_numero_contrato').value    = '';
         document.getElementById('filtro_tipo').value               = '';
         document.getElementById('filtro_proveedor_contrato').value = '';
         document.getElementById('filtro_cliente_contrato').value   = '';

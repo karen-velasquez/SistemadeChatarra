@@ -39,6 +39,19 @@
     // El borde debe reflejar el estado general de la carga si hay hijos
     $estadoParaBorde = ($hijos->isNotEmpty() && $estadoCargaGeneral === 'Entregado') ? 'Entregado' : $tramo->estado;
     $borde = $estadoBorde[$estadoParaBorde] ?? 'border-secondary';
+
+    // Motivo por el que no se puede deshacer la llegada (null = sí se puede).
+    // Mismas 3 condiciones que valida TramoController::deshacerLlegada().
+    $motivoNoDeshacer = null;
+    if ($tramo->estado === 'Entregado') {
+        if ($tramo->tramosHijos()->exists()) {
+            $motivoNoDeshacer = 'Este tramo tiene sub-tramos generados (división de carga o transbordo).';
+        } elseif ($tramo->pagosCliente()->whereNull('deleted_at')->exists()) {
+            $motivoNoDeshacer = 'Ya tiene cobros registrados al cliente. Elimínalos primero desde Pagos a Clientes.';
+        } elseif ($tramo->contratoCamion->pagos()->whereNull('deleted_at')->exists()) {
+            $motivoNoDeshacer = 'Ya tiene pagos de flete registrados para este camión. Elimínalos primero desde Pagos a Camiones.';
+        }
+    }
 @endphp
 
 <div class="border rounded p-2 mb-2 {{ $nivel > 0 ? 'border-start border-3 ' . $borde : '' }}"
@@ -111,10 +124,23 @@
                         </button>
                     @endif
 
-                    {{-- Deshacer llegada: solo entrega simple, sin hijos, sin cobros ni pagos de flete --}}
-                    @if($tramo->estado === 'Entregado' && !$tramo->tramosHijos()->exists()
-                        && !$tramo->pagosCliente()->whereNull('deleted_at')->exists()
-                        && !$tramo->contratoCamion->pagos()->whereNull('deleted_at')->exists())
+                    {{-- Deshacer llegada: visible siempre que el tramo esté Entregado. Si no se
+                         puede (hijos, cobros o pagos de flete ya registrados), se muestra
+                         deshabilitado con el motivo exacto en el tooltip. --}}
+                    @if($tramo->estado === 'Entregado')
+                        @if($motivoNoDeshacer)
+                        {{-- La clase .disabled de Bootstrap aplica pointer-events:none, lo que
+                             bloquearía el hover del tooltip si fuera en el mismo elemento. Se
+                             envuelve en un span contenedor (sin .disabled) que es quien recibe
+                             el hover y muestra el tooltip, patrón oficial de Bootstrap. --}}
+                        <span class="d-inline-block" tabindex="0"
+                              data-bs-toggle="tooltip" data-bs-trigger="hover focus"
+                              title="No se puede deshacer: {{ $motivoNoDeshacer }}">
+                            <span class="btn btn-sm btn-outline-secondary disabled">
+                                <i class="bi bi-arrow-counterclockwise"></i> Deshacer llegada
+                            </span>
+                        </span>
+                        @else
                         <button class="btn btn-sm btn-outline-warning"
                             onclick="confirmarDeshacerLlegada(
                                 '{{ route('tramo.deshacer_llegada', $tramo->uuid) }}',
@@ -122,6 +148,7 @@
                             )">
                             <i class="bi bi-arrow-counterclockwise"></i> Deshacer llegada
                         </button>
+                        @endif
                     @endif
 
                     {{-- Botón agregar transbordo: si está transbordando (aún quedan toneladas) --}}

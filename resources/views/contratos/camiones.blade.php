@@ -1996,5 +1996,11 @@ document.addEventListener('DOMContentLoaded', function () {
     validarFormLlegada();
 });
 @endif
+
+// Tooltips de los botones "Deshacer llegada" deshabilitados: explican el
+// motivo exacto por el que ese tramo no se puede revertir.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+});
 </script>
 @endsection

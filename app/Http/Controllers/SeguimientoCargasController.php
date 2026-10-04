@@ -38,6 +38,7 @@ class SeguimientoCargasController extends Controller
         $entregadosQuery = (clone $base)->with('cliente')->where('estado', 'Entregado')
             ->when($request->filled('proveedor_id'), fn($q) => $q->whereHas('contratoCamion.contrato', fn($q2) => $q2->where('proveedor_id', $request->proveedor_id)))
             ->when($request->filled('tipo_tramo'), fn($q) => $q->where('tipo_tramo', $request->tipo_tramo))
+            ->when($request->filled('contrato_numero'), fn($q) => $q->whereHas('contratoCamion.contrato', fn($q2) => $q2->where('numero_contrato', 'like', '%' . $request->contrato_numero . '%')))
             ->orderByDesc('fecha_llegada');
 
         // El estado de flete (pagado/pendiente/sin flete) se calcula con accessors PHP,

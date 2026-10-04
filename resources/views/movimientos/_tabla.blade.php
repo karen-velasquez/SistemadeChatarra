@@ -225,16 +225,22 @@
                     @endif
                     @can('tesoreria.destroy')
                     @if($anulado)
-                        <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled" tabindex="0"
+                        {{-- .disabled aplica pointer-events:none: el tooltip va en un span
+                             envolvente (sin .disabled) para que el hover sí lo dispare. --}}
+                        <span class="d-inline-block" tabindex="0"
                               data-bs-toggle="tooltip" data-bs-trigger="hover focus"
                               title="Este movimiento ya fue eliminado.">
-                            <i class="bi bi-slash-circle"></i>
+                            <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled">
+                                <i class="bi bi-slash-circle"></i>
+                            </span>
                         </span>
                     @elseif($m->origen_type)
-                        <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled" tabindex="0"
+                        <span class="d-inline-block" tabindex="0"
                               data-bs-toggle="tooltip" data-bs-trigger="hover focus"
                               title="Las ediciones de estos movimientos son desde sus respectivos módulos.">
-                            <i class="bi bi-lock"></i>
+                            <span class="btn btn-sm btn-outline-secondary py-0 px-1 disabled">
+                                <i class="bi bi-lock"></i>
+                            </span>
                         </span>
                     @else
                     <a href="{{ route('tesoreria.movimiento.destroy', $m->uuid) }}"

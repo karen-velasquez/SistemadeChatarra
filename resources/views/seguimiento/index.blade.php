@@ -84,6 +84,13 @@
         <div class="card-body py-2">
             <div class="row g-2 align-items-center">
                 <div class="col-auto">
+                    <label class="form-label fw-semibold mb-0"><i class="bi bi-file-text me-1"></i>N° Contrato:</label>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control form-control-sm" id="filtro_contrato_seg"
+                           placeholder="Ej: CT0926-066" oninput="aplicarFiltrosSeg()">
+                </div>
+                <div class="col-auto">
                     <label class="form-label fw-semibold mb-0"><i class="bi bi-box-seam me-1"></i>Proveedor:</label>
                 </div>
                 <div class="col-md-3">
@@ -195,7 +202,7 @@
                                     $ccFlete = $t->contratoCamion;
                                     $fleteEstado = !$ccFlete->monto_acordado ? 'sin_flete' : ($ccFlete->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
-                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado }}">
+                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado }}" data-contrato="{{ $t->contratoCamion->contrato->numero_contrato }}">
                                     @can('tramo.edit')
                                     <td>
                                         <input type="checkbox" class="chk_entrega_masiva"
@@ -353,7 +360,7 @@
                                     $ccFlete2 = $t->contratoCamion;
                                     $fleteEstado2 = !$ccFlete2->monto_acordado ? 'sin_flete' : ($ccFlete2->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
-                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado2 }}">
+                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado2 }}" data-contrato="{{ $t->contratoCamion->contrato->numero_contrato }}">
                                     <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -503,7 +510,7 @@
                                     $ccFlete3 = $t->contratoCamion;
                                     $fleteEstado3 = !$ccFlete3->monto_acordado ? 'sin_flete' : ($ccFlete3->saldo_pendiente > 0 ? 'pendiente' : 'pagado');
                                 @endphp
-                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado3 }}">
+                                <tr class="{{ !$t->contratoCamion->monto_acordado ? 'table-warning' : '' }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id }}" data-tipo-tramo="{{ $t->tipo_tramo }}" data-flete-estado="{{ $fleteEstado3 }}" data-contrato="{{ $t->contratoCamion->contrato->numero_contrato }}">
                                     <td style="white-space:nowrap;">
                                         <a href="{{ route('contratos.camiones', $t->contratoCamion->contrato->uuid) }}"
                                             class="fw-bold text-primary text-decoration-none">
@@ -2076,7 +2083,8 @@ function aplicarFiltrosSeg() {
     const proveedorId  = (document.getElementById('filtro_proveedor_seg')?.value    || '');
     const tipoTramo    = (document.getElementById('filtro_tipo_tramo_seg')?.value   || '');
     const fleteEstado  = (document.getElementById('filtro_flete_estado_seg')?.value || '');
-    const hayFiltro    = !!(proveedorId || tipoTramo || fleteEstado);
+    const contratoNum  = (document.getElementById('filtro_contrato_seg')?.value     || '').trim().toUpperCase();
+    const hayFiltro    = !!(proveedorId || tipoTramo || fleteEstado || contratoNum);
     actualizarResumenContratosTipo(tipoTramo, proveedorId);
     const grupos = [
         { tabla: 'tabla_en_ruta',        tarjeta: 'contador_tarjeta_en_ruta',        badge: 'badge_tab_en_ruta' },
@@ -2088,10 +2096,11 @@ function aplicarFiltrosSeg() {
         let visibles = 0;
         if (tabla) {
             tabla.querySelectorAll('tbody tr').forEach(function(fila) {
-                const okProv  = !proveedorId || fila.dataset.proveedorId == proveedorId;
-                const okTipo  = !tipoTramo   || fila.dataset.tipoTramo  === tipoTramo;
-                const okFlete = !fleteEstado || fila.dataset.fleteEstado === fleteEstado;
-                const visible = okProv && okTipo && okFlete;
+                const okProv     = !proveedorId  || fila.dataset.proveedorId == proveedorId;
+                const okTipo     = !tipoTramo    || fila.dataset.tipoTramo  === tipoTramo;
+                const okFlete    = !fleteEstado  || fila.dataset.fleteEstado === fleteEstado;
+                const okContrato = !contratoNum  || (fila.dataset.contrato || '').toUpperCase().includes(contratoNum);
+                const visible = okProv && okTipo && okFlete && okContrato;
                 fila.style.display = visible ? '' : 'none';
                 if (visible) visibles++;
             });
@@ -2107,10 +2116,10 @@ function aplicarFiltrosSeg() {
 
     // "Entregados" está paginado en el servidor: con filtro se recarga la tabla
     // en vez de ocultar filas de la página cargada, para buscar en todos los registros.
-    // proveedor_id/tipo_tramo se resuelven en SQL (el total sigue siendo exacto);
-    // solo flete_estado se calcula en PHP tras traer todo, así que ahí sí se cuentan
-    // las filas visibles en vez de usar el total.
-    cargarPaneEntregados(hayFiltro ? `${url_global}/seguimiento-cargas?proveedor_id=${proveedorId}&tipo_tramo=${tipoTramo}&flete_estado=${fleteEstado}` : null, !!fleteEstado);
+    // proveedor_id/tipo_tramo/contrato_numero se resuelven en SQL (el total sigue siendo
+    // exacto); solo flete_estado se calcula en PHP tras traer todo, así que ahí sí se
+    // cuentan las filas visibles en vez de usar el total.
+    cargarPaneEntregados(hayFiltro ? `${url_global}/seguimiento-cargas?proveedor_id=${proveedorId}&tipo_tramo=${tipoTramo}&flete_estado=${fleteEstado}&contrato_numero=${encodeURIComponent(contratoNum)}` : null, !!fleteEstado);
 }
 
 function cargarPaneEntregados(url, esFiltro) {
@@ -2146,9 +2155,11 @@ function limpiarFiltrosSeg() {
     const sel1 = document.getElementById('filtro_proveedor_seg');
     const sel2 = document.getElementById('filtro_tipo_tramo_seg');
     const sel3 = document.getElementById('filtro_flete_estado_seg');
+    const inp4 = document.getElementById('filtro_contrato_seg');
     if (sel1) sel1.value = '';
     if (sel2) sel2.value = '';
     if (sel3) sel3.value = '';
+    if (inp4) inp4.value = '';
     aplicarFiltrosSeg();
 }
 
