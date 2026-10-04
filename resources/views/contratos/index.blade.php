@@ -411,6 +411,22 @@
                             @error('monto_total')<div class="text-danger small">{{ $message }}</div>@enderror
                         </div>
 
+                        {{-- Solo aplica si la moneda del contrato no es BOB: TC aproximado del
+                             día, referencia para convertir toda la línea de venta a bolivianos
+                             en el Excel y comparar luego contra el TC real de cada pago. --}}
+                        <div class="col-md-4" id="row_tipo_cambio_contrato" style="display:none;">
+                            <label class="form-label">Tipo de Cambio aproximado <span class="text-danger">(*)</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">1 <span id="tcContratoMonedaLabel">USD</span> =</span>
+                                <input type="text" inputmode="numeric" class="form-control @error('tipo_cambio') is-invalid @enderror"
+                                    id="tipo_cambio_contrato_display" placeholder="0,00" autocomplete="off">
+                                <input type="hidden" name="tipo_cambio" id="tipo_cambio_contrato">
+                                <span class="input-group-text">BOB</span>
+                            </div>
+                            <small class="text-muted">Cambio del día, para seguimiento de ganancia/pérdida cambiaria frente a los pagos.</small>
+                            @error('tipo_cambio')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
                         {{-- Documento del contrato (PDF o imagen) --}}
                         <div class="col-md-12">
                             <label class="form-label">Documento del Contrato</label>
@@ -468,7 +484,7 @@
         // TIPO DE CAMBIO: junto a cada monto que puede venir en moneda distinta a BOB
         // (Gasto Extra, Cobro Cliente, Pago Proveedor) — 1 si el pago fue en BOB,
         // vacío en filas que no son de pago (entregas, subtotal ya viene convertido).
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -492,7 +508,7 @@
             if (c.es_subtotal) {
                 dataRows.push([
                     c.cliente, '', '', '', c.placa, '', '', c.moneda,
-                    c.tn_entregadas, c.precio_venta, '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
+                    c.tn_entregadas, c.precio_venta, c.tipo_cambio_contrato ?? '', '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
                     c.gasto_extra, '', '', c.utilidad_neta,
                     c.estado_envios,
@@ -513,7 +529,7 @@
             } else {
                 dataRows.push([
                     c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.empresa_facturadora, c.cliente, c.moneda,
-                    c.tn_entregadas, c.precio_venta, c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
+                    c.tn_entregadas, c.precio_venta, c.tipo_cambio_contrato ?? '', c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
                     c.gasto_extra ?? '', c.codigo_gasto_extra ?? '', c.tipo_cambio_gasto_extra ?? '', c.utilidad_neta,
                     '',
@@ -558,19 +574,19 @@
                     const fila = cols.map(() => '');
                     fila[0]  = grupo.categoria;
                     fila[6]  = item.concepto + (item.fecha ? ' (' + item.fecha + ')' : '');
-                    fila[20] = item.monto;
-                    fila[21] = item.codigo;
-                    fila[33] = item.fecha_registro;
-                    fila[34] = item.registrado_por;
-                    fila[35] = item.fecha_edicion;
-                    fila[36] = item.editado_por;
+                    fila[21] = item.monto;
+                    fila[22] = item.codigo;
+                    fila[34] = item.fecha_registro;
+                    fila[35] = item.registrado_por;
+                    fila[36] = item.fecha_edicion;
+                    fila[37] = item.editado_por;
                     dataRows.push(fila);
                     rowStyles.push('gasto_extra');
                 });
 
                 const filaSubtotal = cols.map(() => '');
                 filaSubtotal[0]  = 'SUBTOTAL ' + grupo.categoria;
-                filaSubtotal[20] = grupo.subtotal;
+                filaSubtotal[21] = grupo.subtotal;
                 dataRows.push(filaSubtotal);
                 rowStyles.push('subtotal_cerrado');
             });
@@ -587,17 +603,17 @@
             const filaTotal = cols.map(() => '');
             filaTotal[0]  = 'TOTAL VENTAS GENERAL';
             filaTotal[8]  = sumar(toneladasEntregas);
-            filaTotal[12] = sumar(ventasEntregas);
-            filaTotal[14] = sumar(importeCompraEntregas);
-            filaTotal[15] = sumar(utilidadBrutaEntregas);
-            filaTotal[16] = sumar(itEntregas);
-            filaTotal[17] = sumar(comision1Entregas);
-            filaTotal[18] = sumar(comision2Entregas);
-            filaTotal[19] = sumar(costoAdicionalEntregas);
-            filaTotal[20] = sumar(gastoExtraContratos);
-            filaTotal[23] = sumar(utilidadNetaContratos);
-            filaTotal[25] = sumar(montoCobradoContratos);
-            filaTotal[29] = sumar(montoPagadoContratos);
+            filaTotal[13] = sumar(ventasEntregas);
+            filaTotal[15] = sumar(importeCompraEntregas);
+            filaTotal[16] = sumar(utilidadBrutaEntregas);
+            filaTotal[17] = sumar(itEntregas);
+            filaTotal[18] = sumar(comision1Entregas);
+            filaTotal[19] = sumar(comision2Entregas);
+            filaTotal[20] = sumar(costoAdicionalEntregas);
+            filaTotal[21] = sumar(gastoExtraContratos);
+            filaTotal[24] = sumar(utilidadNetaContratos);
+            filaTotal[26] = sumar(montoCobradoContratos);
+            filaTotal[30] = sumar(montoPagadoContratos);
             dataRows.push(filaTotal);
             rowStyles.push('subtotal_cerrado');
         }
@@ -759,6 +775,7 @@
             'MONEDA': 4.29,
             'TN ENTREGADAS': 7.71,
             'PRECIO DE VENTA': 11.57,
+            'TIPO DE CAMBIO CONTRATO': 10.14,
             'FECHA DE ENTREGA': 10.43,
             'FECHA DE FACTURA': 9.86,
             'TOTAL VENTAS': 11.86,
@@ -1029,6 +1046,9 @@
         document.getElementById('costo_unitario').value = '';
         const lbl = document.getElementById('costoUnitarioMonedaLabel');
         if (lbl) lbl.textContent = 'BOB';
+        document.getElementById('tipo_cambio_contrato_display').value = '';
+        document.getElementById('tipo_cambio_contrato').value = '';
+        document.getElementById('row_tipo_cambio_contrato').style.display = 'none';
         // Quitar disabled de todos los campos por si venían de modo solo-ver
         ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato_display','moneda','monto_total_display','costo_unitario_display','documento_pdf'].forEach(id => {
             const el = document.getElementById(id);
@@ -1088,6 +1108,13 @@
                 const costoDisp = document.getElementById('costo_unitario_display');
                 if (costoDisp) readonly ? costoDisp.setAttribute('disabled', true) : costoDisp.removeAttribute('disabled');
                 document.getElementById('costo_unitario').disabled = readonly;
+
+                // Tipo de cambio: visible solo si la moneda no es BOB (mismo criterio que al crear)
+                _sincronizarMoneda();
+                _cargarCampo('tipo_cambio_contrato_display', 'tipo_cambio_contrato', c.tipo_cambio ?? 0, 2);
+                const tcDisp = document.getElementById('tipo_cambio_contrato_display');
+                if (tcDisp) readonly ? tcDisp.setAttribute('disabled', true) : tcDisp.removeAttribute('disabled');
+
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContrato')).show();
             });
     }
@@ -1154,6 +1181,18 @@
         const moneda = document.getElementById('moneda').value;
         const label  = document.getElementById('costoUnitarioMonedaLabel');
         if (label) label.textContent = moneda;
+
+        const esBob     = moneda === 'BOB';
+        const rowTc      = document.getElementById('row_tipo_cambio_contrato');
+        const inpTc      = document.getElementById('tipo_cambio_contrato_display');
+        const tcLabel    = document.getElementById('tcContratoMonedaLabel');
+        if (rowTc) rowTc.style.display = esBob ? 'none' : '';
+        if (inpTc) inpTc.required      = !esBob;
+        if (tcLabel) tcLabel.textContent = moneda;
+        if (esBob) {
+            if (inpTc) inpTc.value = '';
+            document.getElementById('tipo_cambio_contrato').value = '';
+        }
     }
 
     // Recalcula costo_unitario = monto / toneladas (se llama cuando cambia monto o toneladas)
@@ -1240,6 +1279,14 @@
 
         // Moneda
         document.getElementById('moneda').addEventListener('change', _sincronizarMoneda);
+
+        // Tipo de cambio aproximado del contrato (4 decimales, igual que en pagos)
+        document.getElementById('tipo_cambio_contrato_display').addEventListener('input', function (e) {
+            _cajeroOnInput(e, 'tipo_cambio_contrato', 2);
+        });
+        document.getElementById('tipo_cambio_contrato_display').addEventListener('blur', function () {
+            _cajeroBlur('tipo_cambio_contrato_display', 'tipo_cambio_contrato', 2);
+        });
 
         // Inicializar tooltips de Bootstrap
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

@@ -135,14 +135,19 @@ class ContratoController extends Controller
             }
 
             $tnTotales = $entregas->sum('tn_entregadas');
-            $costoUnitario = (float) $c->costo_unitario;
+            // La línea de venta del contrato es la única que seguía en moneda
+            // extranjera: se convierte a Bs con el TC aproximado del contrato
+            // (mismo criterio ya aplicado a pagos/cobros/gastos extra), para que
+            // todo el Excel quede consistente en bolivianos.
+            $tcContrato    = $c->moneda === 'BOB' ? 1 : ((float) $c->tipo_cambio ?: 1);
+            $costoUnitario = (float) $c->costo_unitario * $tcContrato;
 
             $filaBase = [
                 'numero_contrato'  => $c->numero_contrato,
                 'fecha_contrato'   => $c->fecha_inicio?->format('Y-m-d') ?? '',
                 'tipo_contrato'    => $c->tipo_contrato,
                 'proveedor'        => $c->proveedor->nombre ?? '',
-                'moneda'           => $c->moneda,
+                'moneda'           => 'BOB',
                 'fecha_registro'   => $c->created_at?->format('d/m/Y H:i') ?? '',
                 'registrado_por'   => $c->usuarioCreador->name ?? '',
                 'fecha_edicion'    => $c->updated_at && !$c->updated_at->equalTo($c->created_at) ? $c->updated_at->format('d/m/Y H:i') : '',
@@ -160,7 +165,8 @@ class ContratoController extends Controller
             $sumaGastoExtra = 0;
 
             foreach ($entregas as $e) {
-                $totalVentas   = round($e['tn_entregadas'] * $e['precio_venta'], 2);
+                $precioVentaBs = $e['precio_venta'] * $tcContrato;
+                $totalVentas   = round($e['tn_entregadas'] * $precioVentaBs, 2);
                 $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
                 $utilidadBruta = round($totalVentas - $importeCompra, 2);
                 $pctIt           = ReglaIt::porcentajeParaVenta($e['cliente_id'], $e['empresa_facturadora_id'], $e['fecha_entrega'] ?: null);
@@ -185,7 +191,7 @@ class ContratoController extends Controller
                     'empresa_facturadora' => $e['empresa_facturadora_nombre'],
                     'cliente'          => $e['cliente'],
                     'tn_entregadas'    => $e['tn_entregadas'],
-                    'precio_venta'     => $e['precio_venta'],
+                    'precio_venta'     => $precioVentaBs,
                     'fecha_entrega'    => $e['fecha_entrega'],
                     'total_ventas'     => $totalVentas,
                     'precio_compra'    => $costoUnitario,
@@ -196,6 +202,7 @@ class ContratoController extends Controller
                     'comision_2_zpl'   => $comision2,
                     'costo_adicional'  => $costoAdicional,
                     'utilidad_neta'    => $utilidadNeta,
+                    'tipo_cambio_contrato' => $tcContrato,
                     'es_subtotal'      => false,
                 ]);
             }
@@ -316,6 +323,7 @@ class ContratoController extends Controller
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
                     'gasto_extra'      => round($sumaGastoExtra, 2),
+                    'tipo_cambio_contrato' => $tcContrato,
                     'es_subtotal'      => true,
                 ]);
             } else {
@@ -362,6 +370,7 @@ class ContratoController extends Controller
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
                     'gasto_extra'      => round($sumaGastoExtra, 2),
+                    'tipo_cambio_contrato' => $tcContrato,
                     'es_subtotal'      => true,
                 ]);
             }
