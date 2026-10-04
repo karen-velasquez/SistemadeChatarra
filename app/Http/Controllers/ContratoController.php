@@ -42,7 +42,8 @@ class ContratoController extends Controller
                             'contratoCamiones.tramos.camion',
                             'contratoCamiones.tramos.pagosCliente',
                             'contratoCamiones.tramos.empresaFacturadora',
-                            'contratoCamiones.pagos',
+                            'contratoCamiones.pagos.usuarioCreador',
+                            'contratoCamiones.pagos.usuarioActualizador',
                             'pagosProveedor',
                             'gastosExtras.usuarioCreador',
                             'gastosExtras.usuarioActualizador',
@@ -293,6 +294,12 @@ class ContratoController extends Controller
                         'tipo_cambio_flete'  => $tcFlete,
                         'codigo_pago_flete'  => $pf->codigo_seguimiento ?? '',
                         'fecha_pago_flete'   => $pf->fecha_pago ? $pf->fecha_pago->format('Y-m-d') : '',
+                        // El registro/edición debe ser del propio pago de flete, no
+                        // del contrato al que está asociado (que ya viene en $filaBase).
+                        'fecha_registro'   => $pf->created_at?->format('d/m/Y H:i') ?? '',
+                        'registrado_por'   => $pf->usuarioCreador->name ?? '',
+                        'fecha_edicion'    => $pf->updated_at && !$pf->updated_at->equalTo($pf->created_at) ? $pf->updated_at->format('d/m/Y H:i') : '',
+                        'editado_por'      => $pf->updated_at && !$pf->updated_at->equalTo($pf->created_at) ? ($pf->usuarioActualizador->name ?? '') : '',
                         'es_subtotal'      => false,
                         'es_pago_flete'    => true,
                     ]);

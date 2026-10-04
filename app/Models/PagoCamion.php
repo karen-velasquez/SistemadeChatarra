@@ -72,6 +72,21 @@ class PagoCamion extends Model
         return $this->belongsTo(CuentaBancaria::class, 'cuenta_destino_id');
     }
 
+    public function usuarioCreador()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function usuarioActualizador()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function usuarioEliminador()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
     public function getNombreReceptorAttribute(): string
     {
         if (!$this->receptor) return '—';
