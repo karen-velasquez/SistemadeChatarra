@@ -42,6 +42,7 @@ class ContratoController extends Controller
                             'contratoCamiones.tramos.camion',
                             'contratoCamiones.tramos.pagosCliente',
                             'contratoCamiones.tramos.empresaFacturadora',
+                            'contratoCamiones.pagos',
                             'pagosProveedor',
                             'gastosExtras.usuarioCreador',
                             'gastosExtras.usuarioActualizador',
@@ -264,6 +265,40 @@ class ContratoController extends Controller
                 ]);
             }
 
+            // Una fila por cada pago de flete individual (camión/conductor) —
+            // mismo criterio que Pago Proveedor: cada transferencia real es su
+            // propia fila, convertida a Bs con su propio tipo de cambio.
+            $montoPagadoFlete = 0;
+            foreach ($c->contratoCamiones as $cc) {
+                foreach ($cc->pagos as $pf) {
+                    if ($pf->deleted_at) continue;
+                    $tcFlete = $pf->moneda_pago === 'BOB' ? 1 : ((float) $pf->tipo_cambio ?: 1);
+                    $montoFleteBs = $pf->moneda_pago === 'BOB' ? (float) $pf->monto : round((float) $pf->monto * $tcFlete, 2);
+                    $montoPagadoFlete += $montoFleteBs;
+                    $contratosExcelData->push(['moneda' => 'BOB'] + $filaBase + [
+                        'placa'            => $cc->camion->placa ?? '',
+                        'cliente'          => 'PAGO FLETE',
+                        'tn_entregadas'    => '',
+                        'precio_venta'     => '',
+                        'total_ventas'     => '',
+                        'precio_compra'    => '',
+                        'importe_compra'   => '',
+                        'utilidad_bruta'   => '',
+                        'it_3'             => '',
+                        'comision_1_3'     => '',
+                        'comision_2_zpl'   => '',
+                        'costo_adicional'  => '',
+                        'utilidad_neta'    => '',
+                        'monto_pagado_flete' => $montoFleteBs,
+                        'tipo_cambio_flete'  => $tcFlete,
+                        'codigo_pago_flete'  => $pf->codigo_seguimiento ?? '',
+                        'fecha_pago_flete'   => $pf->fecha_pago ? $pf->fecha_pago->format('Y-m-d') : '',
+                        'es_subtotal'      => false,
+                        'es_pago_flete'    => true,
+                    ]);
+                }
+            }
+
             // Una fila por cada gasto extra PAGADO asociado a este contrato —
             // solo los pagados cuentan como movimiento real en tesorería,
             // igual criterio que el bloque de gastos generales al final.
@@ -322,6 +357,7 @@ class ContratoController extends Controller
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
+                    'monto_pagado_flete'      => round($montoPagadoFlete, 2),
                     'gasto_extra'      => round($sumaGastoExtra, 2),
                     'tipo_cambio_contrato' => $tcContrato,
                     'es_subtotal'      => true,
@@ -369,6 +405,7 @@ class ContratoController extends Controller
                     'monto_pagado_proveedor'  => round($montoPagadoProveedor, 2),
                     'codigo_pago_proveedor'   => implode(', ', $codigosPagoProveedor),
                     'fecha_pago_proveedor'    => implode(', ', $fechasPagoProveedor),
+                    'monto_pagado_flete'      => round($montoPagadoFlete, 2),
                     'gasto_extra'      => round($sumaGastoExtra, 2),
                     'tipo_cambio_contrato' => $tcContrato,
                     'es_subtotal'      => true,

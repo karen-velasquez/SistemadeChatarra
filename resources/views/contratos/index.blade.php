@@ -484,7 +484,7 @@
         // TIPO DE CAMBIO: junto a cada monto que puede venir en moneda distinta a BOB
         // (Gasto Extra, Cobro Cliente, Pago Proveedor) — 1 si el pago fue en BOB,
         // vacío en filas que no son de pago (entregas, subtotal ya viene convertido).
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','MONTO PAGADO FLETE (BS)','TIPO DE CAMBIO FLETE','CÓDIGO PAGO FLETE','FECHA PAGO FLETE','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -504,6 +504,7 @@
         const utilidadNetaContratos = [];
         const montoCobradoContratos = [];
         const montoPagadoContratos = [];
+        const montoPagadoFleteContratos = [];
         visibles.forEach(c => {
             if (c.es_subtotal) {
                 dataRows.push([
@@ -514,6 +515,7 @@
                     c.estado_envios,
                     c.monto_cobrado_cliente, '', '', '',
                     c.monto_pagado_proveedor, '', '', '',
+                    c.monto_pagado_flete, '', '', '',
                     '', '', '', '',
                 ]);
                 rowStyles.push(
@@ -524,6 +526,7 @@
                 if (typeof c.utilidad_neta === 'number') utilidadNetaContratos.push(c.utilidad_neta);
                 if (typeof c.monto_cobrado_cliente === 'number') montoCobradoContratos.push(c.monto_cobrado_cliente);
                 if (typeof c.monto_pagado_proveedor === 'number') montoPagadoContratos.push(c.monto_pagado_proveedor);
+                if (typeof c.monto_pagado_flete === 'number') montoPagadoFleteContratos.push(c.monto_pagado_flete);
                 dataRows.push(cols.map(() => ''));
                 rowStyles.push(null);
             } else {
@@ -541,9 +544,13 @@
                     c.es_pago_proveedor ? c.tipo_cambio_pago : '',
                     c.es_pago_proveedor ? c.codigo_pago_proveedor : '',
                     c.es_pago_proveedor ? c.fecha_pago_proveedor : '',
+                    c.es_pago_flete ? c.monto_pagado_flete : '',
+                    c.es_pago_flete ? c.tipo_cambio_flete : '',
+                    c.es_pago_flete ? c.codigo_pago_flete : '',
+                    c.es_pago_flete ? c.fecha_pago_flete : '',
                     c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
                 ]);
-                rowStyles.push(c.es_pago_proveedor ? 'pago_proveedor' : (c.gasto_extra ? 'gasto_extra' : null));
+                rowStyles.push(c.es_pago_proveedor ? 'pago_proveedor' : (c.es_pago_flete ? 'pago_proveedor' : (c.gasto_extra ? 'gasto_extra' : null)));
                 if (typeof c.total_ventas === 'number') ventasEntregas.push(c.total_ventas);
                 if (typeof c.tn_entregadas === 'number') toneladasEntregas.push(c.tn_entregadas);
                 if (typeof c.importe_compra === 'number') importeCompraEntregas.push(c.importe_compra);
@@ -576,10 +583,10 @@
                     fila[6]  = item.concepto + (item.fecha ? ' (' + item.fecha + ')' : '');
                     fila[21] = item.monto;
                     fila[22] = item.codigo;
-                    fila[34] = item.fecha_registro;
-                    fila[35] = item.registrado_por;
-                    fila[36] = item.fecha_edicion;
-                    fila[37] = item.editado_por;
+                    fila[38] = item.fecha_registro;
+                    fila[39] = item.registrado_por;
+                    fila[40] = item.fecha_edicion;
+                    fila[41] = item.editado_por;
                     dataRows.push(fila);
                     rowStyles.push('gasto_extra');
                 });
@@ -614,6 +621,7 @@
             filaTotal[24] = sumar(utilidadNetaContratos);
             filaTotal[26] = sumar(montoCobradoContratos);
             filaTotal[30] = sumar(montoPagadoContratos);
+            filaTotal[34] = sumar(montoPagadoFleteContratos);
             dataRows.push(filaTotal);
             rowStyles.push('subtotal_cerrado');
         }
@@ -791,6 +799,8 @@
             'ESTADO ENVÍOS': 10.71,
             'MONTO COBRADO CLIENTE': 11.57,
             'CÓDIGO COBRO CLIENTE': 10.14,
+            'MONTO PAGADO FLETE (BS)': 11.57,
+            'CÓDIGO PAGO FLETE': 10.14,
             'FECHA Y HORA DE REGISTRO': 6.43,
             'REGISTRADO POR': 6.43,
             'FECHA Y HORA DE EDICIÓN': 6.43,
