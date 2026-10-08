@@ -328,6 +328,7 @@ class ContratoController extends Controller
                     'utilidad_neta'    => '',
                     'gasto_extra'      => (float) $ge->monto_bolivianos,
                     'tipo_cambio_gasto_extra' => $ge->moneda === 'BOB' ? 1 : ((float) $ge->tipo_cambio ?: 1),
+                    'fecha_pago_gasto_extra' => $ge->fecha?->format('Y-m-d') ?? '',
                     'codigo_gasto_extra' => $ge->codigo_seguimiento ?? '',
                     // El registro/edición debe ser del propio gasto extra, no
                     // del contrato al que está asociado (que ya viene en $filaBase).
@@ -438,8 +439,10 @@ class ContratoController extends Controller
                     'categoria' => $grupo->first()->categoria,
                     'items' => $grupo->map(fn ($ge) => [
                         'fecha'    => $ge->fecha ? $ge->fecha->format('d/m/Y') : '',
+                        'fecha_iso' => $ge->fecha ? $ge->fecha->format('Y-m-d') : '',
                         'concepto' => $ge->concepto,
                         'monto'    => (float) $ge->monto_bolivianos,
+                        'tipo_cambio' => $ge->moneda === 'BOB' ? 1 : ((float) $ge->tipo_cambio ?: 1),
                         'codigo'   => $ge->codigo_seguimiento ?? '',
                         'fecha_registro' => $ge->created_at?->format('d/m/Y H:i') ?? '',
                         'registrado_por' => $ge->usuarioCreador->name ?? '',

@@ -484,7 +484,7 @@
         // TIPO DE CAMBIO: junto a cada monto que puede venir en moneda distinta a BOB
         // (Gasto Extra, Cobro Cliente, Pago Proveedor) — 1 si el pago fue en BOB,
         // vacío en filas que no son de pago (entregas, subtotal ya viene convertido).
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','MONTO PAGADO FLETE (BS)','TIPO DE CAMBIO FLETE','CÓDIGO PAGO FLETE','FECHA PAGO FLETE','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','FECHA PAGO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','MONTO PAGADO FLETE (BS)','TIPO DE CAMBIO FLETE','CÓDIGO PAGO FLETE','FECHA PAGO FLETE','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -511,7 +511,7 @@
                     c.cliente, '', '', '', c.placa, '', '', c.moneda,
                     c.tn_entregadas, c.precio_venta, c.tipo_cambio_contrato ?? '', '', '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
-                    c.gasto_extra, '', '', c.utilidad_neta,
+                    c.gasto_extra, '', '', '', c.utilidad_neta,
                     c.estado_envios,
                     c.monto_cobrado_cliente, '', '', '',
                     c.monto_pagado_proveedor, '', '', '',
@@ -534,7 +534,7 @@
                     c.numero_contrato, c.fecha_contrato, c.tipo_contrato, c.proveedor, c.placa, c.empresa_facturadora, c.cliente, c.moneda,
                     c.tn_entregadas, c.precio_venta, c.tipo_cambio_contrato ?? '', c.fecha_entrega, '', c.total_ventas, c.precio_compra, c.importe_compra, c.utilidad_bruta,
                     c.it_3, c.comision_1_3, c.comision_2_zpl, c.costo_adicional,
-                    c.gasto_extra ?? '', c.codigo_gasto_extra ?? '', c.tipo_cambio_gasto_extra ?? '', c.utilidad_neta,
+                    c.gasto_extra ?? '', c.codigo_gasto_extra ?? '', c.tipo_cambio_gasto_extra ?? '', c.fecha_pago_gasto_extra ?? '', c.utilidad_neta,
                     '',
                     c.es_pago_proveedor ? '' : c.monto_cobrado_cliente,
                     c.es_pago_proveedor ? '' : c.tipo_cambio_cobro,
@@ -583,10 +583,12 @@
                     fila[6]  = item.concepto + (item.fecha ? ' (' + item.fecha + ')' : '');
                     fila[21] = item.monto;
                     fila[22] = item.codigo;
-                    fila[38] = item.fecha_registro;
-                    fila[39] = item.registrado_por;
-                    fila[40] = item.fecha_edicion;
-                    fila[41] = item.editado_por;
+                    fila[23] = item.tipo_cambio;
+                    fila[24] = item.fecha_iso;
+                    fila[39] = item.fecha_registro;
+                    fila[40] = item.registrado_por;
+                    fila[41] = item.fecha_edicion;
+                    fila[42] = item.editado_por;
                     dataRows.push(fila);
                     rowStyles.push('gasto_extra');
                 });
@@ -618,10 +620,10 @@
             filaTotal[19] = sumar(comision2Entregas);
             filaTotal[20] = sumar(costoAdicionalEntregas);
             filaTotal[21] = sumar(gastoExtraContratos);
-            filaTotal[24] = sumar(utilidadNetaContratos);
-            filaTotal[26] = sumar(montoCobradoContratos);
-            filaTotal[30] = sumar(montoPagadoContratos);
-            filaTotal[34] = sumar(montoPagadoFleteContratos);
+            filaTotal[25] = sumar(utilidadNetaContratos);
+            filaTotal[27] = sumar(montoCobradoContratos);
+            filaTotal[31] = sumar(montoPagadoContratos);
+            filaTotal[35] = sumar(montoPagadoFleteContratos);
             dataRows.push(filaTotal);
             rowStyles.push('subtotal_cerrado');
         }
@@ -763,7 +765,7 @@
             return Math.round((utcMs - Date.UTC(1899, 11, 30)) / 86400000);
         };
         // Columnas que deben tratarse como fecha real de Excel.
-        const colsFecha = [1, 10, 29];
+        const colsFecha = [1, 11, 12, 24, 30, 34, 38];
 
         // La primera columna también aloja el título del reporte (ya no
         // combinado a lo ancho de la tabla), así que su ancho mínimo
@@ -795,6 +797,7 @@
             'COMISIÓN 2 ZPL (1,1%)': 11.57,
             'COSTO ADICIONAL': 10.71,
             'GASTOS EXTRA': 10.43,
+            'FECHA PAGO GASTO EXTRA': 10.43,
             'UTILIDAD NETA': 10.71,
             'ESTADO ENVÍOS': 10.71,
             'MONTO COBRADO CLIENTE': 11.57,
@@ -856,10 +859,11 @@
         });
 
         // Columnas con color de cabecera distinto al verde estándar (s="1"):
-        // celeste = IT/comisiones/costo adicional, lila = gastos extra, plomo = cobro cliente, naranja = pago proveedor.
+        // celeste = IT/comisiones/costo adicional, plomo = cobro cliente, naranja = pago proveedor.
+        // (gastos extra -lila- nunca tuvo estilo propio definido en cellXfs, se deja con el verde estándar)
         const colsCeleste = [16, 17, 18, 19, 20];
-        const colsPlomo   = [24, 25, 26];
-        const colsNaranja = [27, 28, 29];
+        const colsPlomo   = [27, 28, 29, 30];
+        const colsNaranja = [31, 32, 33, 34];
 
         const filaCabecera = filaActual;
         sheetData += `<row r="${filaCabecera}">`;

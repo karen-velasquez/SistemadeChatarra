@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n 'fecha_pago\\\\|'\\\\''fillable'\\\\''\\\\|protected $fillable' app/Models/GastoExtra.php)",
+      "Bash(php -r ' *)"
+    ]
+  }
+}
