@@ -182,7 +182,10 @@ class ContratoController extends Controller
             $sumaGastoExtra = 0;
 
             foreach ($entregas as $e) {
-                $precioVentaBs = $e['precio_venta'] * $tcContrato;
+                // precio_venta (precio_por_tonelada del tramo) ya está en la moneda
+                // de venta al cliente (moneda_venta), independiente de la moneda del
+                // contrato con el proveedor — no se convierte con el TC del contrato.
+                $precioVentaBs = $e['precio_venta'];
                 $totalVentas   = round($e['tn_entregadas'] * $precioVentaBs, 2);
                 $importeCompra = $tnTotales > 0 ? round($e['tn_entregadas'] * $costoUnitario, 2) : 0;
                 $utilidadBruta = round($totalVentas - $importeCompra, 2);
