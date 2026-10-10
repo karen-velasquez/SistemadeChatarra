@@ -484,7 +484,7 @@
         // TIPO DE CAMBIO: junto a cada monto que puede venir en moneda distinta a BOB
         // (Gasto Extra, Cobro Cliente, Pago Proveedor) — 1 si el pago fue en BOB,
         // vacío en filas que no son de pago (entregas, subtotal ya viene convertido).
-        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','FECHA PAGO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','MONTO PAGADO FLETE (BS)','TIPO DE CAMBIO FLETE','CÓDIGO PAGO FLETE','FECHA PAGO FLETE','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
+        const cols = ['N° CONTRATO','FECHA DE CONTRATO','TIPO','PROVEEDOR','PLACA','EMPRESA FACTURADORA','CLIENTE','MONEDA','TN ENTREGADAS','PRECIO DE VENTA','TIPO DE CAMBIO CONTRATO','FECHA DE ENTREGA','FECHA DE FACTURA','TOTAL VENTAS','PRECIO DE COMPRA','IMPORTE COMPRA','UTILIDAD BRUTA','IT 3%','COMISIÓN 1','COMISIÓN 2 ZPL (1,1%)','COSTO ADICIONAL','GASTOS EXTRA','CÓDIGO GASTO EXTRA','TIPO DE CAMBIO GASTO EXTRA','FECHA PAGO GASTO EXTRA','UTILIDAD NETA','ESTADO ENVÍOS','MONTO COBRADO CLIENTE (BS)','TIPO DE CAMBIO COBRO','CÓDIGO COBRO CLIENTE','FECHA COBRO CLIENTE','MONTO PAGADO PROVEEDOR (BS)','TIPO DE CAMBIO PAGO','CÓDIGO PAGO PROVEEDOR','FECHA PAGO PROVEEDOR','MONTO PAGADO FLETE (BS)','TIPO DE CAMBIO FLETE','CÓDIGO PAGO FLETE','FECHA PAGO FLETE','ESTADO TRÁNSITO','PESO SALIDA','FECHA SALIDA','FECHA Y HORA DE REGISTRO','REGISTRADO POR','FECHA Y HORA DE EDICIÓN','EDITADO POR'];
 
         // En la fila SUBTOTAL, N° CONTRATO/TIPO/PROVEEDOR se reemplazan por el
         // texto "SUBTOTAL {número}" en la primera columna y se agrega el estado
@@ -516,6 +516,7 @@
                     c.monto_cobrado_cliente, '', '', '',
                     c.monto_pagado_proveedor, '', '', '',
                     c.monto_pagado_flete, '', '', '',
+                    '', '', '',
                     '', '', '', '',
                 ]);
                 rowStyles.push(
@@ -548,9 +549,12 @@
                     c.es_pago_flete ? c.tipo_cambio_flete : '',
                     c.es_pago_flete ? c.codigo_pago_flete : '',
                     c.es_pago_flete ? c.fecha_pago_flete : '',
+                    c.estado_tramo ?? '',
+                    c.peso_salida ?? '',
+                    c.fecha_salida ?? '',
                     c.fecha_registro, c.registrado_por, c.fecha_edicion, c.editado_por,
                 ]);
-                rowStyles.push(c.es_pago_proveedor ? 'pago_proveedor' : (c.es_pago_flete ? 'pago_proveedor' : (c.gasto_extra ? 'gasto_extra' : null)));
+                rowStyles.push(c.es_pago_proveedor ? 'pago_proveedor' : (c.es_pago_flete ? 'pago_proveedor' : (c.estado_tramo ? 'en_transito' : (c.gasto_extra ? 'gasto_extra' : null))));
                 if (typeof c.total_ventas === 'number') ventasEntregas.push(c.total_ventas);
                 if (typeof c.tn_entregadas === 'number') toneladasEntregas.push(c.tn_entregadas);
                 if (typeof c.importe_compra === 'number') importeCompraEntregas.push(c.importe_compra);
@@ -585,10 +589,10 @@
                     fila[22] = item.codigo;
                     fila[23] = item.tipo_cambio;
                     fila[24] = item.fecha_iso;
-                    fila[39] = item.fecha_registro;
-                    fila[40] = item.registrado_por;
-                    fila[41] = item.fecha_edicion;
-                    fila[42] = item.editado_por;
+                    fila[42] = item.fecha_registro;
+                    fila[43] = item.registrado_por;
+                    fila[44] = item.fecha_edicion;
+                    fila[45] = item.editado_por;
                     dataRows.push(fila);
                     rowStyles.push('gasto_extra');
                 });
@@ -765,7 +769,7 @@
             return Math.round((utcMs - Date.UTC(1899, 11, 30)) / 86400000);
         };
         // Columnas que deben tratarse como fecha real de Excel.
-        const colsFecha = [1, 11, 12, 24, 30, 34, 38];
+        const colsFecha = [1, 11, 12, 24, 30, 34, 38, 41];
 
         // La primera columna también aloja el título del reporte (ya no
         // combinado a lo ancho de la tabla), así que su ancho mínimo
@@ -804,6 +808,9 @@
             'CÓDIGO COBRO CLIENTE': 10.14,
             'MONTO PAGADO FLETE (BS)': 11.57,
             'CÓDIGO PAGO FLETE': 10.14,
+            'ESTADO TRÁNSITO': 11.29,
+            'PESO SALIDA': 8.43,
+            'FECHA SALIDA': 10.43,
             'FECHA Y HORA DE REGISTRO': 6.43,
             'REGISTRADO POR': 6.43,
             'FECHA Y HORA DE EDICIÓN': 6.43,

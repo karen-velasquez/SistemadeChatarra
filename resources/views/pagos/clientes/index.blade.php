@@ -100,6 +100,11 @@
 
                 {{-- ===== FILTROS ===== --}}
                 <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-file-text"></i> N° Contrato</label>
+                        <input type="text" class="form-control" id="filtro_contrato_cobro"
+                               placeholder="Ej: CT0926-066" oninput="aplicarFiltros()">
+                    </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold mb-1"><i class="bi bi-people"></i> Filtrar por cliente</label>
                         <select class="form-select" id="filtro_cliente" onchange="aplicarFiltros()">
@@ -190,7 +195,7 @@
                                 $codigos     = $t->pagosCliente->pluck('codigo_seguimiento')->filter()->unique()->values();
                                 $obsCobros   = $t->pagosCliente->pluck('observaciones')->filter()->unique()->values();
                             @endphp
-                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id ?? '' }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}" data-codigos="{{ strtoupper($t->pagosCliente->pluck('codigo_seguimiento')->filter()->implode(' ')) }}">
+                            <tr class="{{ $rowClass }}" data-cliente-id="{{ $t->cliente_id }}" data-proveedor-id="{{ $t->contratoCamion->contrato->proveedor_id ?? '' }}" data-envios-cerrados="{{ $t->contratoCamion->contrato->envios_cerrados ? '1' : '0' }}" data-codigos="{{ strtoupper($t->pagosCliente->pluck('codigo_seguimiento')->filter()->implode(' ')) }}" data-contrato="{{ $t->contratoCamion->contrato->numero_contrato ?? '' }}">
                                 <td>
                                     <small class="d-inline-block text-truncate" style="max-width:140px;" title="{{ $t->cliente->nombre ?? '—' }}">
                                         {{ $t->cliente->nombre ?? '—' }}
@@ -826,11 +831,13 @@ $.fn.dataTable.ext.search.push(function (settings, data, dataIndex, rowData, cou
     const proveedorId = document.getElementById('filtro_proveedor').value;
     const envios      = document.getElementById('filtro_envios').value;
     const codigo      = document.getElementById('filtro_codigo').value.trim().toUpperCase();
+    const contrato    = (document.getElementById('filtro_contrato_cobro').value || '').trim().toUpperCase();
     const okCliente   = !clienteId || fila.dataset.clienteId === clienteId;
     const okProveedor = !proveedorId || fila.dataset.proveedorId === proveedorId;
     const okEnvios    = envios === '' || fila.dataset.enviosCerrados === envios;
     const okCodigo    = !codigo || (fila.dataset.codigos || '').includes(codigo);
-    return okCliente && okProveedor && okEnvios && okCodigo;
+    const okContrato  = !contrato || (fila.dataset.contrato || '').toUpperCase().includes(contrato);
+    return okCliente && okProveedor && okEnvios && okCodigo && okContrato;
 });
 
 tablaCobros.on('draw', function () {
@@ -871,6 +878,7 @@ $('#filtro_codigo').select2({
 });
 
 function limpiarFiltros() {
+    document.getElementById('filtro_contrato_cobro').value = '';
     document.getElementById('filtro_cliente').value   = '';
     document.getElementById('filtro_proveedor').value = '';
     $('#filtro_proveedor').trigger('change.select2');

@@ -92,9 +92,24 @@ class ContratoController extends Controller
         foreach ($contratos as $c) {
             $entregas = collect();
             $cobrosCliente = collect();
+            $enRuta = collect();
             foreach ($c->contratoCamiones as $cc) {
                 foreach ($cc->tramos as $t) {
-                    if ($t->tramosHijos->isNotEmpty() || $t->estado !== 'Entregado') continue;
+                    if ($t->tramosHijos->isNotEmpty()) continue;
+
+                    if ($t->estado !== 'Entregado') {
+                        // Camión aún sin vender/entregar: fila informativa con lo
+                        // que sí existe (no hay cliente, peso de llegada ni precio
+                        // de venta todavía).
+                        $enRuta->push([
+                            'placa'        => $cc->camion->placa ?? '',
+                            'ruta'         => trim(($t->origen ?? '') . ' → ' . ($t->destino ?? '')),
+                            'peso_salida'  => (float) $t->peso_salida,
+                            'fecha_salida' => $t->fecha_salida?->format('Y-m-d') ?? '',
+                            'estado'       => $t->estado,
+                        ]);
+                        continue;
+                    }
 
                     $entregas->push([
                         'placa'          => $cc->camion->placa ?? '',
@@ -205,6 +220,32 @@ class ContratoController extends Controller
                     'costo_adicional'  => $costoAdicional,
                     'utilidad_neta'    => $utilidadNeta,
                     'tipo_cambio_contrato' => $tcContrato,
+                    'es_subtotal'      => false,
+                ]);
+            }
+
+            // Una fila informativa por cada camión aún sin entregar (En ruta,
+            // Transbordando, Transbordado) — no tiene venta todavía, solo se
+            // informa su situación actual para visibilidad del contrato.
+            foreach ($enRuta as $er) {
+                $contratosExcelData->push($filaBase + [
+                    'placa'            => $er['placa'],
+                    'cliente'          => 'EN TRÁNSITO: ' . $er['ruta'],
+                    'tn_entregadas'    => '',
+                    'precio_venta'     => '',
+                    'fecha_entrega'    => '',
+                    'total_ventas'     => '',
+                    'precio_compra'    => '',
+                    'importe_compra'   => '',
+                    'utilidad_bruta'   => '',
+                    'it_3'             => '',
+                    'comision_1_3'     => '',
+                    'comision_2_zpl'   => '',
+                    'costo_adicional'  => '',
+                    'utilidad_neta'    => '',
+                    'peso_salida'      => $er['peso_salida'],
+                    'fecha_salida'     => $er['fecha_salida'],
+                    'estado_tramo'     => $er['estado'],
                     'es_subtotal'      => false,
                 ]);
             }
