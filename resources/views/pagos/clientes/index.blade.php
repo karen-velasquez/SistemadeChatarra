@@ -475,6 +475,7 @@
                                         @foreach($empresa->cuentas as $cta)
                                             <option value="{{ $cta->id }}">
                                                 {{ $cta->nombre_cuenta }}
+                                                @if($cta->numero_cuenta) ({{ $cta->numero_cuenta }}) @endif
                                                 @if($cta->banco) — {{ $cta->banco->nombre }} @endif
                                                 [{{ $cta->moneda }}]
                                                 — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
