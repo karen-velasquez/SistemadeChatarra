@@ -43,9 +43,9 @@ class ParametroController extends Controller
         ]);
 
         $tipo  = strtolower($this->normalizarValor($request->tipo));
-        $valor = strtoupper($this->normalizarValor($request->valor));
+        $valor = $this->normalizarValor($request->valor);
 
-        $duplicado = Parametro::where('tipo', $tipo)->whereRaw('UPPER(valor) = ?', [$valor])->exists();
+        $duplicado = Parametro::where('tipo', $tipo)->whereRaw('UPPER(valor) = ?', [strtoupper($valor)])->exists();
         if ($duplicado) {
             Alert::warning('Ya existe', "El valor \"{$valor}\" ya está registrado en este grupo de parámetros.");
             return redirect()->route('parametros.index');
@@ -73,9 +73,9 @@ class ParametroController extends Controller
         ]);
 
         $tipo  = strtolower($this->normalizarValor($request->tipo));
-        $valor = strtoupper($this->normalizarValor($request->valor));
+        $valor = $this->normalizarValor($request->valor);
 
-        $existente = Parametro::where('tipo', $tipo)->whereRaw('UPPER(valor) = ?', [$valor])->first();
+        $existente = Parametro::where('tipo', $tipo)->whereRaw('UPPER(valor) = ?', [strtoupper($valor)])->first();
         if ($existente) {
             return response()->json([
                 'ok'        => false,
@@ -109,7 +109,7 @@ class ParametroController extends Controller
 
         $parametro->update([
             'tipo'        => strtolower($this->normalizarValor($request->tipo)),
-            'valor'       => strtoupper($this->normalizarValor($request->valor)),
+            'valor'       => $this->normalizarValor($request->valor),
             'descripcion' => $request->descripcion ? trim($request->descripcion) : null,
             'updated_by'  => auth()->id(),
         ]);

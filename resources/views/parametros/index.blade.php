@@ -61,7 +61,7 @@
                         <i class="bi bi-fonts text-success me-2"></i>
                         <div>
                             <small class="text-muted d-block">Formato Valor</small>
-                            <strong class="small">MAYÚSCULAS</strong>
+                            <strong class="small">Libre</strong>
                         </div>
                     </div>
                 </div>
@@ -164,9 +164,8 @@
                         <div class="col-12">
                             <label class="form-label">Valor <span class="text-danger">*</span></label>
                             <input type="text" name="valor" id="nuevo_valor" class="form-control"
-                                   required placeholder="Ej: SUPERVISOR"
-                                   oninput="this.value=this.value.toUpperCase()">
-                            <div class="form-text">El valor que se mostrará. Se guarda en MAYÚSCULAS.</div>
+                                   required placeholder="Ej: Supervisor">
+                            <div class="form-text">El valor que se mostrará.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Descripción</label>
