@@ -952,7 +952,7 @@ function toggleCodigo(metodo) {
         metodo === 'transferencia' ? 'block' : 'none';
 }
 
-function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoLabel, tieneVoucher) {
+function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoLabel, tieneVoucher, voucherEsImagen) {
     document.getElementById('formEditarPagoProveedor').action = url_global + '/pagos/proveedores/' + uuid;
 
     // Voucher: limpiar la selección previa y mostrar el actual si lo hay
@@ -961,7 +961,7 @@ function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoL
     avisoVoucher.classList.toggle('d-none', !tieneVoucher);
     if (tieneVoucher) {
         const voucherUrl = url_global + '/pagos/proveedores/' + uuid + '/voucher';
-        document.getElementById('edit_pp_voucher_link').href = voucherUrl;
+        document.getElementById('edit_pp_voucher_link').href = voucherUrl + (voucherEsImagen ? '?print=1' : '');
         document.getElementById('edit_pp_voucher_link_download').href = voucherUrl + '?download=1';
     }
 
@@ -1165,7 +1165,7 @@ function verDetalle(contratoId) {
                                 ${destLine}
                             </div>
                             <div class="d-flex flex-column gap-1">
-                                ${p.tiene_voucher ? `<a href="${url_global}/pagos/proveedores/${p.uuid}/voucher" target="_blank"
+                                ${p.tiene_voucher ? `<a href="${url_global}/pagos/proveedores/${p.uuid}/voucher${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank"
                                     class="btn btn-sm btn-outline-secondary border-0" title="Ver voucher">
                                     <i class="bi bi-paperclip"></i>
                                 </a>
@@ -1174,7 +1174,7 @@ function verDetalle(contratoId) {
                                     <i class="bi bi-download"></i>
                                 </a>` : ''}
                                 ${canEditPago ? `<button class="btn btn-sm btn-outline-primary border-0"
-                                    onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo}',${p.monto},'${p.moneda_pago}','${p.fecha}','${p.metodo}',${p.tiene_voucher})"
+                                    onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo}',${p.monto},'${p.moneda_pago}','${p.fecha}','${p.metodo}',${p.tiene_voucher},${p.voucher_es_imagen})"
                                     title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>` : ''}

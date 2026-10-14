@@ -216,7 +216,7 @@
                     </a>
                 @endif
                 @if($tramo->documento_entrega)
-                    <a href="{{ route('tramo.documento-entrega', $tramo->uuid) }}"
+                    <a href="{{ route('tramo.documento-entrega', $tramo->uuid) }}{{ es_imagen_archivo($tramo->documento_entrega) ? '?print=1' : '' }}"
                         class="btn btn-sm btn-outline-primary" target="_blank"
                         title="Ver documento de entrega adjunto">
                         <i class="bi bi-paperclip"></i> Doc. entrega

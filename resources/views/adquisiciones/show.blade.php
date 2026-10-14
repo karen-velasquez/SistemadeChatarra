@@ -200,7 +200,7 @@
                                     @endcan
                                 @else
                                     @if($c->comprobante)
-                                    <a href="{{ route('adquisiciones.cuotas.comprobante', $c->uuid) }}" target="_blank"
+                                    <a href="{{ route('adquisiciones.cuotas.comprobante', $c->uuid) }}{{ es_imagen_archivo($c->comprobante) ? '?print=1' : '' }}" target="_blank"
                                        class="btn btn-sm btn-outline-primary" title="Ver comprobante">
                                         <i class="bi bi-receipt"></i>
                                     </a>
@@ -273,7 +273,7 @@
                             <td class="text-end">{{ number_format($f->monto, 2) }} {{ $f->moneda }}</td>
                             <td class="text-center">
                                 @if($f->archivo)
-                                <a href="{{ route('adquisiciones.facturas.ver', $f->uuid) }}" target="_blank"
+                                <a href="{{ route('adquisiciones.facturas.ver', $f->uuid) }}{{ es_imagen_archivo($f->archivo) ? '?print=1' : '' }}" target="_blank"
                                    class="btn btn-sm btn-outline-primary" title="Ver factura">
                                     <i class="bi bi-eye"></i>
                                 </a>

@@ -14,6 +14,7 @@ use RealRashid\SweetAlert\Facades\Alert;
 class CamionController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
 
     public function __construct()
     {
@@ -171,10 +172,12 @@ class CamionController extends Controller
         abort_if(!$camion->documento_ruat, 404, 'Este camión no tiene RUAT cargado.');
         $path = Storage::disk('public')->path($camion->documento_ruat);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($camion->documento_ruat));
-        }
-        return response()->file($path, ['Content-Type' => 'application/pdf']);
+        return $this->responderArchivo(
+            $path,
+            basename($camion->documento_ruat),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     public function eliminarFoto(CamionFoto $foto)

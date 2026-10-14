@@ -18,6 +18,7 @@ class PagoCamionController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
     use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
 
     public function __construct()
     {
@@ -228,11 +229,12 @@ class PagoCamionController extends Controller
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($pago->voucher));
-        }
-
-        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+        return $this->responderArchivo(
+            $path,
+            basename($pago->voucher),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     public function destroy($uuid)
@@ -345,6 +347,7 @@ class PagoCamionController extends Controller
                 'codigo'          => $p->codigo_seguimiento,
                 'tiene_voucher'   => (bool) $p->voucher,
                 'voucher_url'     => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
+                'voucher_es_imagen' => es_imagen_archivo($p->voucher),
                 'cuenta_destino'  => $p->cuentaDestino ? [
                     'banco'          => $p->cuentaDestino->banco->nombre ?? '—',
                     'numero'         => $p->cuentaDestino->numero_cuenta,

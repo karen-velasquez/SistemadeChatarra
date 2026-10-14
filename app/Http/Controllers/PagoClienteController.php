@@ -21,6 +21,7 @@ class PagoClienteController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
     use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
 
     public function __construct()
     {
@@ -479,11 +480,12 @@ class PagoClienteController extends Controller
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($pago->voucher));
-        }
-
-        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+        return $this->responderArchivo(
+            $path,
+            basename($pago->voucher),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     // API: detalle de una entrega (tramo) con sus pagos
@@ -528,6 +530,7 @@ class PagoClienteController extends Controller
                 'codigo'         => $p->codigo_seguimiento,
                 'observaciones'  => $p->observaciones,
                 'tiene_voucher'  => (bool) $p->voucher,
+                'voucher_es_imagen' => es_imagen_archivo($p->voucher),
                 'anulado'        => !is_null($p->deleted_at),
                 'cuenta_origen'  => $p->cuentaOrigen ? [
                     'banco'  => $p->cuentaOrigen->banco->nombre ?? '—',

@@ -139,7 +139,7 @@
                                                         </li>
                                                         <li>
                                                             @if($c->documento_ruat)
-                                                            <a class="dropdown-item" href="{{ route('camiones.ruat', $c->uuid) }}" target="_blank">
+                                                            <a class="dropdown-item" href="{{ route('camiones.ruat', $c->uuid) }}{{ es_imagen_archivo($c->documento_ruat) ? '?print=1' : '' }}" target="_blank">
                                                                 <i class="bi bi-file-earmark-pdf"></i> Ver RUAT
                                                             </a>
                                                             </li>
@@ -265,7 +265,7 @@
                                                         @endcan
                                                         <li>
                                                             @if($o->doc_carnet)
-                                                            <a class="dropdown-item" href="{{ route('operadores.carnet', $o->uuid) }}" target="_blank">
+                                                            <a class="dropdown-item" href="{{ route('operadores.carnet', $o->uuid) }}{{ es_imagen_archivo($o->doc_carnet) ? '?print=1' : '' }}" target="_blank">
                                                                 <i class="bi bi-person-badge"></i> Ver Carnet
                                                             </a>
                                                             </li>
@@ -280,7 +280,7 @@
                                                         @if(in_array($o->tipo_operador, ['chofer','ambos']))
                                                         <li>
                                                             @if($o->doc_licencia)
-                                                            <a class="dropdown-item" href="{{ route('operadores.licencia', $o->uuid) }}" target="_blank">
+                                                            <a class="dropdown-item" href="{{ route('operadores.licencia', $o->uuid) }}{{ es_imagen_archivo($o->doc_licencia) ? '?print=1' : '' }}" target="_blank">
                                                                 <i class="bi bi-card-text"></i> Ver Licencia
                                                             </a>
                                                             </li>

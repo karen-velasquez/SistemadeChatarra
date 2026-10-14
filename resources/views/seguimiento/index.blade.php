@@ -2412,7 +2412,7 @@ function abrirModalEditarLote(tramoUuid, proveedorId, loteActualId) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarLote')).show();
 }
 
-function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo, voucherUrl) {
+function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo, voucherUrl, voucherEsImagen) {
     document.getElementById('formEditarPago').action = url_global + '/pagos/camiones/' + uuid;
     document.getElementById('edit_tipo_pago').value   = tipo;
     document.getElementById('edit_monto').value       = monto;
@@ -2425,7 +2425,7 @@ function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, meto
     const voucherLink   = document.getElementById('edit_voucher_link');
     const voucherLinkDownload = document.getElementById('edit_voucher_link_download');
     if (voucherUrl) {
-        voucherLink.href = voucherUrl;
+        voucherLink.href = voucherUrl + (voucherEsImagen ? '?print=1' : '');
         voucherLinkDownload.href = voucherUrl + '?download=1';
         voucherActual.style.display = 'flex';
     } else {
@@ -3142,7 +3142,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                 if (segCanEditPago || segCanDeletePago) {
                     const editar = segCanEditPago
                         ? `<button class="btn btn-sm btn-outline-secondary border-0"
-                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}', ${p.voucher_url ? `'${p.voucher_url}'` : 'null'})"
+                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}', ${p.voucher_url ? `'${p.voucher_url}'` : 'null'}, ${!!p.voucher_es_imagen})"
                                    title="Editar"><i class="bi bi-pencil"></i></button>`
                         : '';
                     const eliminar = segCanDeletePago
@@ -3168,7 +3168,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                     <td class="small">${origen}</td>
                     <td class="small text-muted">${p.codigo ?? '—'}</td>
                     <td class="small">${p.tiene_voucher
-                        ? `<a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
+                        ? `<a href="${p.voucher_url}${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
                            <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>`
                         : '<span class="text-muted">—</span>'}</td>
                     ${acciones}

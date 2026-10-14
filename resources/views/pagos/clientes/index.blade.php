@@ -1213,7 +1213,7 @@ function verDetalle(tramoId) {
                         : '';
                     const montoStyle = p.anulado ? 'text-decoration:line-through;opacity:.6' : '';
                     const voucherBtn = p.tiene_voucher
-                        ? `<a href="${url_global}/pagos/clientes/${p.uuid}/voucher" target="_blank"
+                        ? `<a href="${url_global}/pagos/clientes/${p.uuid}/voucher${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank"
                                class="btn btn-sm btn-outline-secondary" title="Ver voucher">
                                <i class="bi bi-paperclip"></i>
                             </a>

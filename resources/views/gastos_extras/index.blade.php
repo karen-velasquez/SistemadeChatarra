@@ -199,7 +199,9 @@ function _filaGasto(g) {
     if (g.estado === 'PAGADO') {
         if (g.comprobante_pago) {
             const urlComprobante = `${url_global}/gastos_extras/${g.uuid}/comprobante`;
-            comprobante = `<li><a class="dropdown-item" href="#" onclick="window.open('${urlComprobante}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>`
+            const esImagenComprobante = /\.(jpe?g|png)$/i.test(g.comprobante_pago);
+            const urlVerComprobante = urlComprobante + (esImagenComprobante ? '?print=1' : '');
+            comprobante = `<li><a class="dropdown-item" href="#" onclick="window.open('${urlVerComprobante}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>`
                 + `<li><a class="dropdown-item" href="${urlComprobante}?download=1"><i class="bi bi-download"></i>Descargar Comprobante</a></li>`;
         } else {
             comprobante = `<li><a class="dropdown-item text-muted"><i class="bi bi-receipt"></i>Sin Comprobante</a></li>`;

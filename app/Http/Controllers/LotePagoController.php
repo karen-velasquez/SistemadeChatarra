@@ -58,6 +58,7 @@ class LotePagoController extends Controller
                 'codigo'        => $p->codigo_seguimiento,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.proveedores.voucher', $p->uuid) : null,
+                'voucher_es_imagen' => es_imagen_archivo($p->voucher),
             ]),
             'cliente' => $lote->pagosCliente()->with('tramo.cliente', 'tramo.contratoCamion.contrato')->get()->map(fn($p) => [
                 'uuid'          => $p->uuid,
@@ -68,6 +69,7 @@ class LotePagoController extends Controller
                 'codigo'        => $p->codigo_seguimiento,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.clientes.voucher', $p->uuid) : null,
+                'voucher_es_imagen' => es_imagen_archivo($p->voucher),
             ]),
             default => $lote->pagosCamion()->with('receptor', 'contratoCamion.contrato')->get()->map(fn($p) => [
                 'uuid'          => $p->uuid,
@@ -78,6 +80,7 @@ class LotePagoController extends Controller
                 'codigo'        => $p->codigo_seguimiento,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
+                'voucher_es_imagen' => es_imagen_archivo($p->voucher),
             ]),
         };
     }

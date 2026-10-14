@@ -18,6 +18,7 @@ use Carbon\Carbon;
 class GastoExtraController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
 
     public function index(Request $request)
     {
@@ -251,11 +252,12 @@ class GastoExtraController extends Controller
         $path = public_path('storage/comprobantes_pago/' . $gasto->comprobante_pago);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($gasto->comprobante_pago));
-        }
-
-        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+        return $this->responderArchivo(
+            $path,
+            basename($gasto->comprobante_pago),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     // QR: se genera un código interno único, el usuario no lo escribe.

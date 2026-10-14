@@ -13,6 +13,7 @@ use RealRashid\SweetAlert\Facades\Alert;
 class TramoController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
 
     public function __construct()
     {
@@ -591,11 +592,12 @@ class TramoController extends Controller
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($tramo->documento_entrega));
-        }
-
-        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+        return $this->responderArchivo(
+            $path,
+            basename($tramo->documento_entrega),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     // Devuelve los datos del tramo para poblar el modal de edición

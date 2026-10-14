@@ -28,6 +28,7 @@ use RealRashid\SweetAlert\Facades\Alert;
 class ContratoController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
     public function __construct()
     {
         $this->middleware('auth');
@@ -594,14 +595,12 @@ class ContratoController extends Controller
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        // ?download=1 fuerza la descarga (Content-Disposition: attachment) en vez
-        // de abrir el archivo inline en el navegador.
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($contrato->documento_pdf));
-        }
-
-        // Detecta el tipo real del archivo (PDF o imagen) para mostrarlo correctamente.
-        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+        return $this->responderArchivo(
+            $path,
+            basename($contrato->documento_pdf),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     public function destroy($uuid)

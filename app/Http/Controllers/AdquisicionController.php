@@ -13,6 +13,8 @@ use RealRashid\SweetAlert\Facades\Alert;
 
 class AdquisicionController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -230,10 +232,12 @@ class AdquisicionController extends Controller
         abort_if(!$cuota->comprobante, 404, 'Esta cuota no tiene comprobante.');
         $path = Storage::disk('public')->path($cuota->comprobante);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($cuota->comprobante));
-        }
-        return response()->file($path);
+        return $this->responderArchivo(
+            $path,
+            basename($cuota->comprobante),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     // ===== Facturas de compra =====
@@ -264,10 +268,12 @@ class AdquisicionController extends Controller
         abort_if(!$factura->archivo, 404, 'Esta factura no tiene archivo cargado.');
         $path = Storage::disk('public')->path($factura->archivo);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($factura->archivo));
-        }
-        return response()->file($path);
+        return $this->responderArchivo(
+            $path,
+            basename($factura->archivo),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     public function destroyFactura($uuid)

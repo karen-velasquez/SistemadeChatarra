@@ -19,3 +19,13 @@ function mes_texto_corto($numero)
     $meses = array("ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC");
     return $meses[$numero -1 ];
 }
+
+// Para el botón "Imprimir" de archivos adjuntos: un PDF ya se puede imprimir
+// con el visor nativo del navegador, solo las imágenes necesitan convertirse
+// primero (ver SirveArchivoAdjunto::responderArchivo con ?print=1).
+function es_imagen_archivo(?string $nombreArchivo): bool
+{
+    if (!$nombreArchivo) return false;
+    $ext = strtolower(pathinfo($nombreArchivo, PATHINFO_EXTENSION));
+    return in_array($ext, ['jpg', 'jpeg', 'png']);
+}

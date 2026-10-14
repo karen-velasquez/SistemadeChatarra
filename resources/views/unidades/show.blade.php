@@ -93,7 +93,7 @@
                             </td>
                             <td class="text-center">
                                 @if($d->archivo)
-                                <a href="{{ route('unidades.documentos.ver', $d->uuid) }}" target="_blank"
+                                <a href="{{ route('unidades.documentos.ver', $d->uuid) }}{{ es_imagen_archivo($d->archivo) ? '?print=1' : '' }}" target="_blank"
                                    class="btn btn-sm btn-outline-primary" title="Ver archivo">
                                     <i class="bi bi-eye"></i>
                                 </a>
@@ -239,7 +239,7 @@
                             <td class="text-end">{{ number_format($m->costo, 2) }}</td>
                             <td class="text-center">
                                 @if($m->comprobante)
-                                <a href="{{ route('unidades.mantenimientos.comprobante', $m->uuid) }}" target="_blank"
+                                <a href="{{ route('unidades.mantenimientos.comprobante', $m->uuid) }}{{ es_imagen_archivo($m->comprobante) ? '?print=1' : '' }}" target="_blank"
                                    class="btn btn-sm btn-outline-primary" title="Ver comprobante">
                                     <i class="bi bi-receipt"></i>
                                 </a>

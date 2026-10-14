@@ -234,7 +234,7 @@
                                                 @can('contratos.index')
                                                 @if($c->documento_pdf)
                                                 <li>
-                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}" target="_blank" title="Ver documento adjunto del contrato">
+                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}{{ es_imagen_archivo($c->documento_pdf) ? '?print=1' : '' }}" target="_blank" title="Ver documento adjunto del contrato">
                                                         <i class="bi bi-eye"></i> Ver documento
                                                     </a>
                                                 </li>

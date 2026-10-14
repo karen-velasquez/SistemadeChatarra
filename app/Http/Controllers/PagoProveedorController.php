@@ -19,6 +19,7 @@ class PagoProveedorController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
     use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
+    use \App\Http\Controllers\Concerns\SirveArchivoAdjunto;
 
     public function __construct()
     {
@@ -234,6 +235,7 @@ class PagoProveedorController extends Controller
                 'codigo'         => $p->codigo_seguimiento,
                 'observaciones'  => $p->observaciones,
                 'tiene_voucher'  => (bool) $p->voucher,
+                'voucher_es_imagen' => es_imagen_archivo($p->voucher),
                 'cuenta_destino' => $p->cuentaDestino ? [
                     'banco'          => $p->cuentaDestino->banco->nombre ?? '—',
                     'numero'         => $p->cuentaDestino->numero_cuenta,
@@ -260,11 +262,12 @@ class PagoProveedorController extends Controller
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
-        if (request()->boolean('download')) {
-            return response()->download($path, basename($pago->voucher));
-        }
-
-        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+        return $this->responderArchivo(
+            $path,
+            basename($pago->voucher),
+            request()->boolean('download'),
+            request()->boolean('print')
+        );
     }
 
     public function pagoMasivoView()
