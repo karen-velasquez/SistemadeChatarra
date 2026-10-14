@@ -51,7 +51,15 @@ class PagoProveedorController extends Controller
             'contrato_id'        => 'required|exists:contratos,id',
             'tipo_pago'          => 'required|in:adelanto,pago_final',
             'monto'              => 'required|numeric|min:0.01',
-            'moneda_pago'        => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
+            'moneda_pago'        => ['required', 'in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP', function ($attr, $value, $fail) use ($request) {
+                $contrato = Contrato::find($request->contrato_id);
+                // El pago siempre va en la misma moneda de la deuda del contrato,
+                // no se puede pagar en otra — el frontend ya lo bloquea, esto cubre
+                // el caso de que alguien arme el POST a mano.
+                if ($contrato && $value !== ($contrato->moneda ?? 'BOB')) {
+                    $fail('El pago debe registrarse en ' . ($contrato->moneda ?? 'BOB') . ', la moneda del contrato.');
+                }
+            }],
             'tipo_cambio'        => 'required|numeric|min:0.0001',
             'fecha_pago'         => 'required|date',
             'metodo_pago'        => 'required|in:transferencia,qr',
@@ -251,6 +259,10 @@ class PagoProveedorController extends Controller
         $path = Storage::disk('public')->path($pago->voucher);
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($pago->voucher));
+        }
 
         return response()->file($path, ['Content-Type' => mime_content_type($path)]);
     }

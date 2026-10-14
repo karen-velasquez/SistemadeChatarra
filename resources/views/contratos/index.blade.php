@@ -234,8 +234,13 @@
                                                 @can('contratos.index')
                                                 @if($c->documento_pdf)
                                                 <li>
-                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}" target="_blank">
-                                                        <i class="bi bi-file-earmark-text"></i> Ver documento
+                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}" target="_blank" title="Ver documento adjunto del contrato">
+                                                        <i class="bi bi-eye"></i> Ver documento
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('contratos.pdf', $c->uuid) }}?download=1" title="Descargar documento adjunto del contrato">
+                                                        <i class="bi bi-download"></i> Descargar documento
                                                     </a>
                                                 </li>
                                                 @endif

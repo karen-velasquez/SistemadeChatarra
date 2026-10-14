@@ -62,6 +62,19 @@
 
                 {{-- ===== SELECTOR DE PROVEEDOR ===== --}}
                 <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-file-text"></i> N° Contrato</label>
+                        <input type="text" class="form-control" id="filtro_contrato_pp"
+                               placeholder="Ej: CT0926-066" oninput="aplicarFiltrosPP()">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-globe"></i> Tipo</label>
+                        <select class="form-select" id="filtro_tipo_contrato_pp" onchange="aplicarFiltrosPP()">
+                            <option value="">— Todos —</option>
+                            <option value="Nacional">Nacional</option>
+                            <option value="Internacional">Internacional</option>
+                        </select>
+                    </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold mb-1"><i class="bi bi-box-seam"></i> Filtrar por proveedor</label>
                         <select class="form-select" id="filtro_proveedor" onchange="aplicarFiltrosPP()">
@@ -131,7 +144,9 @@
                             @endphp
                             <tr class="{{ $rowClass }}" data-proveedor-id="{{ $c->proveedor_id }}"
                                 data-fecha="{{ $c->fecha_inicio?->format('Y-m-d') }}"
-                                data-saldo="{{ $saldo }}">
+                                data-saldo="{{ $saldo }}"
+                                data-contrato="{{ $c->numero_contrato }}"
+                                data-tipo="{{ $c->tipo_contrato }}">
                                 <td style="white-space:nowrap;">
                                     <a href="{{ route('contratos.camiones', $c->uuid) }}" class="text-decoration-none fw-semibold">
                                         {{ $c->numero_contrato }}
@@ -254,7 +269,7 @@
                                 {"intro":"💳 Este formulario registra un <b>pago a un proveedor</b> por un contrato. Te explico cada parte. Los campos con <span style=\"color:#dc3545\">(*)</span> son obligatorios."},
                                 {"element":"#sec_seleccionar_contrato","intro":"📄 <b>Contrato</b>: elige a qué contrato corresponde el pago. Si abriste el modal desde el botón ➕ de una fila, ya viene seleccionado.","position":"bottom"},
                                 {"element":"[name=\"tipo_pago\"]","intro":"🏷️ <b>Tipo de Pago</b>: <b>Adelanto</b> (a cuenta) o <b>Pago Final</b> (saldo del contrato).","position":"bottom"},
-                                {"element":"#moneda_pago","intro":"💱 <b>Moneda</b> del pago. Si eliges una distinta de BOB, aparecerá el campo de <b>tipo de cambio</b> para convertir a bolivianos.","position":"bottom"},
+                                {"element":"#moneda_pago","intro":"💱 <b>Moneda</b> del pago: siempre es la misma del saldo pendiente del contrato, no se puede cambiar. Si es distinta de BOB, aparecerá el campo de <b>tipo de cambio</b> para convertir a bolivianos.","position":"bottom"},
                                 {"element":"#inp_monto","intro":"🔢 <b>Monto</b> que se paga. Si la moneda no es BOB, abajo verás el equivalente en bolivianos calculado automáticamente.","position":"bottom"},
                                 {"element":"[name=\"fecha_pago\"]","intro":"📅 <b>Fecha del pago</b>. Por defecto es hoy.","position":"top"},
                                 {"element":"#metodo_pago","intro":"🏦 <b>Método de Pago</b>: transferencia bancaria o QR. Si es transferencia, se habilita un campo para el código/N° de referencia.","position":"top"},
@@ -319,10 +334,12 @@
                             <div class="border rounded-3 p-3 bg-light">
                                 <div class="row g-2 align-items-end">
 
-                                    {{-- Si el contrato está en BOB el pago también: se oculta y se fija en BOB --}}
+                                    {{-- El pago siempre va en la moneda de la deuda del contrato: el
+                                         select queda deshabilitado (solo informativo) y el valor real
+                                         viaja por el hidden, para que no se pueda elegir otra moneda. --}}
                                     <div class="col-md-3" id="sec_moneda_pago">
                                         <label class="form-label fw-semibold mb-1">Moneda <span class="text-danger">*</span></label>
-                                        <select class="form-select form-select-sm" name="moneda_pago" id="moneda_pago" required onchange="toggleTipoCambio(this.value); actualizarBtnPagoProveedor()">
+                                        <select class="form-select form-select-sm" id="moneda_pago" disabled>
                                             <option value="BOB">🇧🇴 BOB</option>
                                             <option value="USD">🇺🇸 USD</option>
                                             <option value="BRL">🇧🇷 BRL</option>
@@ -333,10 +350,15 @@
                                             <option value="PYG">🇵🇾 PYG</option>
                                             <option value="COP">🇨🇴 COP</option>
                                         </select>
+                                        <input type="hidden" name="moneda_pago" id="moneda_pago_hidden" value="BOB">
                                     </div>
 
+                                    {{-- Si la moneda no es BOB, se digita primero el monto en bolivianos
+                                         y el tipo de cambio; el monto en la moneda extranjera (lo que
+                                         realmente se registra) se calcula solo. En BOB, este es el único
+                                         campo de monto y se envía tal cual. --}}
                                     <div class="col-md-4">
-                                        <label class="form-label fw-semibold mb-1">Monto <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-semibold mb-1" id="lbl_campo_monto">Monto <span class="text-danger">*</span></label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text fw-bold" id="lbl_moneda_monto">BOB</span>
                                             <input type="text" inputmode="numeric" class="form-control"
@@ -361,11 +383,11 @@
                                 </div>
 
                                 <div id="sec_equivalente" style="display:none;" class="mt-2">
-                                    <div class="d-flex align-items-center gap-2 rounded-2 px-3 py-2" style="background:#e8f4fd;border:1px solid #b8d9f5;">
+                                    <div class="d-flex align-items-center gap-2 rounded-2 px-3 py-2 flex-wrap" style="background:#e8f4fd;border:1px solid #b8d9f5;">
                                         <i class="bi bi-arrow-left-right text-primary"></i>
-                                        <span class="text-muted small">Equivalente en bolivianos:</span>
+                                        <span class="text-muted small">Monto en <span id="lbl_moneda_equiv"></span> (lo que se registra):</span>
                                         <strong class="text-primary fs-6" id="lbl_equivalente">—</strong>
-                                        <span class="text-muted small">BOB</span>
+                                        <span class="text-muted small" id="lbl_moneda_equiv2"></span>
                                     </div>
                                 </div>
                             </div>
@@ -556,10 +578,16 @@
                                 <i class="bi bi-paperclip me-1"></i>
                                 Este pago ya tiene un comprobante adjunto.
                             </span>
-                            <a href="#" id="edit_pp_voucher_link" target="_blank"
-                               class="btn btn-sm btn-primary flex-shrink-0">
-                                <i class="bi bi-eye me-1"></i>Ver actual
-                            </a>
+                            <span class="d-flex gap-1 flex-shrink-0">
+                                <a href="#" id="edit_pp_voucher_link" target="_blank"
+                                   class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye me-1"></i>Ver actual
+                                </a>
+                                <a href="#" id="edit_pp_voucher_link_download"
+                                   class="btn btn-sm btn-outline-primary" title="Descargar voucher actual">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </span>
                         </div>
                         <div class="text-muted mt-1">Si subes uno nuevo, reemplazará al anterior.</div>
                     </div>
@@ -620,6 +648,8 @@ $('#filtro_proveedor').select2({
 });
 
 function limpiarFiltrosPP() {
+    document.getElementById('filtro_contrato_pp').value = '';
+    document.getElementById('filtro_tipo_contrato_pp').value = '';
     document.getElementById('filtro_proveedor').value = '';
     $('#filtro_proveedor').trigger('change.select2');
     document.getElementById('filtro_desde').value     = '';
@@ -636,6 +666,8 @@ function aplicarFiltrosPP() {
     if (!tbody) return;
 
     const provId = document.getElementById('filtro_proveedor').value;
+    const contrato = (document.getElementById('filtro_contrato_pp').value || '').trim().toUpperCase();
+    const tipoContrato = document.getElementById('filtro_tipo_contrato_pp').value;
     const inpDesde = document.getElementById('filtro_desde');
     const inpHasta = document.getElementById('filtro_hasta');
     const orden  = document.getElementById('filtro_orden').value;
@@ -659,11 +691,13 @@ function aplicarFiltrosPP() {
     filas.forEach(fila => {
         const fecha = fila.dataset.fecha || '';
         // Las fechas vienen como YYYY-MM-DD: se comparan como texto sin parsear
-        const okProv  = !provId || fila.dataset.proveedorId == provId;
-        const okDesde = !desde  || (fecha && fecha >= desde);
-        const okHasta = !hasta  || (fecha && fecha <= hasta);
+        const okProv     = !provId || fila.dataset.proveedorId == provId;
+        const okDesde    = !desde  || (fecha && fecha >= desde);
+        const okHasta    = !hasta  || (fecha && fecha <= hasta);
+        const okContrato = !contrato || (fila.dataset.contrato || '').toUpperCase().includes(contrato);
+        const okTipo     = !tipoContrato || fila.dataset.tipo === tipoContrato;
 
-        const mostrar = okProv && okDesde && okHasta;
+        const mostrar = okProv && okDesde && okHasta && okContrato && okTipo;
         fila.style.display = mostrar ? '' : 'none';
         if (mostrar) visibles++;
     });
@@ -733,11 +767,14 @@ function toggleTipoCambio(moneda) {
     const inpBob   = document.getElementById('inp_tipo_cambio_bob');
     const lblMonto = document.getElementById('lbl_moneda_monto');
     const lblTC    = document.getElementById('lbl_moneda_tc');
+    const lblEquiv  = document.getElementById('lbl_moneda_equiv');
+    const lblEquiv2 = document.getElementById('lbl_moneda_equiv2');
 
     document.getElementById('moneda_pago').value = moneda;
-    lblMonto.textContent = moneda;
+    document.getElementById('moneda_pago_hidden').value = moneda;
 
     if (moneda === 'BOB') {
+        lblMonto.textContent = moneda;
         secTC.style.display    = 'none';
         secEquiv.style.display = 'none';
         inpTCDisp.disabled = true;
@@ -745,26 +782,51 @@ function toggleTipoCambio(moneda) {
         inpTC.value        = '1';
         inpBob.value       = '1';
     } else {
+        // Se digita el monto en bolivianos aquí arriba; el monto real en la
+        // moneda del contrato (lo que se envía) se calcula abajo con el TC.
+        lblMonto.textContent = 'BOB';
+        lblEquiv.textContent  = moneda;
+        lblEquiv2.textContent = moneda;
         secTC.style.display    = 'block';
         inpTCDisp.disabled = false;
         lblTC.textContent  = moneda;
+        // calcEquivalente() decide si el bloque se muestra: solo cuando ya
+        // haya monto en Bs y tipo de cambio cargados.
         calcEquivalente();
     }
 }
 
+// Si la moneda no es BOB: "Monto" (arriba) es donde se digita en bolivianos,
+// y "Equivalente" (abajo, solo lectura) es el monto real en la moneda del
+// contrato — el que se envía al guardar (inp_monto / name="monto"). Solo
+// aparece cuando ya hay monto en Bs y tipo de cambio cargados.
+// En BOB, "Monto" es el único campo y se envía tal cual (flujo sin cambios).
 function calcEquivalente() {
     const moneda = document.getElementById('moneda_pago').value;
-    if (moneda === 'BOB') return;
-    const monto    = parseFloat(document.getElementById('inp_monto').value) || 0;
-    const tc       = parseFloat(document.getElementById('inp_tipo_cambio').value) || 0;
     const secEquiv = document.getElementById('sec_equivalente');
+    if (moneda === 'BOB') {
+        if (secEquiv) secEquiv.style.display = 'none';
+        return;
+    }
+
+    const tc    = parseFloat(document.getElementById('inp_tipo_cambio').value) || 0;
+    const bs    = _txt2numPP(document.getElementById('inp_monto_display').value);
     const lblEquiv = document.getElementById('lbl_equivalente');
-    if (monto > 0 && tc > 0) {
-        lblEquiv.textContent = 'Bs ' + _fmtP(monto * tc);
+    const inpMonto = document.getElementById('inp_monto');
+
+    if (bs > 0 && tc > 0) {
+        const montoExtranjero = bs / tc;
+        lblEquiv.textContent = _fmtP(montoExtranjero);
         secEquiv.style.display = 'block';
+        inpMonto.value = montoExtranjero;
     } else {
         secEquiv.style.display = 'none';
+        inpMonto.value = '';
     }
+}
+
+function _txt2numPP(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 
 function actualizarBtnPagoProveedor() {
@@ -834,8 +896,7 @@ function abrirModalPago(contratoId, label, saldo, moneda, proveedorId) {
 
     const mon = moneda || 'BOB';
     document.getElementById('moneda_pago').value = mon;
-    // Contrato en BOB: el pago va en BOB, no hay moneda que elegir
-    document.getElementById('sec_moneda_pago').style.display = mon === 'BOB' ? 'none' : '';
+    document.getElementById('moneda_pago_hidden').value = mon;
 
     _monedaPendiente  = mon;
     _proveedorActual  = proveedorId;
@@ -856,9 +917,7 @@ function cambiarContrato(contratoId) {
     document.getElementById('pago_info_contrato').style.display = 'block';
 
     document.getElementById('moneda_pago').value = mon;
-    // Contrato en BOB: el pago va en BOB, no hay nada que elegir.
-    // Se oculta el contenedor (no se deshabilita: el select debe seguir enviándose).
-    document.getElementById('sec_moneda_pago').style.display = mon === 'BOB' ? 'none' : '';
+    document.getElementById('moneda_pago_hidden').value = mon;
     toggleTipoCambio(mon);
 
     _proveedorActual = opt.dataset.proveedorId || null;
@@ -901,8 +960,9 @@ function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoL
     const avisoVoucher = document.getElementById('edit_pp_voucher_actual');
     avisoVoucher.classList.toggle('d-none', !tieneVoucher);
     if (tieneVoucher) {
-        document.getElementById('edit_pp_voucher_link').href =
-            url_global + '/pagos/proveedores/' + uuid + '/voucher';
+        const voucherUrl = url_global + '/pagos/proveedores/' + uuid + '/voucher';
+        document.getElementById('edit_pp_voucher_link').href = voucherUrl;
+        document.getElementById('edit_pp_voucher_link_download').href = voucherUrl + '?download=1';
     }
 
     // Mismo formato de dinero del sistema: display con miles/decimales, hidden con el valor crudo
@@ -1108,6 +1168,10 @@ function verDetalle(contratoId) {
                                 ${p.tiene_voucher ? `<a href="${url_global}/pagos/proveedores/${p.uuid}/voucher" target="_blank"
                                     class="btn btn-sm btn-outline-secondary border-0" title="Ver voucher">
                                     <i class="bi bi-paperclip"></i>
+                                </a>
+                                <a href="${url_global}/pagos/proveedores/${p.uuid}/voucher?download=1"
+                                    class="btn btn-sm btn-outline-secondary border-0" title="Descargar voucher">
+                                    <i class="bi bi-download"></i>
                                 </a>` : ''}
                                 ${canEditPago ? `<button class="btn btn-sm btn-outline-primary border-0"
                                     onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo}',${p.monto},'${p.moneda_pago}','${p.fecha}','${p.metodo}',${p.tiene_voucher})"

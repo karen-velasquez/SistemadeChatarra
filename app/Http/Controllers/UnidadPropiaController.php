@@ -120,6 +120,9 @@ class UnidadPropiaController extends Controller
         abort_if(!$doc->archivo, 404, 'Este documento no tiene archivo cargado.');
         $path = Storage::disk('public')->path($doc->archivo);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($doc->archivo));
+        }
         return response()->file($path);
     }
 
@@ -171,6 +174,9 @@ class UnidadPropiaController extends Controller
         abort_if(!$mant->comprobante, 404, 'Este mantenimiento no tiene comprobante.');
         $path = Storage::disk('public')->path($mant->comprobante);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($mant->comprobante));
+        }
         return response()->file($path);
     }
 

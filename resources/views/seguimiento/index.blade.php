@@ -1077,9 +1077,12 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label">Voucher / Comprobante</label>
-                            <div class="mb-1" id="edit_voucher_actual" style="display:none;">
+                            <div class="mb-1 d-flex gap-1" id="edit_voucher_actual" style="display:none;">
                                 <a href="#" target="_blank" id="edit_voucher_link" class="btn btn-outline-success btn-sm">
                                     <i class="bi bi-file-earmark-check me-1"></i>Ver voucher actual
+                                </a>
+                                <a href="#" id="edit_voucher_link_download" class="btn btn-outline-secondary btn-sm" title="Descargar voucher">
+                                    <i class="bi bi-download"></i>
                                 </a>
                             </div>
                             <input type="file" class="form-control" name="voucher" accept=".jpg,.jpeg,.png,.pdf">
@@ -2420,9 +2423,11 @@ function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, meto
 
     const voucherActual = document.getElementById('edit_voucher_actual');
     const voucherLink   = document.getElementById('edit_voucher_link');
+    const voucherLinkDownload = document.getElementById('edit_voucher_link_download');
     if (voucherUrl) {
         voucherLink.href = voucherUrl;
-        voucherActual.style.display = 'block';
+        voucherLinkDownload.href = voucherUrl + '?download=1';
+        voucherActual.style.display = 'flex';
     } else {
         voucherActual.style.display = 'none';
     }
@@ -3163,7 +3168,8 @@ function abrirHistorialPagos(ccId, camionLabel) {
                     <td class="small">${origen}</td>
                     <td class="small text-muted">${p.codigo ?? '—'}</td>
                     <td class="small">${p.tiene_voucher
-                        ? `<a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-check"></i></a>`
+                        ? `<a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
+                           <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>`
                         : '<span class="text-muted">—</span>'}</td>
                     ${acciones}
                 </tr>`;

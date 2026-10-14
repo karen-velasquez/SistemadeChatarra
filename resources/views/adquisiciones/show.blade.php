@@ -204,6 +204,10 @@
                                        class="btn btn-sm btn-outline-primary" title="Ver comprobante">
                                         <i class="bi bi-receipt"></i>
                                     </a>
+                                    <a href="{{ route('adquisiciones.cuotas.comprobante', $c->uuid) }}?download=1"
+                                       class="btn btn-sm btn-outline-secondary" title="Descargar comprobante">
+                                        <i class="bi bi-download"></i>
+                                    </a>
                                     @endif
                                     @can('adquisiciones.destroy')
                                     <a href="{{ route('adquisiciones.cuotas.anular', $c->uuid) }}"
@@ -272,6 +276,10 @@
                                 <a href="{{ route('adquisiciones.facturas.ver', $f->uuid) }}" target="_blank"
                                    class="btn btn-sm btn-outline-primary" title="Ver factura">
                                     <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ route('adquisiciones.facturas.ver', $f->uuid) }}?download=1"
+                                   class="btn btn-sm btn-outline-secondary" title="Descargar factura">
+                                    <i class="bi bi-download"></i>
                                 </a>
                                 @endif
                                 @can('adquisiciones.destroy')

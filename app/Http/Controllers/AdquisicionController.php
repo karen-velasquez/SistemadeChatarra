@@ -230,6 +230,9 @@ class AdquisicionController extends Controller
         abort_if(!$cuota->comprobante, 404, 'Esta cuota no tiene comprobante.');
         $path = Storage::disk('public')->path($cuota->comprobante);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($cuota->comprobante));
+        }
         return response()->file($path);
     }
 
@@ -261,6 +264,9 @@ class AdquisicionController extends Controller
         abort_if(!$factura->archivo, 404, 'Esta factura no tiene archivo cargado.');
         $path = Storage::disk('public')->path($factura->archivo);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($factura->archivo));
+        }
         return response()->file($path);
     }
 

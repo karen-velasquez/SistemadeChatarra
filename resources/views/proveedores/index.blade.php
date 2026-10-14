@@ -42,6 +42,42 @@
                             Gestiona el registro de proveedores que suministran materiales a la empresa.
                             Mantén actualizados sus datos de contacto, tipo de producto que ofrecen y documentación tributaria para agilizar los procesos de compra.
                         </p>
+
+                        {{-- ===== FILTROS ===== --}}
+                        <div class="row g-2 align-items-end mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1"><i class="bi bi-globe"></i> Tipo</label>
+                                <select class="form-select" id="filtro_tipo_prov" onchange="aplicarFiltrosProv()">
+                                    <option value="">— Todos —</option>
+                                    <option value="NACIONAL">Nacional</option>
+                                    <option value="INTERNACIONAL">Internacional</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1"><i class="bi bi-box-seam"></i> Tipo de Producto</label>
+                                <select class="form-select" id="filtro_tipo_producto_prov" onchange="aplicarFiltrosProv()">
+                                    <option value="">— Todos —</option>
+                                    @foreach($tiposProducto as $tp)
+                                        <option value="{{ $tp }}">{{ $tp }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1"><i class="bi bi-flag"></i> País</label>
+                                <select class="form-select" id="filtro_pais_prov" onchange="aplicarFiltrosProv()">
+                                    <option value="">— Todos —</option>
+                                    @foreach($paises as $pais)
+                                        <option value="{{ $pais->id }}">{{ $pais->valor }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosProv()">
+                                    <i class="bi bi-x-circle"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+
                             <div class="table-responsive">
                                 <table cellspacing="0" width="100%" id="datos" class="table table-hover table-bordered table-sm">
                                     <thead>
@@ -59,7 +95,7 @@
                                     </thead>
                                     <tbody>
                                         @foreach($proveedores as $e)
-                                                <tr>
+                                                <tr data-tipo="{{ $e->tipo_proveedor }}" data-tipo-producto="{{ strtoupper($e->tipo_producto ?? '') }}" data-pais-id="{{ $e->pais_id }}">
                                                      <td class="text-left">{{$e->nombre}}</td>
                                                     <td class="text-left">{{$e->nit}}</td>
                                                     <td class="text-left">{{$e->pais->valor ?? '-'}}</td>
@@ -187,6 +223,34 @@ document.addEventListener('DOMContentLoaded', function () {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalProveedor')).show();
 });
 @endif
+
+// ===== Filtros (Tipo / Tipo de Producto / País) sobre el DataTable ya inicializado por basica.js =====
+const tablaProveedores = $('#datos').DataTable();
+
+$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+    if (settings.nTable.id !== 'datos') return true;
+    const fila = tablaProveedores.row(dataIndex).node();
+    const tipo         = document.getElementById('filtro_tipo_prov').value;
+    const tipoProducto = document.getElementById('filtro_tipo_producto_prov').value;
+    const paisId        = document.getElementById('filtro_pais_prov').value;
+
+    const okTipo         = !tipo || fila.dataset.tipo === tipo;
+    const okTipoProducto = !tipoProducto || fila.dataset.tipoProducto === tipoProducto;
+    const okPais          = !paisId || fila.dataset.paisId === paisId;
+
+    return okTipo && okTipoProducto && okPais;
+});
+
+function aplicarFiltrosProv() {
+    tablaProveedores.draw();
+}
+
+function limpiarFiltrosProv() {
+    document.getElementById('filtro_tipo_prov').value = '';
+    document.getElementById('filtro_tipo_producto_prov').value = '';
+    document.getElementById('filtro_pais_prov').value = '';
+    aplicarFiltrosProv();
+}
 
  window.limpiarFormularioProveedor = function () {
     document.getElementById('formProveedor').reset();

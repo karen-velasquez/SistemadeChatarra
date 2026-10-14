@@ -142,6 +142,11 @@
                                                             <a class="dropdown-item" href="{{ route('camiones.ruat', $c->uuid) }}" target="_blank">
                                                                 <i class="bi bi-file-earmark-pdf"></i> Ver RUAT
                                                             </a>
+                                                            </li>
+                                                            <li>
+                                                            <a class="dropdown-item" href="{{ route('camiones.ruat', $c->uuid) }}?download=1">
+                                                                <i class="bi bi-download"></i> Descargar RUAT
+                                                            </a>
                                                             @else
                                                             <span class="dropdown-item text-muted">
                                                                 <i class="bi bi-file-earmark-pdf"></i> Sin RUAT
@@ -263,6 +268,11 @@
                                                             <a class="dropdown-item" href="{{ route('operadores.carnet', $o->uuid) }}" target="_blank">
                                                                 <i class="bi bi-person-badge"></i> Ver Carnet
                                                             </a>
+                                                            </li>
+                                                            <li>
+                                                            <a class="dropdown-item" href="{{ route('operadores.carnet', $o->uuid) }}?download=1">
+                                                                <i class="bi bi-download"></i> Descargar Carnet
+                                                            </a>
                                                             @else
                                                             <span class="dropdown-item text-muted"><i class="bi bi-person-badge"></i> Sin carnet</span>
                                                             @endif
@@ -272,6 +282,11 @@
                                                             @if($o->doc_licencia)
                                                             <a class="dropdown-item" href="{{ route('operadores.licencia', $o->uuid) }}" target="_blank">
                                                                 <i class="bi bi-card-text"></i> Ver Licencia
+                                                            </a>
+                                                            </li>
+                                                            <li>
+                                                            <a class="dropdown-item" href="{{ route('operadores.licencia', $o->uuid) }}?download=1">
+                                                                <i class="bi bi-download"></i> Descargar Licencia
                                                             </a>
                                                             @else
                                                             <span class="dropdown-item text-muted"><i class="bi bi-card-text"></i> Sin licencia</span>

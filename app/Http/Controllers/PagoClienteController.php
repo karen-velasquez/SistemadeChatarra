@@ -479,6 +479,10 @@ class PagoClienteController extends Controller
 
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($pago->voucher));
+        }
+
         return response()->file($path, ['Content-Type' => mime_content_type($path)]);
     }
 

@@ -221,6 +221,11 @@
                         title="Ver documento de entrega adjunto">
                         <i class="bi bi-paperclip"></i> Doc. entrega
                     </a>
+                    <a href="{{ route('tramo.documento-entrega', $tramo->uuid) }}?download=1"
+                        class="btn btn-sm btn-outline-secondary"
+                        title="Descargar documento de entrega">
+                        <i class="bi bi-download"></i>
+                    </a>
                 @endif
             @endcan
         </div>

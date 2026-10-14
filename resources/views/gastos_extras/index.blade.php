@@ -198,7 +198,9 @@ function _filaGasto(g) {
     let comprobante = '';
     if (g.estado === 'PAGADO') {
         if (g.comprobante_pago) {
-            comprobante = `<li><a class="dropdown-item" href="#" onclick="window.open('{{ asset('storage/comprobantes_pago') }}/${escapeHtml(g.comprobante_pago)}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>`;
+            const urlComprobante = `${url_global}/gastos_extras/${g.uuid}/comprobante`;
+            comprobante = `<li><a class="dropdown-item" href="#" onclick="window.open('${urlComprobante}','comprobante','width=700,height=500,resizable=yes,scrollbars=yes'); return false;"><i class="bi bi-receipt"></i>Ver Comprobante</a></li>`
+                + `<li><a class="dropdown-item" href="${urlComprobante}?download=1"><i class="bi bi-download"></i>Descargar Comprobante</a></li>`;
         } else {
             comprobante = `<li><a class="dropdown-item text-muted"><i class="bi bi-receipt"></i>Sin Comprobante</a></li>`;
         }

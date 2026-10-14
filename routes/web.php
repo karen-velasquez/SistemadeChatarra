@@ -242,6 +242,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('gastos_extras/{uuid}/edit', [App\Http\Controllers\GastoExtraController::class, 'edit'])->name('gastos_extras.edit')->middleware('permission:gastos_extras.edit');
     Route::put('gastos_extras/{gastos_extras}', [App\Http\Controllers\GastoExtraController::class, 'update'])->name('gastos_extras.update')->middleware('permission:gastos_extras.edit');
     Route::get('gastos_extras/{uuid}/destroy', [App\Http\Controllers\GastoExtraController::class, 'destroy'])->name('gastos_extras.destroy')->middleware('permission:gastos_extras.destroy');
+    Route::get('gastos_extras/{uuid}/comprobante', [App\Http\Controllers\GastoExtraController::class, 'verComprobante'])->name('gastos_extras.comprobante')->middleware('permission:gastos_extras.index');
     
     //Cuentas Bancarias (gestionadas desde el módulo de Bancos);
     

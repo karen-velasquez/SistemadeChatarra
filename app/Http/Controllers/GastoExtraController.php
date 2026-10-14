@@ -243,6 +243,21 @@ class GastoExtraController extends Controller
         return redirect()->route('gastos_extras.index');
     }
 
+    public function verComprobante($uuid)
+    {
+        $gasto = GastoExtra::where('uuid', $uuid)->firstOrFail();
+        abort_if(!$gasto->comprobante_pago, 404, 'Este gasto no tiene comprobante adjunto.');
+
+        $path = public_path('storage/comprobantes_pago/' . $gasto->comprobante_pago);
+        abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($gasto->comprobante_pago));
+        }
+
+        return response()->file($path, ['Content-Type' => mime_content_type($path)]);
+    }
+
     // QR: se genera un código interno único, el usuario no lo escribe.
     // Transferencia: se usa el código que el usuario ingresó (obligatorio, ya validado).
     private function resolverCodigoSeguimiento(?string $metodoPago, ?string $codigoIngresado, ?string $codigoActual = null): ?string

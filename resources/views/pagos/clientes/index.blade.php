@@ -1216,6 +1216,10 @@ function verDetalle(tramoId) {
                         ? `<a href="${url_global}/pagos/clientes/${p.uuid}/voucher" target="_blank"
                                class="btn btn-sm btn-outline-secondary" title="Ver voucher">
                                <i class="bi bi-paperclip"></i>
+                            </a>
+                            <a href="${url_global}/pagos/clientes/${p.uuid}/voucher?download=1"
+                               class="btn btn-sm btn-outline-secondary" title="Descargar voucher">
+                               <i class="bi bi-download"></i>
                             </a>`
                         : '';
                     const acciones = p.anulado

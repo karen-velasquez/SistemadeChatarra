@@ -140,6 +140,9 @@ class OperadorTransporteController extends Controller
         abort_if(!$operador->doc_carnet, 404, 'Este operador no tiene carnet cargado.');
         $path = Storage::disk('public')->path($operador->doc_carnet);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($operador->doc_carnet));
+        }
         $mime = mime_content_type($path);
         return response()->file($path, ['Content-Type' => $mime]);
     }
@@ -150,6 +153,9 @@ class OperadorTransporteController extends Controller
         abort_if(!$operador->doc_licencia, 404, 'Este operador no tiene licencia cargada.');
         $path = Storage::disk('public')->path($operador->doc_licencia);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
+        if (request()->boolean('download')) {
+            return response()->download($path, basename($operador->doc_licencia));
+        }
         $mime = mime_content_type($path);
         return response()->file($path, ['Content-Type' => $mime]);
     }

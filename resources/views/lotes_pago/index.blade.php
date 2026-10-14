@@ -379,7 +379,10 @@ function abrirModalCodigo(uuid, tipo, fecha) {
                                value="${p.codigo ?? ''}" placeholder="Ej: TRF-2026052500123" maxlength="100">
                     </td>
                     <td>
-                        ${p.tiene_voucher ? `<a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm mb-1 w-100"><i class="bi bi-file-earmark-check me-1"></i>Ver</a>` : ''}
+                        ${p.tiene_voucher ? `<div class="d-flex gap-1 mb-1">
+                            <a href="${p.voucher_url}" target="_blank" class="btn btn-outline-success btn-sm flex-fill"><i class="bi bi-file-earmark-check me-1"></i>Ver</a>
+                            <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>
+                        </div>` : ''}
                         <input type="file" class="form-control form-control-sm" name="codigos[${i}][voucher]" accept=".jpg,.jpeg,.png,.pdf">
                     </td>
                 </tr>`;

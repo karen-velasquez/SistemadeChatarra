@@ -26,7 +26,12 @@ class ProveedorController extends Controller
         $paises=Parametro::where('tipo','paises')->get();
         $proveedores = Proveedor::with(['contacts', 'pais'])->whereNull('deleted_at')->orderby('created_at','desc')->get();
         $idempotencyToken = $this->generarToken('proveedor_store_token');
-        return view('proveedores.index',compact('proveedores','paises','idempotencyToken'));
+
+        // Tipo de producto es texto libre (no un catálogo): las opciones del
+        // filtro se arman con los valores que ya existen entre los proveedores.
+        $tiposProducto = $proveedores->pluck('tipo_producto')->filter()->map(fn($t) => strtoupper($t))->unique()->sort()->values();
+
+        return view('proveedores.index',compact('proveedores','paises','idempotencyToken','tiposProducto'));
     }
       
     public function nuevoToken()

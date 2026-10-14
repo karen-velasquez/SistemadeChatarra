@@ -97,6 +97,10 @@
                                    class="btn btn-sm btn-outline-primary" title="Ver archivo">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                <a href="{{ route('unidades.documentos.ver', $d->uuid) }}?download=1"
+                                   class="btn btn-sm btn-outline-secondary" title="Descargar archivo">
+                                    <i class="bi bi-download"></i>
+                                </a>
                                 @endif
                                 @can('unidades.destroy')
                                 <a href="{{ route('unidades.documentos.destroy', $d->uuid) }}"
@@ -238,6 +242,10 @@
                                 <a href="{{ route('unidades.mantenimientos.comprobante', $m->uuid) }}" target="_blank"
                                    class="btn btn-sm btn-outline-primary" title="Ver comprobante">
                                     <i class="bi bi-receipt"></i>
+                                </a>
+                                <a href="{{ route('unidades.mantenimientos.comprobante', $m->uuid) }}?download=1"
+                                   class="btn btn-sm btn-outline-secondary" title="Descargar comprobante">
+                                    <i class="bi bi-download"></i>
                                 </a>
                                 @endif
                                 @can('unidades.destroy')
