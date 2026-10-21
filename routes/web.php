@@ -151,6 +151,10 @@ use Illuminate\Support\Facades\Route;
     // Seguimiento de cargas
     Route::get('seguimiento-cargas',[App\Http\Controllers\SeguimientoCargasController::class,'index'])->name('seguimiento.index')->middleware('permission:seguimiento.index');
 
+    // Impresión masiva
+    Route::get('impresion-masiva', [App\Http\Controllers\ImpresionMasivaController::class, 'index'])->name('impresion_masiva.index')->middleware('permission:impresion_masiva.index');
+    Route::post('impresion-masiva/buscar', [App\Http\Controllers\ImpresionMasivaController::class, 'buscar'])->name('impresion_masiva.buscar')->middleware('permission:impresion_masiva.index');
+
     // Empleados
     Route::get('empleados',[App\Http\Controllers\EmpleadoController::class,'index'])->name('empleados.index')->middleware('permission:empleados.index');
     Route::get('empleados/nuevo-token',[App\Http\Controllers\EmpleadoController::class,'nuevoToken'])->name('empleados.nuevo-token');

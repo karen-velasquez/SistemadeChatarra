@@ -57,6 +57,8 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'conductores.destroy', 'descripcion' => 'Eliminar asignaciones de conductores', 'grupo' => 'CONDUCTORES'],
             // Seguimiento
             ['name' => 'seguimiento.index', 'descripcion' => 'Ver seguimiento de cargas', 'grupo' => 'SEGUIMIENTO'],
+            // Impresión masiva
+            ['name' => 'impresion_masiva.index', 'descripcion' => 'Ver e imprimir documentos de forma masiva', 'grupo' => 'IMPRESION_MASIVA'],
             // Empleados
             ['name' => 'empleados.index',   'descripcion' => 'Ver todos los Empleados', 'grupo' => 'EMPLEADOS'],
             ['name' => 'empleados.create',  'descripcion' => 'Agregar Empleados',       'grupo' => 'EMPLEADOS'],

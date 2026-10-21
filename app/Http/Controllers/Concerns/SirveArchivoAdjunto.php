@@ -18,8 +18,7 @@ trait SirveArchivoAdjunto
         $esImagen = str_starts_with($mime, 'image/');
 
         if ($print && $esImagen) {
-            $imagenBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
-            $pdf = Pdf::loadView('pdf.imagen-para-imprimir', compact('imagenBase64'))->setPaper('a4');
+            $pdf = $this->imagenComoPdf($path, $mime);
             return $pdf->stream(pathinfo($nombreDescarga, PATHINFO_FILENAME) . '.pdf');
         }
 
@@ -28,5 +27,17 @@ trait SirveArchivoAdjunto
         }
 
         return response()->file($path, ['Content-Type' => $mime]);
+    }
+
+    /**
+     * Igual que la conversión usada en responderArchivo con ?print=1, pero
+     * devuelve el objeto Pdf (vía ->output()) en vez de stream-earlo, para
+     * reutilizarse al armar un ZIP con varios documentos.
+     */
+    protected function imagenComoPdf(string $path, ?string $mime = null)
+    {
+        $mime ??= mime_content_type($path);
+        $imagenBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+        return Pdf::loadView('pdf.imagen-para-imprimir', compact('imagenBase64'))->setPaper('a4');
     }
 }
