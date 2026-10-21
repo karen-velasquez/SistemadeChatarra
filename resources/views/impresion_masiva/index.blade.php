@@ -48,23 +48,23 @@
                 <div class="mt-4">
                     <label class="form-label d-block">Tipos de documento a incluir</label>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="tipos[]" value="contratos" id="tipo_contratos" checked>
+                        <input class="form-check-input" type="checkbox" name="tipos[]" value="contratos" id="tipo_contratos">
                         <label class="form-check-label" for="tipo_contratos">Contratos (documento adjunto)</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="tipos[]" value="documentos_entrega" id="tipo_entrega" checked>
+                        <input class="form-check-input" type="checkbox" name="tipos[]" value="documentos_entrega" id="tipo_entrega">
                         <label class="form-check-label" for="tipo_entrega">Documentos de entrega (tramos)</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="tipos[]" value="vouchers_proveedor" id="tipo_vp" checked>
+                        <input class="form-check-input" type="checkbox" name="tipos[]" value="vouchers_proveedor" id="tipo_vp">
                         <label class="form-check-label" for="tipo_vp">Vouchers de pago a proveedores</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="tipos[]" value="vouchers_cliente" id="tipo_vc" checked>
+                        <input class="form-check-input" type="checkbox" name="tipos[]" value="vouchers_cliente" id="tipo_vc">
                         <label class="form-check-label" for="tipo_vc">Vouchers de cobro a clientes</label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="tipos[]" value="vouchers_camion" id="tipo_vf" checked>
+                        <input class="form-check-input" type="checkbox" name="tipos[]" value="vouchers_camion" id="tipo_vf">
                         <label class="form-check-label" for="tipo_vf">Vouchers de pago de flete (camiones)</label>
                     </div>
                 </div>
