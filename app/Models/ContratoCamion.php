@@ -179,4 +179,10 @@ class ContratoCamion extends Model
     {
         return max(0, $this->monto_neto - $this->total_pagado);
     }
+
+    // Igual que saldo_pendiente pero sin recortar en 0: negativo = saldo a favor del transportista
+    public function getSaldoNetoAttribute(): float
+    {
+        return $this->monto_neto - $this->total_pagado;
+    }
 }

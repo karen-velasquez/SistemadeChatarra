@@ -266,8 +266,12 @@
                                             <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
                                                 {{ $cc->moneda_flete ?? 'BOB' }}
                                                 {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
-                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
-                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                <span class="{{ $cc->saldo_neto > 0 ? 'text-danger' : ($cc->saldo_neto < 0 ? 'text-primary' : 'text-success') }}">
+                                                    @if($cc->saldo_neto < 0)
+                                                        (saldo a favor {{ number_format(abs($cc->saldo_neto), 0, ',', '.') }})
+                                                    @else
+                                                        (saldo {{ number_format($cc->saldo_neto, 0, ',', '.') }})
+                                                    @endif
                                                 </span>
                                             </div>
                                         @endif
@@ -416,8 +420,12 @@
                                             <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
                                                 {{ $cc->moneda_flete ?? 'BOB' }}
                                                 {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
-                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
-                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                <span class="{{ $cc->saldo_neto > 0 ? 'text-danger' : ($cc->saldo_neto < 0 ? 'text-primary' : 'text-success') }}">
+                                                    @if($cc->saldo_neto < 0)
+                                                        (saldo a favor {{ number_format(abs($cc->saldo_neto), 0, ',', '.') }})
+                                                    @else
+                                                        (saldo {{ number_format($cc->saldo_neto, 0, ',', '.') }})
+                                                    @endif
                                                 </span>
                                             </div>
                                         @endif
@@ -561,8 +569,12 @@
                                             <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
                                                 {{ $cc->moneda_flete ?? 'BOB' }}
                                                 {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
-                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
-                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                <span class="{{ $cc->saldo_neto > 0 ? 'text-danger' : ($cc->saldo_neto < 0 ? 'text-primary' : 'text-success') }}">
+                                                    @if($cc->saldo_neto < 0)
+                                                        (saldo a favor {{ number_format(abs($cc->saldo_neto), 0, ',', '.') }})
+                                                    @else
+                                                        (saldo {{ number_format($cc->saldo_neto, 0, ',', '.') }})
+                                                    @endif
                                                 </span>
                                             </div>
                                         @endif
@@ -718,8 +730,12 @@
                                             <div class="text-muted" style="font-size:.68rem;white-space:nowrap">
                                                 {{ $cc->moneda_flete ?? 'BOB' }}
                                                 {{ number_format($cc->total_pagado, 0, ',', '.') }} / {{ number_format($cc->monto_neto, 0, ',', '.') }}
-                                                <span class="{{ $cc->saldo_pendiente > 0 ? 'text-danger' : 'text-success' }}">
-                                                    (saldo {{ number_format($cc->saldo_pendiente, 0, ',', '.') }})
+                                                <span class="{{ $cc->saldo_neto > 0 ? 'text-danger' : ($cc->saldo_neto < 0 ? 'text-primary' : 'text-success') }}">
+                                                    @if($cc->saldo_neto < 0)
+                                                        (saldo a favor {{ number_format(abs($cc->saldo_neto), 0, ',', '.') }})
+                                                    @else
+                                                        (saldo {{ number_format($cc->saldo_neto, 0, ',', '.') }})
+                                                    @endif
                                                 </span>
                                             </div>
                                         @endif
