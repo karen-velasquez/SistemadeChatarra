@@ -32,14 +32,18 @@ function validarFormularioUsuario() {
         formularioValido = false;
     }
 
-    // Contraseña (solo en creación - si existe el campo)
-    if (password !== null) {
-        if (password.length < 8) {
+    // Contraseña: en creación es obligatoria; en edición es opcional
+    // (campo vacío = no cambiarla), pero si se escribe algo debe ser válida.
+    const campoConfirmacionExiste = document.getElementById('password_confirmation') !== null;
+
+    if (campoConfirmacionExiste) {
+        // Modo creación: contraseña obligatoria y debe coincidir con la confirmación
+        if (password.length < 8 || passwordConfirmation !== password) {
             formularioValido = false;
         }
-
-        // Confirmación de contraseña
-        if (passwordConfirmation !== password) {
+    } else if (password !== '') {
+        // Modo edición: solo se valida si el usuario escribió algo
+        if (password.length < 8) {
             formularioValido = false;
         }
     }
