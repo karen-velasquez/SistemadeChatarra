@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Camion;
 use App\Models\Contrato;
+use App\Models\ContratoDocumento;
 use App\Models\Tramo;
 use App\Models\Cliente;
 use App\Models\PagoCamion;
@@ -50,6 +51,7 @@ class ContratoController extends Controller
                             'gastosExtras.usuarioActualizador',
                             'usuarioCreador',
                             'usuarioActualizador',
+                            'documentos',
                         ])
                         ->whereNull('deleted_at')
                         ->orderByDesc('created_at')
@@ -521,14 +523,11 @@ class ContratoController extends Controller
 
         session()->forget('contrato_store_token');
 
-        $data = $request->except(['documento_pdf', '_idempotency_token']);
-
-        if ($request->hasFile('documento_pdf')) {
-            $data['documento_pdf'] = $request->file('documento_pdf')
-                ->store('contratos', 'public');
-        }
+        $data = $request->except(['documentos', '_idempotency_token']);
 
         $contrato = Contrato::create($data);
+
+        $this->guardarDocumentos($contrato, $request->file('documentos', []));
 
         // Solo para proveedores NACIONALES se crea el lote semanal automáticamente
         $proveedor = Proveedor::find($contrato->proveedor_id);
@@ -542,7 +541,7 @@ class ContratoController extends Controller
 
     public function edit($uuid)
     {
-        $contrato = Contrato::with(['cliente', 'proveedor'])
+        $contrato = Contrato::with(['cliente', 'proveedor', 'documentos'])
                         ->where('uuid', $uuid)->firstOrFail();
         return response()->json($contrato);
     }
@@ -569,43 +568,75 @@ class ContratoController extends Controller
             return redirect()->route('contratos.index');
         }
 
-        $data = $request->except('documento_pdf');
-
-        if ($request->hasFile('documento_pdf')) {
-            // Eliminar el PDF anterior si existe
-            if ($contrato->documento_pdf) {
-                Storage::disk('public')->delete($contrato->documento_pdf);
-            }
-            $data['documento_pdf'] = $request->file('documento_pdf')
-                ->store('contratos', 'public');
-        }
+        $data = $request->except('documentos');
 
         $contrato->update($data);
+
+        $this->guardarDocumentos($contrato, $request->file('documentos', []));
+
         Alert::success('Actualización', 'Contrato actualizado con éxito.');
         return redirect()->route('contratos.index');
     }
 
+    /**
+     * Guarda cada archivo subido como un registro nuevo en contrato_documentos.
+     * No reemplaza los documentos existentes: se van acumulando.
+     */
+    private function guardarDocumentos(Contrato $contrato, array $archivos): void
+    {
+        foreach ($archivos as $archivo) {
+            if (!$archivo) continue;
+            $contrato->documentos()->create([
+                'archivo'         => $archivo->store('contratos', 'public'),
+                'nombre_original' => $archivo->getClientOriginalName(),
+                'created_by'      => auth()->id(),
+            ]);
+        }
+    }
+
     public function verPdf($uuid)
     {
-        $contrato = Contrato::where('uuid', $uuid)->firstOrFail();
+        $contrato = Contrato::with('documentos')->where('uuid', $uuid)->firstOrFail();
 
-        abort_if(!$contrato->documento_pdf, 404, 'Este contrato no tiene documento adjunto.');
+        $documento = $contrato->documentos->first();
+        abort_if(!$documento, 404, 'Este contrato no tiene documento adjunto.');
 
-        $path = Storage::disk('public')->path($contrato->documento_pdf);
+        return $this->responderDocumentoContrato($documento);
+    }
 
+    public function verDocumento($uuid)
+    {
+        $documento = ContratoDocumento::where('uuid', $uuid)->firstOrFail();
+        return $this->responderDocumentoContrato($documento);
+    }
+
+    private function responderDocumentoContrato(ContratoDocumento $documento)
+    {
+        $path = Storage::disk('public')->path($documento->archivo);
         abort_if(!file_exists($path), 404, 'Archivo no encontrado.');
 
         return $this->responderArchivo(
             $path,
-            basename($contrato->documento_pdf),
+            $documento->nombre_original ?: basename($documento->archivo),
             request()->boolean('download'),
             request()->boolean('print')
         );
     }
 
+    public function destroyDocumento($uuid)
+    {
+        $documento = ContratoDocumento::where('uuid', $uuid)->firstOrFail();
+        Storage::disk('public')->delete($documento->archivo);
+        $documento->update(['deleted_by' => auth()->id()]);
+        $documento->delete();
+
+        Alert::success('Documentos', 'Documento eliminado.');
+        return back();
+    }
+
     public function destroy($uuid)
     {
-        $contrato = Contrato::with('contratoCamiones')->where('uuid', $uuid)->firstOrFail();
+        $contrato = Contrato::with(['contratoCamiones', 'documentos'])->where('uuid', $uuid)->firstOrFail();
 
         // Eliminación en cascada respetando el orden de FKs.
         // Se usa forceDelete() para quitar físicamente las filas; de lo contrario
@@ -639,7 +670,11 @@ class ContratoController extends Controller
         // 5. Eliminar pagos de proveedor (dependen de contratos)
         PagoProveedor::withTrashed()->where('contrato_id', $contrato->id)->forceDelete();
 
-        // 6. Eliminar PDF del contrato
+        // 6. Eliminar los documentos adjuntos del contrato
+        foreach ($contrato->documentos as $documento) {
+            Storage::disk('public')->delete($documento->archivo);
+            $documento->forceDelete();
+        }
         if ($contrato->documento_pdf) {
             Storage::disk('public')->delete($contrato->documento_pdf);
         }

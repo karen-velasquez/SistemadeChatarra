@@ -24,7 +24,8 @@ class ContratoRequest extends FormRequest
             'monto_total'       => 'required|numeric|min:0',
             'moneda'            => 'required|in:BOB,USD,EUR,BRL,ARS,PEN,CLP,PYG,COP',
             'tipo_cambio'       => 'nullable|required_unless:moneda,BOB|numeric|min:0.0001',
-            'documento_pdf'     => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:30720',
+            'documentos'        => 'nullable|array',
+            'documentos.*'      => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:30720',
         ];
     }
 
@@ -46,9 +47,9 @@ class ContratoRequest extends FormRequest
             'moneda.required'         => 'La moneda es obligatoria.',
             'tipo_cambio.required_unless' => 'El tipo de cambio es obligatorio cuando la moneda no es BOB.',
             'tipo_cambio.min'         => 'El tipo de cambio debe ser mayor a cero.',
-            'documento_pdf.file'          => 'El documento debe ser un archivo.',
-            'documento_pdf.mimes'         => 'Solo se permiten archivos PDF, PNG, JPG o JPEG.',
-            'documento_pdf.max'           => 'El documento no puede superar los 30 MB.',
+            'documentos.*.file'          => 'El documento debe ser un archivo.',
+            'documentos.*.mimes'         => 'Solo se permiten archivos PDF, PNG, JPG o JPEG.',
+            'documentos.*.max'           => 'Cada documento no puede superar los 30 MB.',
         ];
     }
 }

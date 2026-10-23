@@ -54,16 +54,19 @@ class ImpresionMasivaController extends Controller
         $documentos = [];
 
         if (in_array('contratos', $tipos)) {
-            Contrato::whereNotNull('documento_pdf')
+            Contrato::whereHas('documentos')
                 ->whereBetween('fecha_inicio', [$desde, $hasta])
+                ->with('documentos')
                 ->get()
                 ->each(function ($c) use (&$documentos) {
-                    $documentos[] = [
-                        'tipo'       => 'Contrato',
-                        'referencia' => $c->numero_contrato,
-                        'fecha'      => $c->fecha_inicio?->format('d/m/Y'),
-                        'archivo'    => $c->documento_pdf,
-                    ];
+                    foreach ($c->documentos as $doc) {
+                        $documentos[] = [
+                            'tipo'       => 'Contrato',
+                            'referencia' => $c->numero_contrato,
+                            'fecha'      => $c->fecha_inicio?->format('d/m/Y'),
+                            'archivo'    => $doc->archivo,
+                        ];
+                    }
                 });
         }
 

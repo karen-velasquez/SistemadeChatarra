@@ -126,6 +126,8 @@ use Illuminate\Support\Facades\Route;
     Route::get('contrato/{uuid}/destroy',[App\Http\Controllers\ContratoController::class,'destroy'])->name('contratos.destroy')->middleware('permission:contratos.destroy');
     Route::get('contrato/{uuid}/camiones',[App\Http\Controllers\ContratoController::class,'camiones'])->name('contratos.camiones')->middleware('permission:contratos.index');
     Route::get('contrato/{uuid}/pdf',[App\Http\Controllers\ContratoController::class,'verPdf'])->name('contratos.pdf')->middleware('permission:contratos.index');
+    Route::get('contrato-documento/{uuid}',[App\Http\Controllers\ContratoController::class,'verDocumento'])->name('contratos.documento')->middleware('permission:contratos.index');
+    Route::get('contrato-documento/{uuid}/destroy',[App\Http\Controllers\ContratoController::class,'destroyDocumento'])->name('contratos.documento.destroy')->middleware('permission:contratos.edit');
     Route::get('api/contrato/{id}/toneladas',[App\Http\Controllers\ContratoController::class,'toneladas'])->name('contrato.toneladas')->middleware('permission:seguimiento.index');
     Route::get('contrato/{uuid}/cerrar-envios',[App\Http\Controllers\ContratoController::class,'cerrarEnvios'])->name('contratos.cerrar')->middleware('permission:contratos.cerrar');
     Route::get('contrato/{uuid}/descerrar-envios',[App\Http\Controllers\ContratoController::class,'descerrarEnvios'])->name('contratos.descerrar')->middleware('permission:contratos.cerrar');

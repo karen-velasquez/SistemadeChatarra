@@ -232,18 +232,27 @@
                                                 @endif
                                                 @endcan
                                                 @can('contratos.index')
-                                                @if($c->documento_pdf)
+                                                @forelse($c->documentos as $doc)
                                                 <li>
-                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.pdf', $c->uuid) }}{{ es_imagen_archivo($c->documento_pdf) ? '?print=1' : '' }}" target="_blank" title="Ver documento adjunto del contrato">
-                                                        <i class="bi bi-eye"></i> Ver documento
+                                                    <a class="dropdown-item text-danger" href="{{ route('contratos.documento', $doc->uuid) }}{{ es_imagen_archivo($doc->archivo) ? '?print=1' : '' }}" target="_blank" title="Ver documento adjunto del contrato">
+                                                        <i class="bi bi-eye"></i> Ver {{ $doc->nombre_original ?: 'documento' }}
                                                     </a>
                                                 </li>
                                                 <li>
-                                                    <a class="dropdown-item" href="{{ route('contratos.pdf', $c->uuid) }}?download=1" title="Descargar documento adjunto del contrato">
-                                                        <i class="bi bi-download"></i> Descargar documento
+                                                    <a class="dropdown-item" href="{{ route('contratos.documento', $doc->uuid) }}?download=1" title="Descargar documento adjunto del contrato">
+                                                        <i class="bi bi-download"></i> Descargar {{ $doc->nombre_original ?: 'documento' }}
                                                     </a>
                                                 </li>
-                                                @endif
+                                                @can('contratos.edit')
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('contratos.documento.destroy', $doc->uuid) }}"
+                                                       onclick="return confirm('¿Eliminar este documento del contrato?')" title="Eliminar documento">
+                                                        <i class="bi bi-x-circle"></i> Quitar {{ $doc->nombre_original ?: 'documento' }}
+                                                    </a>
+                                                </li>
+                                                @endcan
+                                                @empty
+                                                @endforelse
                                                 @endcan
                                                 @if($c->envios_cerrados)
                                                     @can('contratos.index')
@@ -432,17 +441,21 @@
                             @error('tipo_cambio')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
-                        {{-- Documento del contrato (PDF o imagen) --}}
+                        {{-- Documentos del contrato (PDF o imagen, varios) --}}
                         <div class="col-md-12">
-                            <label class="form-label">Documento del Contrato</label>
-                            <input type="file" class="form-control @error('documento_pdf') is-invalid @enderror"
-                                name="documento_pdf" id="documento_pdf" accept=".pdf,.png,.jpg,.jpeg">
-                            <small class="text-muted">Archivos PDF, PNG, JPG o JPEG. Tamaño máximo: 30 MB.</small>
-                            <div id="pdfActualInfo" class="mt-1 d-none">
-                                <span class="text-success"><i class="bi bi-file-earmark-check"></i> Ya tiene un documento cargado.</span>
-                                <small class="text-muted">Si selecciona uno nuevo, reemplazará al actual.</small>
+                            <label class="form-label">Documentos del Contrato</label>
+                            <div id="docsActualesInfo" class="mb-2 d-none"></div>
+                            <div id="documentosContainer">
+                                <div class="input-group mb-2">
+                                    <input type="file" class="form-control @error('documentos.0') is-invalid @enderror"
+                                        name="documentos[]" accept=".pdf,.png,.jpg,.jpeg">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="agregarCampoDocumento()" title="Agregar otro documento">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
                             </div>
-                            @error('documento_pdf')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <small class="text-muted">Archivos PDF, PNG, JPG o JPEG. Tamaño máximo: 30 MB cada uno. Se van acumulando, no reemplazan los anteriores.</small>
+                            @error('documentos.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
 
                     </div>
@@ -1044,6 +1057,53 @@
         aplicarFiltrosContratos();
     }
 
+    // Agrega un nuevo input de archivo al formulario, para subir varios documentos a la vez
+    function agregarCampoDocumento() {
+        const cont = document.getElementById('documentosContainer');
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2';
+        div.innerHTML = `
+            <input type="file" class="form-control" name="documentos[]" accept=".pdf,.png,.jpg,.jpeg">
+            <button type="button" class="btn btn-outline-danger" onclick="this.closest('.input-group').remove()" title="Quitar este campo">
+                <i class="bi bi-dash-lg"></i>
+            </button>`;
+        cont.appendChild(div);
+    }
+
+    // Deja un solo input de archivo vacío (al abrir el modal de nuevo/editar)
+    function resetCamposDocumento() {
+        const cont = document.getElementById('documentosContainer');
+        cont.innerHTML = `
+            <div class="input-group mb-2">
+                <input type="file" class="form-control" name="documentos[]" accept=".pdf,.png,.jpg,.jpeg">
+                <button type="button" class="btn btn-outline-secondary" onclick="agregarCampoDocumento()" title="Agregar otro documento">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>`;
+    }
+
+    // Lista los documentos ya cargados del contrato (modo edición), con link para verlos y para quitarlos
+    function mostrarDocumentosActuales(documentos) {
+        const info = document.getElementById('docsActualesInfo');
+        if (!documentos || documentos.length === 0) {
+            info.classList.add('d-none');
+            info.innerHTML = '';
+            return;
+        }
+        info.classList.remove('d-none');
+        info.innerHTML = '<small class="text-muted d-block mb-1">Documentos ya cargados:</small>' +
+            documentos.map(d => `
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <a href="${url_global}/contrato-documento/${d.uuid}" target="_blank" class="small text-success">
+                        <i class="bi bi-file-earmark-check"></i> ${d.nombre_original || 'Documento'}
+                    </a>
+                    <a href="${url_global}/contrato-documento/${d.uuid}/destroy" class="small text-danger"
+                       onclick="return confirm('¿Eliminar este documento del contrato?')">
+                        <i class="bi bi-x-circle"></i> Quitar
+                    </a>
+                </div>`).join('');
+    }
+
     function resetModalContrato() {
         document.getElementById('tituloContrato').innerText  = 'Nuevo Contrato';
         const btn = document.getElementById('btnContrato');
@@ -1067,7 +1127,8 @@
         document.getElementById('monto_total').value = '';
         document.getElementById('toneladas_contrato_display').value = '';
         document.getElementById('toneladas_contrato').value = '';
-        document.getElementById('pdfActualInfo').classList.add('d-none');
+        resetCamposDocumento();
+        mostrarDocumentosActuales([]);
         document.getElementById('costo_unitario_display').value = '';
         document.getElementById('costo_unitario').value = '';
         const lbl = document.getElementById('costoUnitarioMonedaLabel');
@@ -1076,7 +1137,7 @@
         document.getElementById('tipo_cambio_contrato').value = '';
         document.getElementById('row_tipo_cambio_contrato').style.display = 'none';
         // Quitar disabled de todos los campos por si venían de modo solo-ver
-        ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato_display','moneda','monto_total_display','costo_unitario_display','documento_pdf'].forEach(id => {
+        ['tipo_contrato','proveedor_id','fecha_inicio','fecha_fin','toneladas_contrato_display','moneda','monto_total_display','costo_unitario_display'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.removeAttribute('disabled');
         });
@@ -1122,10 +1183,8 @@
                 readonly ? displayEl.setAttribute('disabled', true) : displayEl.removeAttribute('disabled');
                 document.getElementById('numero_contrato_display').value = c.numero_contrato;
                 document.getElementById('numero_contrato_display').setAttribute('disabled', true);
-                document.getElementById('documento_pdf').value = '';
-                document.getElementById('documento_pdf').disabled = readonly;
-                const pdfInfo = document.getElementById('pdfActualInfo');
-                c.documento_pdf ? pdfInfo.classList.remove('d-none') : pdfInfo.classList.add('d-none');
+                resetCamposDocumento();
+                mostrarDocumentosActuales(c.documentos ?? []);
 
                 // Cargar costo unitario guardado en BD
                 const monedaLbl = document.getElementById('costoUnitarioMonedaLabel');
