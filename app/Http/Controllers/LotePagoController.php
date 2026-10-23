@@ -22,11 +22,27 @@ class LotePagoController extends Controller
         $this->middleware('auth');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $lotes = LotePago::with(['cuentaOrigen.empresa'])
-            ->orderByDesc('created_at')
-            ->paginate(30);
+        $tipo = $request->input('tipo');
+        $numeroContrato = trim((string) $request->input('numero_contrato'));
+
+        $query = LotePago::with(['cuentaOrigen.empresa'])
+            ->orderByDesc('created_at');
+
+        if (in_array($tipo, ['proveedor', 'cliente', 'camion'])) {
+            $query->where('tipo', $tipo);
+        }
+
+        if ($numeroContrato !== '') {
+            $query->where(function ($q) use ($numeroContrato) {
+                $q->whereHas('pagosProveedor.contrato', fn($c) => $c->where('numero_contrato', 'like', "%{$numeroContrato}%"))
+                  ->orWhereHas('pagosCliente.tramo.contratoCamion.contrato', fn($c) => $c->where('numero_contrato', 'like', "%{$numeroContrato}%"))
+                  ->orWhereHas('pagosCamion.contratoCamion.contrato', fn($c) => $c->where('numero_contrato', 'like', "%{$numeroContrato}%"));
+            });
+        }
+
+        $lotes = $query->paginate(30)->withQueryString();
 
         // Resumen de a qué contratos/referencias y montos corresponde cada
         // lote, para mostrarlo directo en la tabla sin abrir el detalle.
@@ -38,7 +54,7 @@ class LotePagoController extends Controller
             return $lote;
         });
 
-        return view('lotes_pago.index', compact('lotes'));
+        return view('lotes_pago.index', compact('lotes', 'tipo', 'numeroContrato'));
     }
 
     /**

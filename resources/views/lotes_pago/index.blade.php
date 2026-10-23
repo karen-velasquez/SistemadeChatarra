@@ -45,9 +45,31 @@
       ingrese el <strong>código real</strong> y se actualizará en todos los registros del lote.
     </p>
 
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Tipo</label>
+        <select id="lp_filtro_tipo" class="form-select form-select-sm" onchange="aplicarFiltrosLotes()">
+          <option value="">Todos</option>
+          <option value="proveedor" {{ $tipo === 'proveedor' ? 'selected' : '' }}>Proveedores</option>
+          <option value="cliente" {{ $tipo === 'cliente' ? 'selected' : '' }}>Clientes</option>
+          <option value="camion" {{ $tipo === 'camion' ? 'selected' : '' }}>Camiones</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">N° de contrato</label>
+        <input type="text" id="lp_filtro_contrato" class="form-control form-control-sm"
+               placeholder="Ej: CT0926-003" value="{{ $numeroContrato }}"
+               oninput="aplicarFiltrosLotesDebounced()">
+      </div>
+      <div class="col-md-auto">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarFiltrosLotes()">Limpiar</button>
+      </div>
+    </div>
+
+    <div id="lp-contenido">
     @if($lotes->isEmpty())
       <div class="alert alert-info py-2">
-        <i class="bi bi-info-circle"></i> No hay lotes de pago registrados aún.
+        <i class="bi bi-info-circle"></i> No se encontraron lotes de pago con esos filtros.
       </div>
     @else
     <div class="table-responsive">
@@ -184,6 +206,7 @@
     </div>
     <div class="mt-2">{{ $lotes->links() }}</div>
     @endif
+    </div>
   </div>
 </div>
 </div>
@@ -327,6 +350,42 @@
 @section('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+// Filtro de lotes por tipo/contrato vía AJAX: solo recarga la tabla, no toda la página.
+let _lpFiltroDebounce = null;
+function aplicarFiltrosLotesDebounced() {
+    clearTimeout(_lpFiltroDebounce);
+    _lpFiltroDebounce = setTimeout(aplicarFiltrosLotes, 400);
+}
+
+function aplicarFiltrosLotes(url) {
+    const tipo = document.getElementById('lp_filtro_tipo')?.value || '';
+    const numeroContrato = document.getElementById('lp_filtro_contrato')?.value || '';
+    const target = url || `${url_global}/lotes-pago?tipo=${encodeURIComponent(tipo)}&numero_contrato=${encodeURIComponent(numeroContrato)}`;
+
+    fetch(target)
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nuevo = doc.getElementById('lp-contenido');
+            const actual = document.getElementById('lp-contenido');
+            if (nuevo && actual) actual.innerHTML = nuevo.innerHTML;
+        });
+}
+
+function limpiarFiltrosLotes() {
+    document.getElementById('lp_filtro_tipo').value = '';
+    document.getElementById('lp_filtro_contrato').value = '';
+    aplicarFiltrosLotes();
+}
+
+// Paginación del listado por AJAX para no recargar toda la vista
+document.getElementById('lp-contenido')?.addEventListener('click', function(e) {
+    const link = e.target.closest('.pagination a[href]');
+    if (!link) return;
+    e.preventDefault();
+    aplicarFiltrosLotes(link.href);
+});
+
 function confirmarPagoLote(uuid, tipo) {
     if (!confirm(`¿Confirmar que el banco ya ejecutó este lote ${tipo}?\n\nSe registrarán los movimientos en tesorería y se descontará el saldo de la cuenta origen. Esta acción no se puede deshacer desde aquí.`)) {
         return;

@@ -94,6 +94,11 @@
                         <input type="date" class="form-control" id="filtro_hasta" onchange="aplicarFiltrosPP()">
                     </div>
                     <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1"><i class="bi bi-upc-scan"></i> Código seguimiento</label>
+                        <input type="text" class="form-control" id="filtro_codigo_pp"
+                               placeholder="Ej: TRANS-CA142673" oninput="aplicarFiltrosPP()">
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label fw-semibold mb-1"><i class="bi bi-sort-down"></i> Ordenar</label>
                         <select class="form-select" id="filtro_orden" onchange="aplicarFiltrosPP()">
                             <option value="fecha_desc">Fecha (recientes)</option>
@@ -129,6 +134,7 @@
                                 <th class="text-end">Pagado</th>
                                 <th class="text-end">Saldo</th>
                                 <th>Toneladas / Pagado</th>
+                                <th>Códigos de seguimiento</th>
                                 <th id="col-acciones-pp">Acciones</th>
                             </tr>
                         </thead>
@@ -141,12 +147,14 @@
                                 $total   = (float) $c->monto_total;
                                 $pct     = $total > 0 ? min(100, round($pagado / $total * 100)) : 0;
                                 $rowClass = $saldo <= 0 ? 'table-success' : '';
+                                $codigosProv = $c->pagosProveedor->pluck('codigo_seguimiento')->filter()->unique();
                             @endphp
                             <tr class="{{ $rowClass }}" data-proveedor-id="{{ $c->proveedor_id }}"
                                 data-fecha="{{ $c->fecha_inicio?->format('Y-m-d') }}"
                                 data-saldo="{{ $saldo }}"
                                 data-contrato="{{ $c->numero_contrato }}"
-                                data-tipo="{{ $c->tipo_contrato }}">
+                                data-tipo="{{ $c->tipo_contrato }}"
+                                data-codigos="{{ $codigosProv->implode(' ') }}">
                                 <td style="white-space:nowrap;">
                                     <a href="{{ route('contratos.camiones', $c->uuid) }}" class="text-decoration-none fw-semibold">
                                         {{ $c->numero_contrato }}
@@ -217,6 +225,17 @@
                                             &nbsp;·&nbsp;<span class="text-danger">{{ number_format($saldo, 2, ',', '.') }} pendiente</span>
                                         @endif
                                     </div>
+                                </td>
+                                <td>
+                                    @if($codigosProv->isEmpty())
+                                        <span class="text-muted small">—</span>
+                                    @else
+                                        <small>
+                                            @foreach($codigosProv as $codigo)
+                                                <span class="badge bg-light text-dark border d-block mb-1">{{ $codigo }}</span>
+                                            @endforeach
+                                        </small>
+                                    @endif
                                 </td>
                                 <td class="text-center">
                                     @can('pagos_proveedores.index')
@@ -654,6 +673,7 @@ function limpiarFiltrosPP() {
     $('#filtro_proveedor').trigger('change.select2');
     document.getElementById('filtro_desde').value     = '';
     document.getElementById('filtro_hasta').value     = '';
+    document.getElementById('filtro_codigo_pp').value = '';
     document.getElementById('filtro_orden').value     = 'fecha_desc';
     // Soltar los límites, si no quedan pegados del rango anterior
     document.getElementById('filtro_desde').max = '';
@@ -667,6 +687,7 @@ function aplicarFiltrosPP() {
 
     const provId = document.getElementById('filtro_proveedor').value;
     const contrato = (document.getElementById('filtro_contrato_pp').value || '').trim().toUpperCase();
+    const codigoSeg = (document.getElementById('filtro_codigo_pp').value || '').trim().toUpperCase();
     const tipoContrato = document.getElementById('filtro_tipo_contrato_pp').value;
     const inpDesde = document.getElementById('filtro_desde');
     const inpHasta = document.getElementById('filtro_hasta');
@@ -695,9 +716,10 @@ function aplicarFiltrosPP() {
         const okDesde    = !desde  || (fecha && fecha >= desde);
         const okHasta    = !hasta  || (fecha && fecha <= hasta);
         const okContrato = !contrato || (fila.dataset.contrato || '').toUpperCase().includes(contrato);
+        const okCodigo   = !codigoSeg || (fila.dataset.codigos || '').toUpperCase().includes(codigoSeg);
         const okTipo     = !tipoContrato || fila.dataset.tipo === tipoContrato;
 
-        const mostrar = okProv && okDesde && okHasta && okContrato && okTipo;
+        const mostrar = okProv && okDesde && okHasta && okContrato && okCodigo && okTipo;
         fila.style.display = mostrar ? '' : 'none';
         if (mostrar) visibles++;
     });
