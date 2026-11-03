@@ -160,21 +160,36 @@ class LotePagoController extends Controller
             'codigos'                 => ['required', 'array', 'min:1'],
             'codigos.*.pago_uuid'     => ['required', 'string'],
             'codigos.*.codigo_real'   => ['nullable', 'string', 'max:100'],
+            'codigos.*.monto'         => ['nullable', 'numeric', 'min:0.01'],
             'codigos.*.voucher'       => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ], [
             'codigos.*.voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
             'codigos.*.voucher.max'   => 'El comprobante no debe superar los 5 MB.',
+            'codigos.*.monto.min'     => 'El monto debe ser mayor a cero.',
         ]);
+
+        // El monto solo se puede corregir mientras el lote sigue pendiente: una
+        // vez confirmado ya generó movimientos de tesorería con ese monto, y
+        // cambiarlo después dejaría esos movimientos desincronizados.
+        $permiteEditarMonto = $lote->estado === 'pendiente';
 
         $filas = collect($request->input('codigos'))->map(function ($f, $i) use ($request) {
             $f['voucher'] = $request->file("codigos.$i.voucher");
             return $f;
-        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher']);
+        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher'] || filled($f['monto'] ?? null));
 
         if ($filas->isEmpty()) {
             Alert::error('Nada que guardar', 'No ingresaste ningún código ni adjuntaste un voucher.');
             return back();
         }
+
+        // Todos los pagos hermanos del mismo lote se excluyen del chequeo de
+        // unicidad: es válido que varios pagos de un mismo lote compartan el
+        // mismo código real (una sola transferencia del banco puede cubrir
+        // varios contratos/tramos a la vez). El conflicto real que importa
+        // detectar es contra pagos de OTROS lotes.
+        $idsDelLote = $modeloClase::where('lote_pago_id', $lote->id)
+            ->pluck('id')->all();
 
         $pagos = $modeloClase::where('lote_pago_id', $lote->id)
             ->whereIn('uuid', $filas->pluck('pago_uuid'))
@@ -186,13 +201,13 @@ class LotePagoController extends Controller
             if (!$pago || !filled($fila['codigo_real'] ?? null)) continue;
 
             $codigoReal = trim($fila['codigo_real']);
-            if (!$this->codigoDisponible($codigoReal, $pago->id, $modeloClase)) {
+            if (!$this->codigoDisponible($codigoReal, $pago->id, $modeloClase, $lote->id, $idsDelLote)) {
                 Alert::error('Código en uso', "El código \"{$codigoReal}\" ya está en uso por otro pago o lote. Verifique e intente de nuevo.");
                 return back();
             }
         }
 
-        DB::transaction(function () use ($filas, $pagos, $modeloClase, $carpetaVoucher) {
+        DB::transaction(function () use ($filas, $pagos, $modeloClase, $carpetaVoucher, $permiteEditarMonto) {
             foreach ($filas as $fila) {
                 $pago = $pagos->get($fila['pago_uuid']);
                 if (!$pago) continue;
@@ -200,6 +215,9 @@ class LotePagoController extends Controller
                 $datos = [];
                 if (filled($fila['codigo_real'] ?? null)) {
                     $datos['codigo_seguimiento'] = trim($fila['codigo_real']);
+                }
+                if ($permiteEditarMonto && filled($fila['monto'] ?? null) && round((float) $fila['monto'], 2) !== round((float) $pago->monto, 2)) {
+                    $datos['monto'] = round((float) $fila['monto'], 2);
                 }
                 if ($fila['voucher']) {
                     $anterior = $pago->voucher;

@@ -178,8 +178,8 @@
                   </li>
                   @endif
                   <li>
-                    <button class="dropdown-item" onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}')">
-                      <i class="bi bi-pencil-square text-primary me-2"></i> Códigos reales por pago
+                    <button class="dropdown-item" onclick="abrirModalCodigo('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('d/m/Y') }}', '{{ $lote->estado }}')">
+                      <i class="bi bi-pencil-square text-primary me-2"></i> Editar lote
                     </button>
                   </li>
                   <li>
@@ -218,7 +218,7 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-hash me-2"></i>Códigos reales del banco</h5>
+        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar lote</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form id="form_codigo" method="POST" enctype="multipart/form-data">
@@ -229,6 +229,7 @@
             <i class="bi bi-info-circle me-1"></i>
             El banco entrega un código distinto por cada transferencia. Ingresa el que corresponda a cada pago
             y adjunta su voucher si lo tienes; los que dejes vacíos quedan pendientes y puedes completarlos después.
+            Mientras el lote esté pendiente, también puedes corregir el monto de cada pago.
           </p>
           <div id="codigo_body">
             <div class="text-center text-muted py-3">
@@ -403,9 +404,10 @@ function abrirModalFecha(uuid, tipo, fechaISO) {
     new bootstrap.Modal(document.getElementById('modalFecha')).show();
 }
 
-function abrirModalCodigo(uuid, tipo, fecha) {
+function abrirModalCodigo(uuid, tipo, fecha, estado) {
     document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
+    const montoEditable = estado === 'pendiente';
     document.getElementById('codigo_body').innerHTML = `
         <div class="text-center text-muted py-3">
             <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
@@ -422,15 +424,21 @@ function abrirModalCodigo(uuid, tipo, fecha) {
                 return;
             }
             let html = `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
-                <thead class="table-light"><tr><th>Referencia</th><th class="text-end">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:160px">Voucher</th></tr></thead>
+                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:160px">Voucher</th></tr></thead>
                 <tbody>`;
             let totalMonto = 0;
             const moneda = d.pagos[0]?.moneda ?? '';
             d.pagos.forEach((p, i) => {
                 totalMonto += Number(p.monto);
+                const celdaMonto = montoEditable
+                    ? `<input type="hidden" name="codigos[${i}][monto]" value="${Number(p.monto).toFixed(2)}">
+                       <input type="text" inputmode="decimal" class="form-control form-control-sm text-end monto-lote-display"
+                              value="${_fmtMontoLote(p.monto)}"
+                              oninput="_onInputMontoLote(this)" onblur="_onBlurMontoLote(this)">`
+                    : _fmtLote(p.monto, p.moneda);
                 html += `<tr>
                     <td>${p.referencia}</td>
-                    <td class="text-end">${_fmtLote(p.monto, p.moneda)}</td>
+                    <td class="text-end">${celdaMonto}</td>
                     <td>${p.fecha}</td>
                     <td>
                         <input type="hidden" name="codigos[${i}][pago_uuid]" value="${p.uuid}">
@@ -448,18 +456,62 @@ function abrirModalCodigo(uuid, tipo, fecha) {
             });
             html += `<tr class="table-light fw-bold">
                     <td class="text-end">TOTAL</td>
-                    <td class="text-end">${_fmtLote(totalMonto, moneda)}</td>
+                    <td class="text-end" id="lbl_total_lote" data-moneda="${moneda}">${_fmtLote(totalMonto, moneda)}</td>
                     <td></td>
                     <td></td>
                     <td></td>
                 </tr>`;
             html += `</tbody></table></div>`;
+            if (montoEditable) {
+                html += `<p class="small text-warning mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>
+                    Este lote aún está pendiente: puedes corregir los montos antes de confirmar el pago.</p>`;
+            }
             document.getElementById('codigo_body').innerHTML = html;
             document.getElementById('btn_guardar_codigo').disabled = false;
         })
         .catch(() => {
             document.getElementById('codigo_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar los pagos del lote.</div>';
         });
+}
+
+// Formato de dinero del lote: coma para decimales, punto para miles (igual al resto del sistema)
+function _fmtMontoLote(n) {
+    return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+function _txt2numLote(v) {
+    return parseFloat((v || '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+function _onInputMontoLote(disp) {
+    const hidden = disp.previousElementSibling;
+    let raw = disp.value.replace(/[^0-9,]/g, '');
+    let partes = raw.split(',');
+    if (partes.length > 2) raw = partes[0] + ',' + partes.slice(1).join('');
+    partes = raw.split(',');
+    if (partes[1] !== undefined) partes[1] = partes[1].slice(0, 2);
+    const entF  = (partes[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const nuevo = partes[1] !== undefined ? entF + ',' + partes[1] : entF;
+    const diff  = nuevo.length - disp.value.length;
+    const pos   = (disp.selectionStart || 0) + diff;
+    disp.value = nuevo;
+    try { disp.setSelectionRange(pos, pos); } catch (_) {}
+    hidden.value = _txt2numLote(nuevo) || '';
+    recalcularTotalLote();
+}
+function _onBlurMontoLote(disp) {
+    const hidden = disp.previousElementSibling;
+    const n = _txt2numLote(disp.value);
+    disp.value = n > 0 ? _fmtMontoLote(n) : '';
+    hidden.value = n > 0 ? n : '';
+    recalcularTotalLote();
+}
+
+function recalcularTotalLote() {
+    const lbl = document.getElementById('lbl_total_lote');
+    if (!lbl) return;
+    const inputs = document.querySelectorAll('#codigo_body input[name^="codigos"][name$="[monto]"]');
+    let total = 0;
+    inputs.forEach(inp => total += Number(inp.value || 0));
+    lbl.textContent = _fmtLote(total, lbl.dataset.moneda);
 }
 
 document.getElementById('form_codigo').addEventListener('submit', function () {

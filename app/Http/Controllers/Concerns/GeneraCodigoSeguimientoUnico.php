@@ -25,16 +25,23 @@ trait GeneraCodigoSeguimientoUnico
         return $codigo;
     }
 
-    protected function codigoYaExiste(string $codigo, ?int $exceptoPagoId = null, ?string $exceptoPagoClase = null, ?int $exceptoLoteId = null): bool
+    protected function codigoYaExiste(string $codigo, ?int $exceptoPagoId = null, ?string $exceptoPagoClase = null, ?int $exceptoLoteId = null, array $exceptoPagoIds = []): bool
     {
         $qCamion    = PagoCamion::withTrashed()->where('codigo_seguimiento', $codigo);
         $qProveedor = PagoProveedor::withTrashed()->where('codigo_seguimiento', $codigo);
         $qCliente   = PagoCliente::withTrashed()->where('codigo_seguimiento', $codigo);
 
-        if ($exceptoPagoId && $exceptoPagoClase) {
+        // IDs a excluir de la propia clase: el pago que se está editando, más
+        // (si se pasan) los demás pagos de su mismo lote — estos últimos porque
+        // todos arrancan con el código provisional compartido del lote, que no
+        // cuenta como "en uso" por otro pago hasta que cada uno tenga su propio
+        // código real confirmado.
+        $idsExcluir = array_unique(array_filter(array_merge([$exceptoPagoId], $exceptoPagoIds)));
+
+        if (!empty($idsExcluir) && $exceptoPagoClase) {
             foreach ([PagoCamion::class => $qCamion, PagoProveedor::class => $qProveedor, PagoCliente::class => $qCliente] as $clase => $query) {
                 if ($clase === $exceptoPagoClase) {
-                    $query->where('id', '!=', $exceptoPagoId);
+                    $query->whereNotIn('id', $idsExcluir);
                 }
             }
         }
@@ -60,11 +67,11 @@ trait GeneraCodigoSeguimientoUnico
      * código al editarse sin que se rechace contra sí mismo; $exceptoLoteId hace
      * lo mismo cuando lo que se edita es un LotePago (Tesorería → Lotes de Pago).
      */
-    protected function codigoDisponible(?string $codigo, ?int $exceptoPagoId = null, ?string $exceptoPagoClase = null, ?int $exceptoLoteId = null): bool
+    protected function codigoDisponible(?string $codigo, ?int $exceptoPagoId = null, ?string $exceptoPagoClase = null, ?int $exceptoLoteId = null, array $exceptoPagoIds = []): bool
     {
         if (!$codigo) {
             return true;
         }
-        return !$this->codigoYaExiste($codigo, $exceptoPagoId, $exceptoPagoClase, $exceptoLoteId);
+        return !$this->codigoYaExiste($codigo, $exceptoPagoId, $exceptoPagoClase, $exceptoLoteId, $exceptoPagoIds);
     }
 }
