@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Contrato;
+use App\Models\ContratoCamion;
+use App\Models\CuentaBancaria;
 use App\Models\LotePago;
 use App\Models\Movimiento;
 use App\Models\PagoCamion;
@@ -371,6 +374,289 @@ class LotePagoController extends Controller
      * El delete() de cada Movimiento dispara su hook que revierte el
      * saldo de la cuenta empresa afectada.
      */
+    /**
+     * Contratos de proveedor con saldo pendiente, para el selector de
+     * "agregar pago" — cualquier proveedor, no solo los que ya tiene el
+     * lote. Se excluyen los que ya están en este mismo lote (no tendría
+     * sentido duplicar el contrato dentro del mismo lote).
+     */
+    public function contratosDisponibles($uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+        abort_if($lote->tipo !== 'proveedor', 404);
+
+        $contratoIdsEnLote = PagoProveedor::where('lote_pago_id', $lote->id)->pluck('contrato_id');
+
+        $contratos = Contrato::with('proveedor')
+            ->whereNull('deleted_at')
+            ->whereNotNull('proveedor_id')
+            ->whereNotIn('id', $contratoIdsEnLote)
+            ->get()
+            ->filter(fn($c) => $c->saldo_pendiente_proveedor > 0)
+            ->map(fn($c) => [
+                'id'               => $c->id,
+                'label'            => $c->numero_contrato . ' — ' . ($c->proveedor->nombre ?? '—'),
+                'saldo_pendiente'  => round($c->saldo_pendiente_proveedor, 2),
+                'moneda'           => $c->moneda ?? 'BOB',
+                'proveedor_id'     => $c->proveedor_id,
+            ])
+            ->sortBy('label')
+            ->values();
+
+        $cuentasPorProveedor = CuentaBancaria::with('banco')
+            ->whereNull('deleted_at')
+            ->where('titular_type', 'App\Models\Proveedor')
+            ->whereIn('titular_id', $contratos->pluck('proveedor_id')->unique())
+            ->get()
+            ->groupBy('titular_id')
+            ->map(fn($cuentas) => $cuentas->map(fn($c) => [
+                'id'    => $c->id,
+                'label' => ($c->banco->nombre ?? '—') . ' · ' . $c->numero_cuenta . ' (' . $c->moneda . ')',
+            ])->values());
+
+        return response()->json([
+            'contratos'           => $contratos,
+            'cuentas_por_proveedor' => $cuentasPorProveedor,
+        ]);
+    }
+
+    /**
+     * Agrega un pago nuevo a un lote de proveedor ya existente, mientras
+     * siga pendiente. Hereda cuenta origen, fecha y método del lote (igual
+     * que los pagos creados en el pago masivo original); el código de
+     * seguimiento se deja vacío para completarse luego desde "Editar lote".
+     */
+    public function agregarPago(Request $request, $uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        abort_if($lote->tipo !== 'proveedor', 404);
+        abort_if($lote->estado !== 'pendiente', 400, 'Solo se pueden agregar pagos a un lote pendiente.');
+
+        $request->validate([
+            'contrato_id'       => 'required|exists:contratos,id',
+            'monto'             => 'required|numeric|min:0.01',
+            'cuenta_destino_id' => 'required|exists:cuentas_bancarias,id',
+        ]);
+
+        $yaEnLote = PagoProveedor::where('lote_pago_id', $lote->id)->where('contrato_id', $request->contrato_id)->exists();
+        if ($yaEnLote) {
+            return response()->json(['message' => 'Ese contrato ya tiene un pago en este lote.'], 400);
+        }
+
+        $contrato = Contrato::with('proveedor')->findOrFail($request->contrato_id);
+        $saldo = $contrato->saldo_pendiente_proveedor;
+        $monto = round((float) $request->monto, 2);
+
+        if ($monto > round($saldo, 2)) {
+            return response()->json(['message' => 'El monto supera el saldo pendiente del contrato (' . number_format($saldo, 2) . ').'], 400);
+        }
+
+        $cuentaOrigen = \App\Models\CuentaEmpresa::findOrFail($lote->cuenta_origen_id);
+        $monedaPago = $cuentaOrigen->moneda ?? 'BOB';
+
+        $pago = DB::transaction(function () use ($lote, $contrato, $monto, $monedaPago, $request) {
+            $tipoPago = $monto >= round($contrato->saldo_pendiente_proveedor, 2) ? 'pago_final' : 'adelanto';
+
+            return PagoProveedor::create([
+                'lote_pago_id'       => $lote->id,
+                'contrato_id'        => $contrato->id,
+                'tipo_pago'          => $tipoPago,
+                'monto'              => $monto,
+                'moneda_pago'        => $monedaPago,
+                'tipo_cambio'        => 1,
+                'fecha_pago'         => $lote->fecha_pago,
+                'metodo_pago'        => $lote->metodo_pago,
+                'codigo_seguimiento' => null,
+                'cuenta_origen_id'   => $lote->cuenta_origen_id,
+                'cuenta_destino_id'  => $request->cuenta_destino_id,
+                'observaciones'      => 'Pago agregado al lote (lote ' . ($lote->codigo_provisional ?: $lote->uuid) . ').',
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Pago agregado al lote.',
+            'pago' => [
+                'uuid'          => $pago->uuid,
+                'referencia'    => trim($contrato->numero_contrato . ' — ' . ($contrato->proveedor->nombre ?? '')),
+                'monto'         => (float) $pago->monto,
+                'moneda'        => $pago->moneda_pago,
+                'fecha'         => $pago->fecha_pago->format('d/m/Y'),
+                'codigo'        => null,
+                'tiene_voucher' => false,
+                'voucher_url'   => null,
+                'voucher_es_imagen' => false,
+            ],
+        ]);
+    }
+
+    /**
+     * Fletes (ContratoCamion) con saldo pendiente, para el selector de
+     * "agregar pago" de un lote de camión — cualquier proveedor, excluyendo
+     * los fletes que ya están en este mismo lote. Las cuentas bancarias se
+     * agrupan por flete (no por operador global) porque cada flete tiene su
+     * propio conductor/propietario con sus propias cuentas.
+     */
+    public function fletesDisponibles($uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+        abort_if($lote->tipo !== 'camion', 404);
+
+        $contratoCamionIdsEnLote = PagoCamion::where('lote_pago_id', $lote->id)->pluck('contrato_camion_id');
+
+        $fletes = ContratoCamion::with(['contrato.proveedor', 'camion.propietario', 'conductor'])
+            ->whereNotIn('id', $contratoCamionIdsEnLote)
+            ->whereNotNull('monto_acordado')
+            ->get()
+            ->filter(fn($cc) => $cc->saldo_pendiente > 0)
+            ->map(function ($cc) {
+                $operadorIds = array_filter([$cc->conductor_id, $cc->camion?->propietario_id]);
+                $cuentas = CuentaBancaria::with('banco')
+                    ->whereNull('deleted_at')
+                    ->whereIn('titular_id', $operadorIds)
+                    ->where('titular_type', 'App\Models\OperadorTransporte')
+                    ->get()
+                    ->map(fn($c) => [
+                        'id'    => $c->id,
+                        'label' => ($c->nombre_titular_cuenta ? $c->nombre_titular_cuenta . ' — ' : '')
+                            . ($c->banco->nombre ?? '') . ' ' . $c->numero_cuenta
+                            . ($c->alias ? ' (' . $c->alias . ')' : ''),
+                    ])
+                    ->values();
+
+                return [
+                    'id'              => $cc->id,
+                    'label'           => ($cc->camion?->placa ?? '—') . ' — ' . ($cc->contrato?->numero_contrato ?? '—')
+                        . ' — ' . ($cc->contrato?->proveedor?->nombre ?? '—'),
+                    'saldo_pendiente' => round($cc->saldo_pendiente, 2),
+                    'cuentas'         => $cuentas,
+                ];
+            })
+            ->sortBy('label')
+            ->values();
+
+        return response()->json(['fletes' => $fletes]);
+    }
+
+    /**
+     * Agrega un pago nuevo a un lote de camión (flete) ya existente, mientras
+     * siga pendiente. El receptor (conductor o propietario) se deduce de la
+     * cuenta destino elegida, igual que en el pago masivo original; hereda
+     * cuenta origen, fecha y método del lote.
+     */
+    public function agregarPagoFlete(Request $request, $uuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        abort_if($lote->tipo !== 'camion', 404);
+        abort_if($lote->estado !== 'pendiente', 400, 'Solo se pueden agregar pagos a un lote pendiente.');
+
+        $request->validate([
+            'contrato_camion_id' => 'required|exists:contrato_camiones,id',
+            'monto'              => 'required|numeric|min:0.01',
+            'cuenta_destino_id'  => 'nullable|exists:cuentas_bancarias,id',
+        ]);
+
+        $yaEnLote = PagoCamion::where('lote_pago_id', $lote->id)->where('contrato_camion_id', $request->contrato_camion_id)->exists();
+        if ($yaEnLote) {
+            return response()->json(['message' => 'Ese flete ya tiene un pago en este lote.'], 400);
+        }
+
+        $cc = ContratoCamion::with(['contrato.proveedor', 'camion'])->findOrFail($request->contrato_camion_id);
+        $saldo = $cc->saldo_pendiente;
+        $monto = round((float) $request->monto, 2);
+
+        if ($monto > round($saldo, 2)) {
+            return response()->json(['message' => 'El monto supera el saldo pendiente del flete (' . number_format($saldo, 2) . ').'], 400);
+        }
+
+        $cuentaOrigen = \App\Models\CuentaEmpresa::findOrFail($lote->cuenta_origen_id);
+        $monedaPago = $cuentaOrigen->moneda ?? 'BOB';
+
+        $receptorType = null;
+        $receptorId = null;
+        if ($request->cuenta_destino_id) {
+            $ctaDest = CuentaBancaria::find($request->cuenta_destino_id);
+            if ($ctaDest && $ctaDest->titular_id && $ctaDest->titular_type) {
+                $receptorType = $ctaDest->titular_type;
+                $receptorId = $ctaDest->titular_id;
+            }
+        }
+
+        $pago = DB::transaction(function () use ($lote, $cc, $monto, $monedaPago, $request, $receptorType, $receptorId) {
+            $tipoPago = $monto >= round($cc->saldo_pendiente, 2) ? 'pago_final' : 'adelanto';
+
+            return PagoCamion::create([
+                'lote_pago_id'       => $lote->id,
+                'contrato_camion_id' => $cc->id,
+                'tipo_pago'          => $tipoPago,
+                'monto'              => $monto,
+                'moneda_pago'        => $monedaPago,
+                'tipo_cambio'        => 1,
+                'fecha_pago'         => $lote->fecha_pago,
+                'metodo_pago'        => $lote->metodo_pago,
+                'codigo_seguimiento' => null,
+                'cuenta_origen_id'   => $lote->cuenta_origen_id,
+                'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
+                'receptor_type'      => $receptorType,
+                'receptor_id'        => $receptorId,
+                'observaciones'      => 'Pago agregado al lote (lote ' . ($lote->codigo_provisional ?: $lote->uuid) . ').',
+                'created_by'         => auth()->id(),
+                'updated_by'         => auth()->id(),
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Pago agregado al lote.',
+            'pago' => [
+                'uuid'          => $pago->uuid,
+                'referencia'    => trim(($cc->camion?->placa ?? '—') . ' — ' . ($cc->contrato?->numero_contrato ?? '—')),
+                'monto'         => (float) $pago->monto,
+                'moneda'        => $pago->moneda_pago,
+                'fecha'         => $pago->fecha_pago->format('d/m/Y'),
+                'codigo'        => null,
+                'tiene_voucher' => false,
+                'voucher_url'   => null,
+                'voucher_es_imagen' => false,
+            ],
+        ]);
+    }
+
+    /**
+     * Quita un solo pago del lote (no todo el lote). Solo mientras el lote
+     * sigue pendiente: si ya fue confirmado, ya generó su movimiento de
+     * tesorería y descontó saldo, así que quitarlo después dejaría todo
+     * desincronizado — mismo criterio que la edición de montos.
+     */
+    public function quitarPago($uuid, $pagoUuid)
+    {
+        $lote = LotePago::where('uuid', $uuid)->firstOrFail();
+
+        abort_if($lote->estado !== 'pendiente', 400, 'Solo se pueden quitar pagos de un lote pendiente.');
+
+        $modeloClase = $this->modeloDelLote($lote);
+        $pago = $modeloClase::where('lote_pago_id', $lote->id)->where('uuid', $pagoUuid)->firstOrFail();
+
+        $totalPagos = $modeloClase::where('lote_pago_id', $lote->id)->count();
+        if ($totalPagos <= 1) {
+            return response()->json(['message' => 'No se puede quitar el último pago del lote. Elimine el lote completo si ya no corresponde.'], 400);
+        }
+
+        DB::transaction(function () use ($lote, $pago) {
+            if ($pago->voucher) {
+                Storage::disk('public')->delete($pago->voucher);
+            }
+            Movimiento::where('origen_type', get_class($pago))
+                ->where('origen_id', $pago->id)
+                ->each(fn($m) => $m->delete());
+            $pago->delete();
+        });
+
+        return response()->json(['message' => 'Pago quitado del lote.']);
+    }
+
     public function destroy($uuid)
     {
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();

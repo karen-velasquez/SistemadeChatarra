@@ -542,6 +542,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     activarFiltroContrato('proveedor_id', 'contrato_id', 'divContrato');
     activarFiltroContrato('proveedor_id_fletes', 'contrato_id_fletes', 'divContratoFletes');
+
+    // Buscador en los select de proveedor
+    ['#proveedor_id', '#proveedor_id_fletes'].forEach(function (sel) {
+        if ($(sel).length) {
+            $(sel).select2({
+                placeholder: 'TODOS',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: () => 'No se encontró ningún proveedor.',
+                    searching: () => 'Buscando...'
+                }
+            });
+        }
+    });
 });
 </script>
 @endsection

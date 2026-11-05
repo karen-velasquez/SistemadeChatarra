@@ -215,7 +215,7 @@
 
 {{-- Modal para ingresar/editar el código real por cada pago del lote --}}
 <div class="modal fade" id="modalCodigo" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar lote</h5>
@@ -407,14 +407,23 @@ function abrirModalFecha(uuid, tipo, fechaISO) {
 function abrirModalCodigo(uuid, tipo, fecha, estado) {
     document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCodigo')).show();
+
+    cargarDetalleLoteModal(uuid, estado);
+}
+
+// Recarga solo el contenido del modal (tabla de pagos) sin tocar su visibilidad —
+// se usa tanto al abrirlo por primera vez como al refrescarlo tras agregar/quitar
+// un pago, para no volver a invocar .show() sobre un modal que ya está abierto
+// (eso duplicaba el backdrop y dejaba la pantalla oscurecida al cerrar con la X).
+function cargarDetalleLoteModal(uuid, estado) {
     const montoEditable = estado === 'pendiente';
     document.getElementById('codigo_body').innerHTML = `
         <div class="text-center text-muted py-3">
             <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
         </div>`;
     document.getElementById('btn_guardar_codigo').disabled = true;
-
-    new bootstrap.Modal(document.getElementById('modalCodigo')).show();
 
     fetch(`${url_global}/api/lotes-pago/${uuid}/detalle`)
         .then(r => r.json())
@@ -424,7 +433,7 @@ function abrirModalCodigo(uuid, tipo, fecha, estado) {
                 return;
             }
             let html = `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
-                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:160px">Voucher</th></tr></thead>
+                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:140px">Voucher</th><th style="width:110px">Acciones</th></tr></thead>
                 <tbody>`;
             let totalMonto = 0;
             const moneda = d.pagos[0]?.moneda ?? '';
@@ -436,7 +445,7 @@ function abrirModalCodigo(uuid, tipo, fecha, estado) {
                               value="${_fmtMontoLote(p.monto)}"
                               oninput="_onInputMontoLote(this)" onblur="_onBlurMontoLote(this)">`
                     : _fmtLote(p.monto, p.moneda);
-                html += `<tr>
+                html += `<tr id="fila_pago_lote_${p.uuid}">
                     <td>${p.referencia}</td>
                     <td class="text-end">${celdaMonto}</td>
                     <td>${p.fecha}</td>
@@ -446,11 +455,21 @@ function abrirModalCodigo(uuid, tipo, fecha, estado) {
                                value="${p.codigo ?? ''}" placeholder="Ej: TRF-2026052500123" maxlength="100">
                     </td>
                     <td>
-                        ${p.tiene_voucher ? `<div class="d-flex gap-1 mb-1">
-                            <a href="${p.voucher_url}${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank" class="btn btn-outline-success btn-sm flex-fill"><i class="bi bi-file-earmark-check me-1"></i>Ver</a>
-                            <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>
-                        </div>` : ''}
                         <input type="file" class="form-control form-control-sm" name="codigos[${i}][voucher]" accept=".jpg,.jpeg,.png,.pdf">
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex gap-1 justify-content-center">
+                            ${p.tiene_voucher ? `
+                                <a href="${p.voucher_url}${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
+                                <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>
+                            ` : ''}
+                            ${montoEditable ? `
+                                <button type="button" class="btn btn-outline-danger btn-sm" title="Quitar este pago del lote"
+                                        onclick="quitarPagoDeLote('${uuid}', '${p.uuid}', '${p.referencia.replace(/'/g, "\\'")}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
                     </td>
                 </tr>`;
             });
@@ -460,14 +479,24 @@ function abrirModalCodigo(uuid, tipo, fecha, estado) {
                     <td></td>
                     <td></td>
                     <td></td>
+                    <td></td>
                 </tr>`;
             html += `</tbody></table></div>`;
             if (montoEditable) {
                 html += `<p class="small text-warning mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>
                     Este lote aún está pendiente: puedes corregir los montos antes de confirmar el pago.</p>`;
             }
+            if (montoEditable && (d.tipo === 'proveedor' || d.tipo === 'camion')) {
+                html += `<div id="bloque_agregar_pago" class="mt-3"></div>`;
+            }
             document.getElementById('codigo_body').innerHTML = html;
             document.getElementById('btn_guardar_codigo').disabled = false;
+            if (montoEditable && d.tipo === 'proveedor') {
+                renderBloqueAgregarPago(uuid);
+            }
+            if (montoEditable && d.tipo === 'camion') {
+                renderBloqueAgregarPagoFlete(uuid);
+            }
         })
         .catch(() => {
             document.getElementById('codigo_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar los pagos del lote.</div>';
@@ -519,6 +548,358 @@ document.getElementById('form_codigo').addEventListener('submit', function () {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 });
+
+function quitarPagoDeLote(loteUuid, pagoUuid, referencia) {
+    Swal.fire({
+        title: '¿Quitar este pago?',
+        html: `El pago de <strong>"${referencia}"</strong> se quitará del lote. Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, quitar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#dc3545',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        const fila = document.getElementById(`fila_pago_lote_${pagoUuid}`);
+        const btn = fila?.querySelector('button');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
+        fetch(`${url_global}/lotes-pago/${loteUuid}/pago/${pagoUuid}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+        })
+            .then(r => r.json().catch(() => ({})).then(d => ({ ok: r.ok, d })))
+            .then(({ ok, d }) => {
+                if (!ok) {
+                    Swal.fire('No se pudo quitar', d.message || 'No se pudo quitar el pago.', 'error');
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-trash"></i>'; }
+                    return;
+                }
+                fila?.remove();
+                recalcularTotalLote();
+                Swal.fire({
+                    title: 'Pago quitado',
+                    text: d.message || 'El pago fue quitado del lote.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+            })
+            .catch(() => {
+                Swal.fire('Error', 'Error al quitar el pago. Intente de nuevo.', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-trash"></i>'; }
+            });
+    });
+}
+
+// ===== Agregar pago a un lote de proveedor pendiente =====
+function renderBloqueAgregarPago(loteUuid) {
+    const cont = document.getElementById('bloque_agregar_pago');
+    if (!cont) return;
+    cont.innerHTML = `
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="abrirFormAgregarPago('${loteUuid}')">
+            <i class="bi bi-plus-lg me-1"></i>Agregar pago
+        </button>`;
+}
+
+function abrirFormAgregarPago(loteUuid) {
+    const cont = document.getElementById('bloque_agregar_pago');
+    cont.innerHTML = `
+        <div class="border rounded p-3 bg-light">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small mb-1">Contrato</label>
+                    <select id="ap_contrato" class="form-select form-select-sm">
+                        <option value="">Cargando contratos...</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Monto</label>
+                    <input type="hidden" id="ap_monto_hidden">
+                    <input type="text" inputmode="decimal" id="ap_monto_display" class="form-control form-control-sm text-end"
+                           placeholder="0,00" oninput="_onInputMontoLote(this); actualizarSaldoRestanteContrato();" onblur="_onBlurMontoLoteSinTotal(this); actualizarSaldoRestanteContrato();" disabled>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Cuenta destino</label>
+                    <select id="ap_cuenta_destino" class="form-select form-select-sm" disabled>
+                        <option value="">—</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex gap-1">
+                    <button type="button" class="btn btn-success btn-sm" title="Guardar" onclick="guardarPagoNuevo('${loteUuid}')">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" title="Cancelar" onclick="renderBloqueAgregarPago('${loteUuid}')">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <small id="ap_saldo_info" class="text-muted d-block mt-1"></small>
+        </div>`;
+
+    fetch(`${url_global}/api/lotes-pago/${loteUuid}/contratos-disponibles`)
+        .then(r => r.json())
+        .then(d => {
+            window._apContratos = d.contratos;
+            window._apCuentasPorProveedor = d.cuentas_por_proveedor;
+            const sel = document.getElementById('ap_contrato');
+            if (d.contratos.length === 0) {
+                sel.innerHTML = '<option value="">No hay contratos con saldo pendiente</option>';
+                return;
+            }
+            sel.innerHTML = '<option value="">— Seleccione —</option>' +
+                d.contratos.map(c => `<option value="${c.id}">${c.label} (saldo ${c.moneda} ${_fmtMontoLote(c.saldo_pendiente)})</option>`).join('');
+            $(sel).select2({
+                placeholder: '— Seleccione —',
+                dropdownParent: $('#modalCodigo'),
+                width: '100%',
+                language: { noResults: () => 'No se encontró ningún contrato.', searching: () => 'Buscando...' },
+            }).on('change', onCambiarContratoAgregarPago);
+        })
+        .catch(() => {
+            document.getElementById('ap_contrato').innerHTML = '<option value="">Error al cargar</option>';
+        });
+}
+
+function onCambiarContratoAgregarPago() {
+    const sel = document.getElementById('ap_contrato');
+    const contratoId = sel.value;
+    const montoDisp = document.getElementById('ap_monto_display');
+    const cuentaSel = document.getElementById('ap_cuenta_destino');
+    const info = document.getElementById('ap_saldo_info');
+
+    if (!contratoId) {
+        montoDisp.disabled = true;
+        cuentaSel.disabled = true;
+        cuentaSel.innerHTML = '<option value="">—</option>';
+        info.textContent = '';
+        return;
+    }
+
+    const contrato = (window._apContratos || []).find(c => String(c.id) === contratoId);
+    window._apContratoActual = contrato || null;
+    montoDisp.disabled = false;
+    montoDisp.value = '';
+    document.getElementById('ap_monto_hidden').value = '';
+    actualizarSaldoRestanteContrato();
+
+    const cuentas = (window._apCuentasPorProveedor || {})[contrato?.proveedor_id] || [];
+    cuentaSel.disabled = false;
+    cuentaSel.innerHTML = cuentas.length
+        ? '<option value="">— Seleccione —</option>' + cuentas.map(c => `<option value="${c.id}">${c.label}</option>`).join('')
+        : '<option value="">Sin cuentas registradas</option>';
+}
+
+// Resta en vivo el monto que se va escribiendo del saldo pendiente del contrato elegido
+function actualizarSaldoRestanteContrato() {
+    const info = document.getElementById('ap_saldo_info');
+    const contrato = window._apContratoActual;
+    if (!info || !contrato) { if (info) info.textContent = ''; return; }
+
+    const monto = _txt2numLote(document.getElementById('ap_monto_display')?.value || '');
+    const restante = contrato.saldo_pendiente - monto;
+    info.innerHTML = monto > 0
+        ? `Saldo pendiente: ${contrato.moneda} ${_fmtMontoLote(contrato.saldo_pendiente)} &rarr; quedará `
+            + `<span class="${restante < 0 ? 'text-danger fw-semibold' : ''}">${contrato.moneda} ${_fmtMontoLote(restante)}</span>`
+        : `Saldo pendiente: ${contrato.moneda} ${_fmtMontoLote(contrato.saldo_pendiente)}`;
+}
+
+// Variante de _onBlurMontoLote sin recalcular el total del lote (el pago aún no se guardó)
+function _onBlurMontoLoteSinTotal(disp) {
+    const hidden = document.getElementById('ap_monto_hidden');
+    const n = _txt2numLote(disp.value);
+    disp.value = n > 0 ? _fmtMontoLote(n) : '';
+    hidden.value = n > 0 ? n : '';
+}
+
+function guardarPagoNuevo(loteUuid) {
+    const contratoId = document.getElementById('ap_contrato').value;
+    const monto = document.getElementById('ap_monto_hidden').value;
+    const cuentaDestinoId = document.getElementById('ap_cuenta_destino').value;
+
+    if (!contratoId || !monto || !cuentaDestinoId) {
+        Swal.fire('Datos incompletos', 'Seleccione el contrato, ingrese el monto y elija la cuenta destino.', 'warning');
+        return;
+    }
+
+    fetch(`${url_global}/lotes-pago/${loteUuid}/pago`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ contrato_id: contratoId, monto: monto, cuenta_destino_id: cuentaDestinoId }),
+    })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (!ok) {
+                Swal.fire('No se pudo agregar', d.message || 'No se pudo agregar el pago.', 'error');
+                return;
+            }
+            cargarDetalleLoteModal(loteUuid, 'pendiente');
+            Swal.fire({ title: 'Pago agregado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch(() => {
+            Swal.fire('Error', 'Error al agregar el pago. Intente de nuevo.', 'error');
+        });
+}
+
+// ===== Agregar pago a un lote de camión (flete) pendiente =====
+function renderBloqueAgregarPagoFlete(loteUuid) {
+    const cont = document.getElementById('bloque_agregar_pago');
+    if (!cont) return;
+    cont.innerHTML = `
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="abrirFormAgregarPagoFlete('${loteUuid}')">
+            <i class="bi bi-plus-lg me-1"></i>Agregar pago
+        </button>`;
+}
+
+function abrirFormAgregarPagoFlete(loteUuid) {
+    const cont = document.getElementById('bloque_agregar_pago');
+    cont.innerHTML = `
+        <div class="border rounded p-3 bg-light">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small mb-1">Flete</label>
+                    <select id="apf_flete" class="form-select form-select-sm">
+                        <option value="">Cargando fletes...</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Monto</label>
+                    <input type="hidden" id="apf_monto_hidden">
+                    <input type="text" inputmode="decimal" id="apf_monto_display" class="form-control form-control-sm text-end"
+                           placeholder="0,00" oninput="_onInputMontoLote(this); actualizarSaldoRestanteFlete();" onblur="_onBlurMontoLoteSinTotalFlete(this); actualizarSaldoRestanteFlete();" disabled>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Cuenta destino</label>
+                    <select id="apf_cuenta_destino" class="form-select form-select-sm" disabled>
+                        <option value="">—</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex gap-1">
+                    <button type="button" class="btn btn-success btn-sm" title="Guardar" onclick="guardarPagoFleteNuevo('${loteUuid}')">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" title="Cancelar" onclick="renderBloqueAgregarPagoFlete('${loteUuid}')">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <small id="apf_saldo_info" class="text-muted d-block mt-1"></small>
+        </div>`;
+
+    fetch(`${url_global}/api/lotes-pago/${loteUuid}/fletes-disponibles`)
+        .then(r => r.json())
+        .then(d => {
+            window._apfFletes = d.fletes;
+            const sel = document.getElementById('apf_flete');
+            if (d.fletes.length === 0) {
+                sel.innerHTML = '<option value="">No hay fletes con saldo pendiente</option>';
+                return;
+            }
+            sel.innerHTML = '<option value="">— Seleccione —</option>' +
+                d.fletes.map(f => `<option value="${f.id}">${f.label} (saldo ${_fmtMontoLote(f.saldo_pendiente)})</option>`).join('');
+            $(sel).select2({
+                placeholder: '— Seleccione —',
+                dropdownParent: $('#modalCodigo'),
+                width: '100%',
+                language: { noResults: () => 'No se encontró ningún flete.', searching: () => 'Buscando...' },
+            }).on('change', onCambiarFleteAgregarPago);
+        })
+        .catch(() => {
+            document.getElementById('apf_flete').innerHTML = '<option value="">Error al cargar</option>';
+        });
+}
+
+function onCambiarFleteAgregarPago() {
+    const sel = document.getElementById('apf_flete');
+    const fleteId = sel.value;
+    const montoDisp = document.getElementById('apf_monto_display');
+    const cuentaSel = document.getElementById('apf_cuenta_destino');
+    const info = document.getElementById('apf_saldo_info');
+
+    if (!fleteId) {
+        montoDisp.disabled = true;
+        cuentaSel.disabled = true;
+        cuentaSel.innerHTML = '<option value="">—</option>';
+        info.textContent = '';
+        return;
+    }
+
+    const flete = (window._apfFletes || []).find(f => String(f.id) === fleteId);
+    window._apfFleteActual = flete || null;
+    montoDisp.disabled = false;
+    montoDisp.value = '';
+    document.getElementById('apf_monto_hidden').value = '';
+    actualizarSaldoRestanteFlete();
+
+    const cuentas = flete?.cuentas || [];
+    cuentaSel.disabled = false;
+    cuentaSel.innerHTML = cuentas.length
+        ? '<option value="">— Sin cuenta destino —</option>' + cuentas.map(c => `<option value="${c.id}">${c.label}</option>`).join('')
+        : '<option value="">Sin cuentas registradas</option>';
+}
+
+// Resta en vivo el monto que se va escribiendo del saldo pendiente del flete elegido
+function actualizarSaldoRestanteFlete() {
+    const info = document.getElementById('apf_saldo_info');
+    const flete = window._apfFleteActual;
+    if (!info || !flete) { if (info) info.textContent = ''; return; }
+
+    const monto = _txt2numLote(document.getElementById('apf_monto_display')?.value || '');
+    const restante = flete.saldo_pendiente - monto;
+    info.innerHTML = monto > 0
+        ? `Saldo pendiente: ${_fmtMontoLote(flete.saldo_pendiente)} &rarr; quedará `
+            + `<span class="${restante < 0 ? 'text-danger fw-semibold' : ''}">${_fmtMontoLote(restante)}</span>`
+        : `Saldo pendiente: ${_fmtMontoLote(flete.saldo_pendiente)}`;
+}
+
+// Variante de _onBlurMontoLote sin recalcular el total del lote (el pago aún no se guardó)
+function _onBlurMontoLoteSinTotalFlete(disp) {
+    const hidden = document.getElementById('apf_monto_hidden');
+    const n = _txt2numLote(disp.value);
+    disp.value = n > 0 ? _fmtMontoLote(n) : '';
+    hidden.value = n > 0 ? n : '';
+}
+
+function guardarPagoFleteNuevo(loteUuid) {
+    const fleteId = document.getElementById('apf_flete').value;
+    const monto = document.getElementById('apf_monto_hidden').value;
+    const cuentaDestinoId = document.getElementById('apf_cuenta_destino').value;
+
+    if (!fleteId || !monto) {
+        Swal.fire('Datos incompletos', 'Seleccione el flete e ingrese el monto.', 'warning');
+        return;
+    }
+
+    fetch(`${url_global}/lotes-pago/${loteUuid}/pago-flete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ contrato_camion_id: fleteId, monto: monto, cuenta_destino_id: cuentaDestinoId || null }),
+    })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (!ok) {
+                Swal.fire('No se pudo agregar', d.message || 'No se pudo agregar el pago.', 'error');
+                return;
+            }
+            cargarDetalleLoteModal(loteUuid, 'pendiente');
+            Swal.fire({ title: 'Pago agregado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch(() => {
+            Swal.fire('Error', 'Error al agregar el pago. Intente de nuevo.', 'error');
+        });
+}
 
 // ===== Eliminar lote: modal con detalle de pagos antes de confirmar =====
 const _fmtLote = (n, mon) => `${mon} ${new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)}`;
