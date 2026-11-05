@@ -385,12 +385,13 @@ class LotePagoController extends Controller
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();
         abort_if($lote->tipo !== 'proveedor', 404);
 
-        $contratoIdsEnLote = PagoProveedor::where('lote_pago_id', $lote->id)->pluck('contrato_id');
-
+        // Incluye también los contratos que ya tienen un pago en este lote: puede
+        // agregarse un segundo pago al mismo contrato (p.ej. dos transferencias
+        // distintas para la misma deuda). El saldo pendiente ya descuenta esos
+        // pagos existentes, así que no deja registrar de más.
         $contratos = Contrato::with('proveedor')
             ->whereNull('deleted_at')
             ->whereNotNull('proveedor_id')
-            ->whereNotIn('id', $contratoIdsEnLote)
             ->get()
             ->filter(fn($c) => $c->saldo_pendiente_proveedor > 0)
             ->map(fn($c) => [
@@ -438,11 +439,6 @@ class LotePagoController extends Controller
             'monto'             => 'required|numeric|min:0.01',
             'cuenta_destino_id' => 'required|exists:cuentas_bancarias,id',
         ]);
-
-        $yaEnLote = PagoProveedor::where('lote_pago_id', $lote->id)->where('contrato_id', $request->contrato_id)->exists();
-        if ($yaEnLote) {
-            return response()->json(['message' => 'Ese contrato ya tiene un pago en este lote.'], 400);
-        }
 
         $contrato = Contrato::with('proveedor')->findOrFail($request->contrato_id);
         $saldo = $contrato->saldo_pendiente_proveedor;
@@ -504,10 +500,10 @@ class LotePagoController extends Controller
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();
         abort_if($lote->tipo !== 'camion', 404);
 
-        $contratoCamionIdsEnLote = PagoCamion::where('lote_pago_id', $lote->id)->pluck('contrato_camion_id');
-
+        // Incluye también los fletes que ya tienen un pago en este lote: puede
+        // agregarse un segundo pago al mismo flete. El saldo pendiente ya
+        // descuenta esos pagos existentes, así que no deja registrar de más.
         $fletes = ContratoCamion::with(['contrato.proveedor', 'camion.propietario', 'conductor'])
-            ->whereNotIn('id', $contratoCamionIdsEnLote)
             ->whereNotNull('monto_acordado')
             ->get()
             ->filter(fn($cc) => $cc->saldo_pendiente > 0)
@@ -558,11 +554,6 @@ class LotePagoController extends Controller
             'monto'              => 'required|numeric|min:0.01',
             'cuenta_destino_id'  => 'nullable|exists:cuentas_bancarias,id',
         ]);
-
-        $yaEnLote = PagoCamion::where('lote_pago_id', $lote->id)->where('contrato_camion_id', $request->contrato_camion_id)->exists();
-        if ($yaEnLote) {
-            return response()->json(['message' => 'Ese flete ya tiene un pago en este lote.'], 400);
-        }
 
         $cc = ContratoCamion::with(['contrato.proveedor', 'camion'])->findOrFail($request->contrato_camion_id);
         $saldo = $cc->saldo_pendiente;
