@@ -432,7 +432,11 @@ function cargarDetalleLoteModal(uuid, estado) {
                 document.getElementById('codigo_body').innerHTML = '<div class="alert alert-info py-2 mb-0">Este lote no tiene pagos.</div>';
                 return;
             }
-            let html = `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
+            let html = '';
+            if (montoEditable && (d.tipo === 'proveedor' || d.tipo === 'camion')) {
+                html += `<div id="bloque_agregar_pago" class="mb-3"></div>`;
+            }
+            html += `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
                 <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:140px">Voucher</th><th style="width:110px">Acciones</th></tr></thead>
                 <tbody>`;
             let totalMonto = 0;
@@ -485,9 +489,6 @@ function cargarDetalleLoteModal(uuid, estado) {
             if (montoEditable) {
                 html += `<p class="small text-warning mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>
                     Este lote aún está pendiente: puedes corregir los montos antes de confirmar el pago.</p>`;
-            }
-            if (montoEditable && (d.tipo === 'proveedor' || d.tipo === 'camion')) {
-                html += `<div id="bloque_agregar_pago" class="mt-3"></div>`;
             }
             document.getElementById('codigo_body').innerHTML = html;
             document.getElementById('btn_guardar_codigo').disabled = false;
