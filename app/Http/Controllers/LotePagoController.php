@@ -111,6 +111,8 @@ class LotePagoController extends Controller
      * descuenta el saldo pendiente del contrato/flete, pero no afecta la
      * cuenta bancaria real hasta que se confirme. Solo aplica a proveedor y
      * camión: cobro masivo a clientes no pasa por este flujo.
+     * realizando cambios
+     * 
      */
     public function confirmar($uuid)
     {
