@@ -238,10 +238,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btn_guardar_codigo" disabled>
-            <i class="bi bi-save me-1"></i>Guardar
-          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
         </div>
       </form>
     </div>
@@ -405,7 +402,6 @@ function abrirModalFecha(uuid, tipo, fechaISO) {
 }
 
 function abrirModalCodigo(uuid, tipo, fecha, estado) {
-    document.getElementById('form_codigo').action = `${url_global}/lotes-pago/${uuid}/codigo`;
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCodigo')).show();
@@ -423,8 +419,6 @@ function cargarDetalleLoteModal(uuid, estado) {
         <div class="text-center text-muted py-3">
             <span class="spinner-border spinner-border-sm me-1"></span>Cargando pagos del lote...
         </div>`;
-    document.getElementById('btn_guardar_codigo').disabled = true;
-
     fetch(`${url_global}/api/lotes-pago/${uuid}/detalle`)
         .then(r => r.json())
         .then(d => {
@@ -463,6 +457,10 @@ function cargarDetalleLoteModal(uuid, estado) {
                     </td>
                     <td class="text-center">
                         <div class="d-flex gap-1 justify-content-center">
+                            <button type="button" class="btn btn-success btn-sm" title="Guardar código/monto/voucher de este pago"
+                                    onclick="guardarFilaLote('${uuid}', '${p.uuid}')">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
                             ${p.tiene_voucher ? `
                                 <a href="${p.voucher_url}${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
                                 <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>
@@ -491,7 +489,6 @@ function cargarDetalleLoteModal(uuid, estado) {
                     Este lote aún está pendiente: puedes corregir los montos antes de confirmar el pago.</p>`;
             }
             document.getElementById('codigo_body').innerHTML = html;
-            document.getElementById('btn_guardar_codigo').disabled = false;
             if (montoEditable && d.tipo === 'proveedor') {
                 renderBloqueAgregarPago(uuid);
             }
@@ -544,11 +541,78 @@ function recalcularTotalLote() {
     lbl.textContent = _fmtLote(total, lbl.dataset.moneda);
 }
 
-document.getElementById('form_codigo').addEventListener('submit', function () {
-    const btn = document.getElementById('btn_guardar_codigo');
+// Guarda solo la fila de un pago (código real, monto y/o voucher) sin tocar
+// las demás filas del lote — así una fila sin código no bloquea ni reporta
+// error por las que sí se llenaron.
+function guardarFilaLote(loteUuid, pagoUuid) {
+    const fila = document.getElementById(`fila_pago_lote_${pagoUuid}`);
+    if (!fila) return;
+
+    const btn = fila.querySelector('button[onclick^="guardarFilaLote"]');
+    const codigoInput = fila.querySelector('input[name$="[codigo_real]"]');
+    const voucherInput = fila.querySelector('input[type="file"][name$="[voucher]"]');
+    const montoHidden = fila.querySelector('input[type="hidden"][name$="[monto]"]');
+
+    const formData = new FormData();
+    formData.append('codigos[0][pago_uuid]', pagoUuid);
+    formData.append('codigos[0][codigo_real]', codigoInput?.value ?? '');
+    if (montoHidden) formData.append('codigos[0][monto]', montoHidden.value ?? '');
+    if (voucherInput?.files?.[0]) formData.append('codigos[0][voucher]', voucherInput.files[0]);
+
+    const iconoOriginal = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-});
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch(`${url_global}/lotes-pago/${loteUuid}/codigo`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: formData,
+    })
+        .then(r => {
+            if (r.status === 419 || r.redirected) {
+                return Promise.reject('sesion_expirada');
+            }
+            return r.json().then(d => ({ ok: r.ok, d }));
+        })
+        .then(({ ok, d }) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (!ok) {
+                Swal.fire('No se pudo guardar', d.message || 'No se pudo guardar este pago.', 'error');
+                return;
+            }
+            if (voucherInput) voucherInput.value = '';
+            Swal.fire({ title: 'Guardado', text: d.message, icon: 'success', timer: 1800, showConfirmButton: false });
+            // Refresca el bloque de voucher (Ver/Descargar) de esta fila si cambió
+            const pagoActualizado = d.pagos?.[0];
+            if (pagoActualizado?.tiene_voucher) {
+                const celdaAcciones = fila.querySelector('td:last-child .d-flex');
+                const yaTieneLinks = celdaAcciones.querySelector('a[title="Ver voucher"]');
+                if (!yaTieneLinks) {
+                    celdaAcciones.insertAdjacentHTML('beforeend', `
+                        <a href="${pagoActualizado.voucher_url}${pagoActualizado.voucher_es_imagen ? '?print=1' : ''}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
+                        <a href="${pagoActualizado.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>`);
+                }
+            }
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (err === 'sesion_expirada') {
+                Swal.fire({
+                    title: 'Sesión expirada',
+                    text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Recargar',
+                }).then(() => window.location.reload());
+                return;
+            }
+            Swal.fire('Error', 'Error al guardar este pago. Intente de nuevo.', 'error');
+        });
+}
 
 function quitarPagoDeLote(loteUuid, pagoUuid, referencia) {
     Swal.fire({
@@ -573,7 +637,15 @@ function quitarPagoDeLote(loteUuid, pagoUuid, referencia) {
                 'Accept': 'application/json',
             },
         })
-            .then(r => r.json().catch(() => ({})).then(d => ({ ok: r.ok, d })))
+            .then(r => {
+                // Si la sesión expiró, Laravel redirige a /login (status 419 o
+                // una respuesta que ya no es JSON) en vez de devolver el JSON
+                // esperado — se detecta aparte para dar un mensaje claro.
+                if (r.status === 419 || r.redirected) {
+                    return Promise.reject('sesion_expirada');
+                }
+                return r.json().catch(() => ({})).then(d => ({ ok: r.ok, d }));
+            })
             .then(({ ok, d }) => {
                 if (!ok) {
                     Swal.fire('No se pudo quitar', d.message || 'No se pudo quitar el pago.', 'error');
@@ -590,7 +662,16 @@ function quitarPagoDeLote(loteUuid, pagoUuid, referencia) {
                     showConfirmButton: false,
                 });
             })
-            .catch(() => {
+            .catch((err) => {
+                if (err === 'sesion_expirada') {
+                    Swal.fire({
+                        title: 'Sesión expirada',
+                        text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                        icon: 'warning',
+                        confirmButtonText: 'Recargar',
+                    }).then(() => window.location.reload());
+                    return;
+                }
                 Swal.fire('Error', 'Error al quitar el pago. Intente de nuevo.', 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-trash"></i>'; }
             });
@@ -750,7 +831,7 @@ function guardarPagoNuevo(loteUuid) {
         });
 }
 
-// ===== Agregar pago a un lote de camión (flete) pendiente =====
+// ===== Agregar pago a un lote de camión (flete) pendiente ---------=====
 function renderBloqueAgregarPagoFlete(loteUuid) {
     const cont = document.getElementById('bloque_agregar_pago');
     if (!cont) return;

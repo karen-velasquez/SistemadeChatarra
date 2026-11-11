@@ -154,6 +154,7 @@ class LotePagoController extends Controller
      *
      * Espera 'codigos' => [ ['pago_uuid' => ..., 'codigo_real' => ...], ... ].
      * Filas con codigo_real vacío se ignoran (ese pago queda pendiente).
+     * ------------------------------------------------------
      */
     public function actualizarCodigo(Request $request, $uuid)
     {
@@ -184,6 +185,9 @@ class LotePagoController extends Controller
         })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher'] || filled($f['monto'] ?? null));
 
         if ($filas->isEmpty()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'No ingresaste ningún código, monto ni adjuntaste un voucher.'], 400);
+            }
             Alert::error('Nada que guardar', 'No ingresaste ningún código ni adjuntaste un voucher.');
             return back();
         }
@@ -193,6 +197,7 @@ class LotePagoController extends Controller
         // mismo código real (una sola transferencia del banco puede cubrir
         // varios contratos/tramos a la vez). El conflicto real que importa
         // detectar es contra pagos de OTROS lotes.
+        // ------------------------------------------
         $idsDelLote = $modeloClase::where('lote_pago_id', $lote->id)
             ->pluck('id')->all();
 
@@ -207,12 +212,17 @@ class LotePagoController extends Controller
 
             $codigoReal = trim($fila['codigo_real']);
             if (!$this->codigoDisponible($codigoReal, $pago->id, $modeloClase, $lote->id, $idsDelLote)) {
-                Alert::error('Código en uso', "El código \"{$codigoReal}\" ya está en uso por otro pago o lote. Verifique e intente de nuevo.");
+                $mensaje = "El código \"{$codigoReal}\" ya está en uso por otro pago o lote. Verifique e intente de nuevo.";
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $mensaje], 400);
+                }
+                Alert::error('Código en uso', $mensaje);
                 return back();
             }
         }
 
-        DB::transaction(function () use ($filas, $pagos, $modeloClase, $carpetaVoucher, $permiteEditarMonto) {
+        $pagosActualizados = DB::transaction(function () use ($filas, $pagos, $modeloClase, $carpetaVoucher, $permiteEditarMonto) {
+            $actualizados = [];
             foreach ($filas as $fila) {
                 $pago = $pagos->get($fila['pago_uuid']);
                 if (!$pago) continue;
@@ -234,6 +244,7 @@ class LotePagoController extends Controller
                 if (empty($datos)) continue;
 
                 $pago->update($datos);
+                $actualizados[] = $pago;
 
                 if (!isset($datos['codigo_seguimiento'])) continue;
 
@@ -241,7 +252,32 @@ class LotePagoController extends Controller
                     ->where('origen_id', $pago->id)
                     ->update(['codigo_seguimiento' => $datos['codigo_seguimiento']]);
             }
+            return $actualizados;
         });
+
+        if ($request->expectsJson()) {
+            if (empty($pagosActualizados)) {
+                return response()->json(['message' => 'No había ningún dato nuevo que guardar en este pago.'], 400);
+            }
+
+            $voucherRouteName = match ($lote->tipo) {
+                'proveedor' => 'pagos.proveedores.voucher',
+                'cliente'   => 'pagos.clientes.voucher',
+                default     => 'pagos.camiones.voucher',
+            };
+
+            return response()->json([
+                'message' => count($pagosActualizados) . ' pago(s) actualizado(s).',
+                'pagos'   => collect($pagosActualizados)->map(fn($p) => [
+                    'uuid'              => $p->uuid,
+                    'monto'             => (float) $p->monto,
+                    'codigo'            => $p->codigo_seguimiento,
+                    'tiene_voucher'     => (bool) $p->voucher,
+                    'voucher_url'       => $p->voucher ? route($voucherRouteName, $p->uuid) : null,
+                    'voucher_es_imagen' => es_imagen_archivo($p->voucher),
+                ]),
+            ]);
+        }
 
         Alert::success('Éxito', 'Datos actualizados en ' . $filas->count() . ' pago(s).');
         return back();
@@ -278,6 +314,7 @@ class LotePagoController extends Controller
     /**
      * Detalle de los pagos que se eliminarían junto con el lote — se
      * muestra en el modal de confirmación antes de borrar.
+     * /-----------------------------------------
      */
     public function detalle($uuid)
     {
@@ -496,6 +533,7 @@ class LotePagoController extends Controller
      * los fletes que ya están en este mismo lote. Las cuentas bancarias se
      * agrupan por flete (no por operador global) porque cada flete tiene su
      * propio conductor/propietario con sus propias cuentas.
+     * ---------------------------------
      */
     public function fletesDisponibles($uuid)
     {
