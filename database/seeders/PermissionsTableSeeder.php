@@ -78,6 +78,7 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'cuentas_bancarias.create',  'descripcion' => 'Agregar Cuentas Bancarias de Empresas',  'grupo' => 'CUENTAS_BANCARIAS'],
             ['name' => 'cuentas_bancarias.edit',    'descripcion' => 'Editar Cuentas Bancarias de Empresas',   'grupo' => 'CUENTAS_BANCARIAS'],
             ['name' => 'cuentas_bancarias.destroy', 'descripcion' => 'Eliminar Cuentas Bancarias de Empresas', 'grupo' => 'CUENTAS_BANCARIAS'],
+            ['name' => 'cuentas_bancarias.editar_saldo_inicial_forzado', 'descripcion' => 'Corregir el saldo inicial de una cuenta aunque ya tenga movimientos (uso excepcional, recalcula el saldo actual)', 'grupo' => 'CUENTAS_BANCARIAS'],
             // Pagos a clientes
             ['name' => 'pagos_clientes.index',   'descripcion' => 'Ver Pagos de Clientes',       'grupo' => 'PAGOS_CLIENTES'],
             ['name' => 'pagos_clientes.create',  'descripcion' => 'Registrar Pagos de Clientes', 'grupo' => 'PAGOS_CLIENTES'],

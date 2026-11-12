@@ -159,6 +159,7 @@ class EmpresaController extends Controller
     {
         $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
         $cuenta->tiene_movimientos = $cuenta->movimientos()->exists();
+        $cuenta->puede_forzar_saldo_inicial = auth()->user()->can('cuentas_bancarias.editar_saldo_inicial_forzado');
         return response()->json($cuenta);
     }
 
@@ -166,6 +167,13 @@ class EmpresaController extends Controller
     {
         $cuenta = CuentaEmpresa::where('uuid', $uuid)->firstOrFail();
         $tieneMovimientos = $cuenta->movimientos()->exists();
+
+        // Permiso excepcional: corregir el saldo inicial de una cuenta que ya
+        // tiene movimientos (p.ej. para ponerse al día con una captura
+        // atrasada). Fuera de ese caso, rige la regla normal de abajo.
+        $forzarSaldoInicial = $tieneMovimientos
+            && $request->boolean('forzar_saldo_inicial')
+            && auth()->user()->can('cuentas_bancarias.editar_saldo_inicial_forzado');
 
         $reglas = [
             'nombre_cuenta' => 'required|string|max:150',
@@ -178,7 +186,8 @@ class EmpresaController extends Controller
 
         // Banco, N° de cuenta y Saldo Inicial solo se pueden cambiar mientras
         // la cuenta no tenga movimientos: una vez que hay ingresos/egresos,
-        // esos datos ya forman parte del historial contable.
+        // esos datos ya forman parte del historial contable. La única
+        // excepción es $forzarSaldoInicial (ver arriba).
         if (!$tieneMovimientos) {
             $reglas['banco_id']      = 'required|exists:bancos,id';
             $reglas['numero_cuenta'] = 'required|digits_between:1,20';
@@ -187,6 +196,8 @@ class EmpresaController extends Controller
             $mensajes['banco_id.exists']               = 'El banco seleccionado no existe.';
             $mensajes['numero_cuenta.required']        = 'El número de cuenta es obligatorio.';
             $mensajes['numero_cuenta.digits_between']  = 'El número de cuenta debe tener entre 1 y 20 dígitos numéricos.';
+        } elseif ($forzarSaldoInicial) {
+            $reglas['saldo_inicial'] = 'required|numeric|min:0';
         }
 
         $request->validate($reglas, $mensajes);
@@ -203,6 +214,15 @@ class EmpresaController extends Controller
             $datos['numero_cuenta'] = $request->numero_cuenta;
             $datos['saldo_inicial'] = $request->saldo_inicial;
             $datos['saldo_actual']  = $request->saldo_inicial;
+        } elseif ($forzarSaldoInicial) {
+            // Recalcula el saldo actual con el nuevo punto de partida, para
+            // que quede consistente con todo el historial de movimientos ya
+            // registrado (no se tocan los movimientos en sí, solo el total).
+            $ingresos = $cuenta->movimientos()->where('tipo', 'ingreso')->sum('monto_bolivianos');
+            $egresos  = $cuenta->movimientos()->where('tipo', 'egreso')->sum('monto_bolivianos');
+
+            $datos['saldo_inicial'] = $request->saldo_inicial;
+            $datos['saldo_actual']  = round((float) $request->saldo_inicial + $ingresos - $egresos, 2);
         }
 
         $cuenta->update($datos);

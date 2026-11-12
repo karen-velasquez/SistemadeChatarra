@@ -346,6 +346,21 @@
                                 Esta cuenta ya tiene movimientos registrados: el banco, el N° de cuenta y el saldo inicial ya no se pueden editar.
                             </div>
                         </div>
+                        <div class="col-12 d-none" id="ec_bloque_forzar_saldo">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="forzar_saldo_inicial" value="1"
+                                       id="ec_forzar_saldo_inicial" onchange="toggleForzarSaldoInicial()">
+                                <label class="form-check-label small" for="ec_forzar_saldo_inicial">
+                                    Corregir el saldo inicial de todas formas (uso excepcional)
+                                </label>
+                            </div>
+                            <div class="alert alert-danger py-2 mt-1 mb-0 small d-none" id="ec_aviso_forzar_saldo">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                Esto recalculará el <strong>saldo actual</strong> de la cuenta usando este nuevo saldo
+                                inicial más todos los movimientos ya registrados. No modifica los movimientos en sí.
+                                Úsalo solo para ponerte al día con una captura atrasada.
+                            </div>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Descripción</label>
                             <textarea name="descripcion" id="ec_descripcion" class="form-control" rows="2" maxlength="60"></textarea>
@@ -973,8 +988,21 @@ function editarCuenta(uuid) {
             document.getElementById('ec_saldo_inicial_display').disabled = bloqueado;
             document.getElementById('ec_aviso_bloqueo').classList.toggle('d-none', !bloqueado);
 
+            const puedeForzar = bloqueado && !!c.puede_forzar_saldo_inicial;
+            document.getElementById('ec_bloque_forzar_saldo').classList.toggle('d-none', !puedeForzar);
+            document.getElementById('ec_forzar_saldo_inicial').checked = false;
+            document.getElementById('ec_aviso_forzar_saldo').classList.add('d-none');
+
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCuenta')).show();
         });
+}
+
+// El checkbox "Corregir el saldo inicial de todas formas" desbloquea el campo
+// solo para ese usuario con el permiso excepcional — ver EmpresaController::updateCuenta.
+function toggleForzarSaldoInicial() {
+    const marcado = document.getElementById('ec_forzar_saldo_inicial').checked;
+    document.getElementById('ec_saldo_inicial_display').disabled = !marcado;
+    document.getElementById('ec_aviso_forzar_saldo').classList.toggle('d-none', !marcado);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
