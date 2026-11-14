@@ -179,6 +179,7 @@ use Illuminate\Support\Facades\Route;
     // Pagos de clientes
     Route::get('pagos/clientes',[App\Http\Controllers\PagoClienteController::class,'index'])->name('pagos.clientes.index')->middleware('permission:pagos_clientes.index');
     Route::post('pagos/clientes',[App\Http\Controllers\PagoClienteController::class,'store'])->name('pagos.clientes.store')->middleware('permission:pagos_clientes.create');
+    Route::get('pagos/clientes/nuevo-token',[App\Http\Controllers\PagoClienteController::class,'nuevoToken'])->name('pagos.clientes.nuevo-token');
     Route::post('pagos/clientes/{id}/precio',[App\Http\Controllers\PagoClienteController::class,'setPrecio'])->name('pagos.clientes.precio')->middleware('permission:pagos_clientes.create');
     Route::get('pagos/clientes/{uuid}/destroy',[App\Http\Controllers\PagoClienteController::class,'destroy'])->name('pagos.clientes.destroy')->middleware('permission:pagos_clientes.destroy');
     Route::put('pagos/clientes/{uuid}',[App\Http\Controllers\PagoClienteController::class,'update'])->name('pagos.clientes.update')->middleware('permission:pagos_clientes.edit');
@@ -191,6 +192,7 @@ use Illuminate\Support\Facades\Route;
     // Pagos a proveedores
     Route::get('pagos/proveedores',[App\Http\Controllers\PagoProveedorController::class,'index'])->name('pagos.proveedores.index')->middleware('permission:pagos_proveedores.index');
     Route::post('pagos/proveedores',[App\Http\Controllers\PagoProveedorController::class,'store'])->name('pagos.proveedores.store')->middleware('permission:pagos_proveedores.create');
+    Route::get('pagos/proveedores/nuevo-token',[App\Http\Controllers\PagoProveedorController::class,'nuevoToken'])->name('pagos.proveedores.nuevo-token');
     Route::get('pagos/proveedores/pago-masivo',[App\Http\Controllers\PagoProveedorController::class,'pagoMasivoView'])->name('pagos.proveedores.pago_masivo')->middleware('permission:pagos_proveedores.create');
     Route::post('pagos/proveedores/pago-masivo',[App\Http\Controllers\PagoProveedorController::class,'pagoMasivoStore'])->name('pagos.proveedores.pago_masivo.store')->middleware('permission:pagos_proveedores.create');
     Route::get('pagos/proveedores/{uuid}/destroy',[App\Http\Controllers\PagoProveedorController::class,'destroy'])->name('pagos.proveedores.destroy')->middleware('permission:pagos_proveedores.destroy');

@@ -162,7 +162,7 @@
                         </small>
                     </div>
                 @else
-                <div class="table-responsive">
+                <div class="table-responsive" id="pc-contenido">
                     <table class="table table-hover table-bordered table-sm align-middle" id="datos">
                         <thead class="table-light">
                             <tr>
@@ -823,7 +823,7 @@ document.getElementById('formCobroMasivo')?.addEventListener('submit', async fun
 });
 
 // ===== Filtros de la tabla (integrados con la paginación de DataTables) =====
-const tablaCobros = $('#datos').DataTable();
+let tablaCobros = $('#datos').DataTable();
 
 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex, rowData, counter) {
     if (settings.nTable.id !== 'datos') return true;
@@ -1583,6 +1583,7 @@ function guardarEditarCobro() {
 // Verificar código duplicado al enviar + bloqueo anti-doble-submit
 document.getElementById('formCobroCliente').addEventListener('submit', async function(e) {
     e.preventDefault();
+    var form = e.target;
     var btn = document.getElementById('cobro_btn_guardar');
     if (btn.disabled) return;
 
@@ -1592,9 +1593,80 @@ document.getElementById('formCobroCliente').addEventListener('submit', async fun
         if (!disponible) return;
     }
 
+    var iconoOriginal = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-    this.submit();
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: new FormData(form),
+    })
+        .then(r => {
+            if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+            return r.json().then(d => ({ status: r.status, ok: r.ok, d }));
+        })
+        .then(({ status, ok, d }) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (!ok) {
+                if (status === 422 && d.errors) {
+                    const primerError = Object.values(d.errors)[0]?.[0];
+                    Swal.fire('Datos inválidos', primerError || 'Revise los datos del formulario.', 'error');
+                } else {
+                    Swal.fire('No se pudo registrar', d.message || 'No se pudo registrar el pago.', 'error');
+                }
+                return;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalCobro'))?.hide();
+            form.reset();
+            recargarTablaPagosClientes();
+            fetch(`${url_global}/pagos/clientes/nuevo-token`)
+                .then(r => r.json())
+                .then(dt => { document.getElementById('idempotencyTokenCobroCliente').value = dt.token; });
+            Swal.fire({ title: 'Pago registrado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (err === 'sesion_expirada') {
+                Swal.fire({
+                    title: 'Sesión expirada',
+                    text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Recargar',
+                }).then(() => window.location.reload());
+                return;
+            }
+            Swal.fire('Error', 'Error al registrar el pago. Intente de nuevo.', 'error');
+        });
 });
+
+// Recarga la tabla completa (manteniendo el filtro, que vive en los mismos
+// inputs del DOM) sin perder la página — DataTables se destruye y se vuelve
+// a inicializar porque el tbody cambia por completo.
+function recargarTablaPagosClientes() {
+    fetch(window.location.href)
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nuevo = doc.getElementById('pc-contenido');
+            const actual = document.getElementById('pc-contenido');
+            if (!nuevo || !actual) return;
+
+            if ($.fn.DataTable.isDataTable('#datos')) {
+                tablaCobros.destroy();
+            }
+            actual.innerHTML = nuevo.innerHTML;
+            tablaCobros = $('#datos').DataTable();
+            tablaCobros.on('draw', function () {
+                document.getElementById('lbl_count_visible').textContent = tablaCobros.rows({ search: 'applied' }).count();
+            });
+            aplicarFiltros();
+        });
+}
 </script>
 @endsection

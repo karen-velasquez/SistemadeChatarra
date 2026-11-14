@@ -114,12 +114,17 @@ class LotePagoController extends Controller
      * realizando cambios
      * 
      */
-    public function confirmar($uuid)
+    public function confirmar(Request $request, $uuid)
     {
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();
 
         abort_if($lote->tipo === 'cliente', 404);
-        abort_if($lote->estado === 'confirmado', 400, 'Este lote ya fue confirmado.');
+        if ($lote->estado === 'confirmado') {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Este lote ya fue confirmado.'], 400);
+            }
+            abort(400, 'Este lote ya fue confirmado.');
+        }
 
         $categoria = $lote->tipo === 'proveedor' ? 'pago_proveedor' : 'pago_camion';
         $pagos     = $lote->tipo === 'proveedor'
@@ -142,7 +147,11 @@ class LotePagoController extends Controller
             $lote->update(['estado' => 'confirmado']);
         });
 
-        Alert::success('Éxito', 'Lote confirmado: se registraron ' . $pagos->count() . ' movimiento(s) en tesorería.');
+        $mensaje = 'Lote confirmado: se registraron ' . $pagos->count() . ' movimiento(s) en tesorería.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Éxito', $mensaje);
         return back();
     }
 
@@ -307,7 +316,11 @@ class LotePagoController extends Controller
                 ->update(['fecha' => $request->fecha_pago]);
         });
 
-        Alert::success('Éxito', 'Fecha actualizada en el lote, sus pagos y movimientos.');
+        $mensaje = 'Fecha actualizada en el lote, sus pagos y movimientos.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Éxito', $mensaje);
         return back();
     }
 
@@ -688,7 +701,7 @@ class LotePagoController extends Controller
         return response()->json(['message' => 'Pago quitado del lote.']);
     }
 
-    public function destroy($uuid)
+    public function destroy(Request $request, $uuid)
     {
         $lote = LotePago::where('uuid', $uuid)->firstOrFail();
 
@@ -703,7 +716,11 @@ class LotePagoController extends Controller
             $lote->delete();
         });
 
-        Alert::success('Éxito', 'Lote eliminado: todos sus pagos y movimientos en tesorería fueron revertidos.');
+        $mensaje = 'Lote eliminado: todos sus pagos y movimientos en tesorería fueron revertidos.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Éxito', $mensaje);
         return redirect()->route('lotes_pago.index');
     }
 }

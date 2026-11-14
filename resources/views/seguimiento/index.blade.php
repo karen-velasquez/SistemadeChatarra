@@ -2428,6 +2428,52 @@ function abrirModalEditarLote(tramoUuid, proveedorId, loteActualId) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarLote')).show();
 }
 
+document.getElementById('formEditarLote').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const iconoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: new FormData(form),
+    })
+        .then(r => {
+            if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+            return r.json().then(d => ({ ok: r.ok, d }));
+        })
+        .then(({ ok, d }) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (!ok) {
+                Swal.fire('No se pudo guardar', d.message || 'No se pudo actualizar el lote de entrega.', 'error');
+                return;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalEditarLote'))?.hide();
+            Swal.fire({ title: 'Lote actualizado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (err === 'sesion_expirada') {
+                Swal.fire({
+                    title: 'Sesión expirada',
+                    text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Recargar',
+                }).then(() => window.location.reload());
+                return;
+            }
+            Swal.fire('Error', 'Error al actualizar el lote de entrega. Intente de nuevo.', 'error');
+        });
+});
+
 function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo, voucherUrl, voucherEsImagen) {
     document.getElementById('formEditarPago').action = url_global + '/pagos/camiones/' + uuid;
     document.getElementById('edit_tipo_pago').value   = tipo;

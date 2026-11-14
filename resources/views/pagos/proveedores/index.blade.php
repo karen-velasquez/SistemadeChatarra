@@ -122,7 +122,7 @@
                         <small><i class="bi bi-info-circle"></i> No hay contratos con proveedor registrados.</small>
                     </div>
                 @else
-                <div class="table-responsive">
+                <div class="table-responsive" id="pp-contenido">
                     <table id="tabla_pagos_prov" class="table table-hover table-bordered table-sm align-middle">
                         <thead class="table-light">
                             <tr>
@@ -488,11 +488,78 @@
             </form>
             <script>
             document.getElementById('formPagoProveedor').addEventListener('submit', function(e) {
+                e.preventDefault();
+                var form = e.target;
                 var btn = document.getElementById('btnPagoProveedor');
-                if (btn.disabled) { e.preventDefault(); return; }
+                if (btn.disabled) return;
+                var iconoOriginal = btn.innerHTML;
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: new FormData(form),
+                })
+                    .then(r => {
+                        if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+                        return r.json().then(d => ({ status: r.status, ok: r.ok, d }));
+                    })
+                    .then(({ status, ok, d }) => {
+                        btn.disabled = false;
+                        btn.innerHTML = iconoOriginal;
+                        if (!ok) {
+                            if (status === 422 && d.errors) {
+                                const primerError = Object.values(d.errors)[0]?.[0];
+                                Swal.fire('Datos inválidos', primerError || 'Revise los datos del formulario.', 'error');
+                            } else {
+                                Swal.fire('No se pudo registrar', d.message || 'No se pudo registrar el pago.', 'error');
+                            }
+                            return;
+                        }
+                        bootstrap.Modal.getInstance(document.getElementById('modalPago'))?.hide();
+                        form.reset();
+                        recargarTablaPagosProveedores();
+                        fetch(`${url_global}/pagos/proveedores/nuevo-token`)
+                            .then(r => r.json())
+                            .then(dt => { document.getElementById('idempotencyTokenPagoProveedor').value = dt.token; });
+                        Swal.fire({ title: 'Pago registrado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+                    })
+                    .catch((err) => {
+                        btn.disabled = false;
+                        btn.innerHTML = iconoOriginal;
+                        if (err === 'sesion_expirada') {
+                            Swal.fire({
+                                title: 'Sesión expirada',
+                                text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                                icon: 'warning',
+                                confirmButtonText: 'Recargar',
+                            }).then(() => window.location.reload());
+                            return;
+                        }
+                        Swal.fire('Error', 'Error al registrar el pago. Intente de nuevo.', 'error');
+                    });
             });
+
+            // Recarga solo la tabla de contratos (manteniendo el filtro aplicado,
+            // que vive en los mismos inputs del DOM y no se toca) en vez de
+            // recargar toda la página con un redirect, que lo perdería.
+            function recargarTablaPagosProveedores() {
+                fetch(window.location.href)
+                    .then(r => r.text())
+                    .then(html => {
+                        const doc = new DOMParser().parseFromString(html, 'text/html');
+                        const nuevo = doc.getElementById('pp-contenido');
+                        const actual = document.getElementById('pp-contenido');
+                        if (nuevo && actual) {
+                            actual.innerHTML = nuevo.innerHTML;
+                            if (typeof aplicarFiltrosPP === 'function') aplicarFiltrosPP();
+                        }
+                    });
+            }
 
             // ── Cajero monto y tipo_cambio ──
             (function() {

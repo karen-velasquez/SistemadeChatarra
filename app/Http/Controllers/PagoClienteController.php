@@ -85,6 +85,13 @@ class PagoClienteController extends Controller
         return view('pagos.clientes.index', compact('tramos', 'clientes', 'empresas', 'tramosMasivoData', 'monedas', 'idempotencyToken', 'idempotencyTokenCobroMasivo', 'proveedores', 'lotesCobroCliente'));
     }
 
+    public function nuevoToken()
+    {
+        $token = \Illuminate\Support\Str::uuid()->toString();
+        session(['pago_cliente_store_token' => $token]);
+        return response()->json(['token' => $token]);
+    }
+
     /**
      * Verificación AJAX mientras el usuario escribe el código de transferencia:
      * evita descubrir la colisión recién al enviar el formulario (lo cual cierra
@@ -106,7 +113,11 @@ class PagoClienteController extends Controller
     public function store(Request $request)
     {
         if (!$this->tokenValido('pago_cliente_store_token', $request->input('_idempotency_token'))) {
-            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            $mensaje = 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $mensaje], 409);
+            }
+            Alert::error('Solicitud duplicada', $mensaje);
             return redirect()->route('pagos.clientes.index');
         }
         $request->validate([
@@ -178,7 +189,11 @@ class PagoClienteController extends Controller
             }
         });
 
-        Alert::success('Éxito', 'Pago del cliente registrado correctamente.');
+        $mensaje = 'Pago del cliente registrado correctamente.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Éxito', $mensaje);
         return redirect()->route('pagos.clientes.index');
     }
 

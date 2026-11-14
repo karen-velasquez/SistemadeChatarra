@@ -50,7 +50,11 @@ class ProveedorController extends Controller
     public function store(ProveedorRequest $request)
     {
         if (!$this->tokenValido('proveedor_store_token', $request->input('_idempotency_token'))) {
-            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            $mensaje = 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $mensaje], 409);
+            }
+            Alert::error('Solicitud duplicada', $mensaje);
             return redirect()->route('proveedores.index');
         }
 
@@ -85,8 +89,12 @@ class ProveedorController extends Controller
         }   
 
         $proveedor->save();
-    
-        Alert::success('Registro', 'proveedor Registrado con exito!!!');
+
+        $mensaje = 'Proveedor registrado con éxito.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Registro', $mensaje);
         return redirect()->route('proveedores.index');
     }
 
@@ -135,8 +143,13 @@ class ProveedorController extends Controller
             $ids[] = $contact->id;
         }
         $proveedor->contacts()->whereNotIn('id', $ids)->delete();
-        Alert::success('Actualizacion', 'Proveedor Actualizado con exito!!!');
-        return redirect()->route('proveedores.index');   
+
+        $mensaje = 'Proveedor actualizado con éxito.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Actualizacion', $mensaje);
+        return redirect()->route('proveedores.index');
         }
 
 

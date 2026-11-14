@@ -404,7 +404,12 @@ class TramoController extends Controller
 
         $tramo->update(['lote_entrega_id' => $request->lote_entrega_id]);
 
-        Alert::success('Éxito', 'Lote de entrega actualizado.');
+        $mensaje = 'Lote de entrega actualizado.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+
+        Alert::success('Éxito', $mensaje);
 
         return $request->input('origen') === 'seguimiento'
             ? redirect()->route('seguimiento.index')

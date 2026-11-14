@@ -78,7 +78,7 @@
                             </div>
                         </div>
 
-                            <div class="table-responsive">
+                            <div class="table-responsive" id="prov-contenido">
                                 <table cellspacing="0" width="100%" id="datos" class="table table-hover table-bordered table-sm">
                                     <thead>
                                         <tr>
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
 @endif
 
 // ===== Filtros (Tipo / Tipo de Producto / País) sobre el DataTable ya inicializado por basica.js =====
-const tablaProveedores = $('#datos').DataTable();
+let tablaProveedores = $('#datos').DataTable();
 
 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
     if (settings.nTable.id !== 'datos') return true;
@@ -277,11 +277,80 @@ function resetModalProveedor() {
     limpiarFormularioProveedor();
 }
 document.getElementById('formProveedor').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = e.target;
     var btn = document.getElementById('btnProveedor');
-    if (btn.disabled) { e.preventDefault(); return; }
+    if (btn.disabled) return;
+    var iconoOriginal = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: new FormData(form),
+    })
+        .then(r => {
+            if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+            return r.json().then(d => ({ status: r.status, ok: r.ok, d }));
+        })
+        .then(({ status, ok, d }) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (!ok) {
+                if (status === 422 && d.errors) {
+                    const primerError = Object.values(d.errors)[0]?.[0];
+                    Swal.fire('Datos inválidos', primerError || 'Revise los datos del formulario.', 'error');
+                } else {
+                    Swal.fire('No se pudo guardar', d.message || 'No se pudo guardar el proveedor.', 'error');
+                }
+                return;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalProveedor'))?.hide();
+            recargarTablaProveedores();
+            fetch('{{ route("proveedores.nuevo-token") }}')
+                .then(r => r.json())
+                .then(dt => { document.getElementById('idempotencyTokenProveedor').value = dt.token; });
+            Swal.fire({ title: 'Guardado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (err === 'sesion_expirada') {
+                Swal.fire({
+                    title: 'Sesión expirada',
+                    text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Recargar',
+                }).then(() => window.location.reload());
+                return;
+            }
+            Swal.fire('Error', 'Error al guardar el proveedor. Intente de nuevo.', 'error');
+        });
 });
+
+// Recarga la tabla completa (manteniendo el filtro, que vive en los mismos
+// inputs del DOM) reconstruyendo DataTables, igual que en pagos a clientes.
+function recargarTablaProveedores() {
+    fetch(window.location.href)
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nuevo = doc.getElementById('prov-contenido');
+            const actual = document.getElementById('prov-contenido');
+            if (!nuevo || !actual) return;
+
+            if ($.fn.DataTable.isDataTable('#datos')) {
+                tablaProveedores.destroy();
+            }
+            actual.innerHTML = nuevo.innerHTML;
+            tablaProveedores = $('#datos').DataTable();
+            aplicarFiltrosProv();
+        });
+}
 function verProveedor(proveedor) {
     document.getElementById('ver_prov_nombre').textContent          = proveedor.nombre || '—';
     document.getElementById('ver_prov_nit').textContent             = proveedor.nit || '—';

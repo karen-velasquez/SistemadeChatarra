@@ -245,11 +245,6 @@
   </div>
 </div>
 
-{{-- Form oculto: confirmar que el banco ya ejecutó el lote (crea los movimientos) --}}
-<form id="form_confirmar_lote" method="POST" style="display:none">
-  @csrf
-</form>
-
 {{-- Modal de edición de fecha del lote --}}
 <div class="modal fade" id="modalFecha" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -385,12 +380,50 @@ document.getElementById('lp-contenido')?.addEventListener('click', function(e) {
 });
 
 function confirmarPagoLote(uuid, tipo) {
-    if (!confirm(`¿Confirmar que el banco ya ejecutó este lote ${tipo}?\n\nSe registrarán los movimientos en tesorería y se descontará el saldo de la cuenta origen. Esta acción no se puede deshacer desde aquí.`)) {
-        return;
-    }
-    const form = document.getElementById('form_confirmar_lote');
-    form.action = `${url_global}/lotes-pago/${uuid}/confirmar`;
-    form.submit();
+    Swal.fire({
+        title: '¿Confirmar lote?',
+        html: `¿Confirmar que el banco ya ejecutó este lote <strong>${tipo}</strong>?<br><br>
+               Se registrarán los movimientos en tesorería y se descontará el saldo de la cuenta origen.
+               Esta acción no se puede deshacer desde aquí.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, confirmar',
+        cancelButtonText: 'Cancelar',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        fetch(`${url_global}/lotes-pago/${uuid}/confirmar`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+        })
+            .then(r => {
+                if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+                return r.json().then(d => ({ ok: r.ok, d }));
+            })
+            .then(({ ok, d }) => {
+                if (!ok) {
+                    Swal.fire('No se pudo confirmar', d.message || 'No se pudo confirmar el lote.', 'error');
+                    return;
+                }
+                aplicarFiltrosLotes();
+                Swal.fire({ title: 'Lote confirmado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+            })
+            .catch((err) => {
+                if (err === 'sesion_expirada') {
+                    Swal.fire({
+                        title: 'Sesión expirada',
+                        text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                        icon: 'warning',
+                        confirmButtonText: 'Recargar',
+                    }).then(() => window.location.reload());
+                    return;
+                }
+                Swal.fire('Error', 'Error al confirmar el lote. Intente de nuevo.', 'error');
+            });
+    });
 }
 
 function abrirModalFecha(uuid, tipo, fechaISO) {
@@ -400,6 +433,53 @@ function abrirModalFecha(uuid, tipo, fechaISO) {
 
     new bootstrap.Modal(document.getElementById('modalFecha')).show();
 }
+
+document.getElementById('form_fecha').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const iconoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+        body: new FormData(form),
+    })
+        .then(r => {
+            if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+            return r.json().then(d => ({ ok: r.ok, d }));
+        })
+        .then(({ ok, d }) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (!ok) {
+                Swal.fire('No se pudo guardar', d.message || 'No se pudo actualizar la fecha.', 'error');
+                return;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalFecha'))?.hide();
+            aplicarFiltrosLotes();
+            Swal.fire({ title: 'Fecha actualizada', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (err === 'sesion_expirada') {
+                Swal.fire({
+                    title: 'Sesión expirada',
+                    text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Recargar',
+                }).then(() => window.location.reload());
+                return;
+            }
+            Swal.fire('Error', 'Error al actualizar la fecha. Intente de nuevo.', 'error');
+        });
+});
 
 function abrirModalCodigo(uuid, tipo, fecha, estado) {
     document.getElementById('lbl_info_lote').textContent = `Lote ${tipo} — ${fecha}`;
@@ -1018,6 +1098,52 @@ function abrirModalEliminarLote(uuid, tipo, fecha) {
             document.getElementById('del_body').innerHTML = '<div class="alert alert-danger py-2 mb-0">Error al cargar el detalle del lote.</div>';
         });
 }
+
+document.getElementById('form_eliminar_lote').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = document.getElementById('btn_confirmar_eliminar_lote');
+    const iconoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Eliminando...';
+
+    fetch(form.action, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+    })
+        .then(r => {
+            if (r.status === 419 || r.redirected) return Promise.reject('sesion_expirada');
+            return r.json().then(d => ({ ok: r.ok, d }));
+        })
+        .then(({ ok, d }) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (!ok) {
+                Swal.fire('No se pudo eliminar', d.message || 'No se pudo eliminar el lote.', 'error');
+                return;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalEliminarLote'))?.hide();
+            aplicarFiltrosLotes();
+            Swal.fire({ title: 'Lote eliminado', text: d.message, icon: 'success', timer: 2000, showConfirmButton: false });
+        })
+        .catch((err) => {
+            btn.disabled = false;
+            btn.innerHTML = iconoOriginal;
+            if (err === 'sesion_expirada') {
+                Swal.fire({
+                    title: 'Sesión expirada',
+                    text: 'Tu sesión expiró. Recarga la página e inicia sesión de nuevo para continuar.',
+                    icon: 'warning',
+                    confirmButtonText: 'Recargar',
+                }).then(() => window.location.reload());
+                return;
+            }
+            Swal.fire('Error', 'Error al eliminar el lote. Intente de nuevo.', 'error');
+        });
+});
 
 // ===== Ver / descargar Excel formato banco de un lote (proveedor o camión) =====
 let _excelLoteCols  = [];

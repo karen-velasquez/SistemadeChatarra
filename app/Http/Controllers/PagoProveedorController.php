@@ -42,10 +42,21 @@ class PagoProveedorController extends Controller
         return view('pagos.proveedores.index', compact('contratos', 'proveedores', 'empresas', 'idempotencyToken'));
     }
 
+    public function nuevoToken()
+    {
+        $token = \Illuminate\Support\Str::uuid()->toString();
+        session(['pago_proveedor_store_token' => $token]);
+        return response()->json(['token' => $token]);
+    }
+
     public function store(Request $request)
     {
         if (!$this->tokenValido('pago_proveedor_store_token', $request->input('_idempotency_token'))) {
-            Alert::error('Solicitud duplicada', 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.');
+            $mensaje = 'Este registro ya fue procesado. Recargue la página para registrar uno nuevo.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $mensaje], 409);
+            }
+            Alert::error('Solicitud duplicada', $mensaje);
             return redirect()->route('pagos.proveedores.index');
         }
         $request->validate([
@@ -123,7 +134,11 @@ class PagoProveedorController extends Controller
             }
         });
 
-        Alert::success('Éxito', 'Pago al proveedor registrado correctamente.');
+        $mensaje = 'Pago al proveedor registrado correctamente.';
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $mensaje]);
+        }
+        Alert::success('Éxito', $mensaje);
         return redirect()->route('pagos.proveedores.index');
     }
 
