@@ -155,9 +155,25 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Categoría <span class="text-danger">(*)</span></label>
-                            <select name="categoria" class="form-select" required>
-                                <option value="otro" selected>Otro</option>
-                            </select>
+                            <div class="input-group">
+                                <select name="categoria" id="mov_sel_categoria" class="form-select" required>
+                                    {{-- Las categorías propias del sistema (Pago de Cliente, Pago a Proveedor,
+                                         Préstamo Otorgado, etc.) no se ofrecen aquí: se generan automáticamente
+                                         desde sus propios módulos, no se eligen a mano en un movimiento manual. --}}
+                                    <option value="otro" selected>Otro</option>
+                                    @if($categoriasPersonalizadas->isNotEmpty())
+                                    <optgroup label="Categorías personalizadas" id="mov_grp_categorias_personalizadas">
+                                        @foreach($categoriasPersonalizadas as $cat)
+                                            <option value="{{ $cat->valor }}">{{ $cat->valor }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    @endif
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary" title="Nueva categoría personalizada"
+                                        onclick="abrirModalParametroRapido('categoria_movimiento', 'mov_sel_categoria', 'Nueva Categoría de Movimiento')">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
                             <div class="form-text text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
                                 Los pagos a clientes, proveedores y camiones se registran desde sus módulos correspondientes.
@@ -183,6 +199,11 @@
                             <input type="text" inputmode="numeric" id="tc_mov_display" class="form-control"
                                    placeholder="1,0000" autocomplete="off" {{ $cuenta->moneda === 'BOB' ? '' : 'required' }}>
                             <input type="hidden" name="tipo_cambio" id="tc_mov" value="1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Código de Transacción</label>
+                            <input type="text" name="codigo_seguimiento" class="form-control text-uppercase"
+                                   style="text-transform:uppercase" maxlength="100" placeholder="Opcional: se genera uno si lo deja vacío">
                         </div>
                         <div class="col-12">
                             <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
@@ -264,6 +285,31 @@
     </div>
 </div>
 
+{{-- ===== MODAL PARÁMETRO RÁPIDO (Nueva Categoría de Movimiento) ===== --}}
+<div class="modal fade" id="modalParametroRapido" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloParametroRapido"><i class="bi bi-plus-circle"></i> Nuevo Parámetro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Valor <span class="text-danger">(*)</span></label>
+                <input type="text" class="form-control" id="pr_valor" maxlength="255"
+                       placeholder="Ej: ALQUILER DE OFICINA" autocomplete="off" style="text-transform:uppercase"
+                       oninput="this.value=this.value.toUpperCase()">
+                <div id="pr_feedback" class="small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="pr_btn_guardar" onclick="guardarParametroRapido()">
+                    <i class="bi bi-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -339,5 +385,113 @@ document.getElementById('formEditarMovimiento').addEventListener('submit', funct
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 });
+
+// ===== Parámetro rápido: nueva categoría personalizada de movimiento =====
+function _normalizarValorParametroMov(valor) {
+    return valor.trim().replace(/\s+/g, ' ');
+}
+
+document.getElementById('pr_valor')?.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); guardarParametroRapido(); }
+});
+
+// Inserta la opción en el optgroup de "Categorías personalizadas" (lo crea si
+// todavía no existía), en orden alfabético.
+function _insertarOpcionCategoriaPersonalizada(select, valor) {
+    let grupo = document.getElementById('mov_grp_categorias_personalizadas');
+    if (!grupo) {
+        grupo = document.createElement('optgroup');
+        grupo.id = 'mov_grp_categorias_personalizadas';
+        grupo.label = 'Categorías personalizadas';
+        select.appendChild(grupo);
+    }
+    const op = document.createElement('option');
+    op.value = valor;
+    op.textContent = valor;
+    const siguiente = Array.from(grupo.children).find(
+        o => o.textContent.localeCompare(valor, 'es', { sensitivity: 'base' }) > 0
+    );
+    if (siguiente) grupo.insertBefore(op, siguiente);
+    else grupo.appendChild(op);
+    return op;
+}
+
+let _prTipo = null;
+let _prSelectId = null;
+
+function abrirModalParametroRapido(tipo, selectId, titulo) {
+    _prTipo = tipo;
+    _prSelectId = selectId;
+    document.getElementById('tituloParametroRapido').innerHTML = '<i class="bi bi-plus-circle"></i> ' + titulo;
+    const input = document.getElementById('pr_valor');
+    input.value = '';
+    document.getElementById('pr_feedback').innerHTML = '';
+    document.getElementById('pr_btn_guardar').disabled = false;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalParametroRapido')).show();
+    setTimeout(() => input.focus(), 300);
+}
+
+function guardarParametroRapido() {
+    const input = document.getElementById('pr_valor');
+    const feedback = document.getElementById('pr_feedback');
+    const btn = document.getElementById('pr_btn_guardar');
+    const valor = _normalizarValorParametroMov(input.value);
+
+    feedback.innerHTML = '';
+    if (!valor) {
+        feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Ingrese un valor.</span>';
+        return;
+    }
+
+    const select = document.getElementById(_prSelectId);
+    const yaExisteLocal = Array.from(select.options).some(
+        opt => opt.value && opt.textContent.trim().toUpperCase() === valor.toUpperCase()
+    );
+    if (yaExisteLocal) {
+        feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> "' + valor + '" ya está en la lista. Selecciónelo directamente.</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+    fetch('{{ route("parametros.store.ajax") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        },
+        body: JSON.stringify({ tipo: _prTipo, valor: valor }),
+    })
+    .then(async r => ({ status: r.status, data: await r.json() }))
+    .then(({ status, data }) => {
+        if (status === 409) {
+            feedback.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> ' + data.message + '</span>';
+            if (data.existente && !Array.from(select.options).some(o => o.value == data.existente.valor)) {
+                _insertarOpcionCategoriaPersonalizada(select, data.existente.valor);
+            }
+            if (data.existente) select.value = data.existente.valor;
+            return;
+        }
+        if (!data.ok) {
+            feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ' + (data.message || 'No se pudo guardar.') + '</span>';
+            return;
+        }
+
+        _insertarOpcionCategoriaPersonalizada(select, data.item.valor);
+        select.value = data.item.valor;
+        select.dispatchEvent(new Event('change'));
+
+        bootstrap.Modal.getInstance(document.getElementById('modalParametroRapido')).hide();
+    })
+    .catch(() => {
+        feedback.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Error de conexión. Intente de nuevo.</span>';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save"></i> Guardar';
+    });
+}
 </script>
 @endsection

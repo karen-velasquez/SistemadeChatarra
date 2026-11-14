@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\LotePago;
+use App\Models\Movimiento;
 use App\Models\PagoCamion;
 use App\Models\PagoCliente;
 use App\Models\PagoProveedor;
@@ -11,10 +12,10 @@ trait GeneraCodigoSeguimientoUnico
 {
     /**
      * Genera un código con el prefijo dado, verificando que no choque con
-     * ningún código_seguimiento (pagos_camion/pagos_proveedor/pagos_cliente)
-     * ni con ningún codigo_provisional/codigo_real de lotes_pago. Los cuatro
-     * comparten el mismo "espacio de nombres" visual en Tesorería, así que
-     * la unicidad se verifica cruzando las cuatro fuentes, no solo la propia.
+     * ningún código_seguimiento (pagos_camion/pagos_proveedor/pagos_cliente/
+     * movimientos) ni con ningún codigo_provisional/codigo_real de lotes_pago.
+     * Comparten el mismo "espacio de nombres" visual en Tesorería, así que
+     * la unicidad se verifica cruzando todas las fuentes, no solo la propia.
      */
     protected function generarCodigoUnico(string $prefijo): string
     {
@@ -53,9 +54,15 @@ trait GeneraCodigoSeguimientoUnico
             $qLoteReal->where('id', '!=', $exceptoLoteId);
         }
 
+        $qMovimiento = Movimiento::withTrashed()->where('codigo_seguimiento', $codigo);
+        if ($exceptoPagoClase === Movimiento::class && !empty($idsExcluir)) {
+            $qMovimiento->whereNotIn('id', $idsExcluir);
+        }
+
         return $qCamion->exists()
             || $qProveedor->exists()
             || $qCliente->exists()
+            || $qMovimiento->exists()
             || $qLoteProvisional->exists()
             || $qLoteReal->exists();
     }

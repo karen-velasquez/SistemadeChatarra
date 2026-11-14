@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Movimiento;
 use App\Models\CuentaEmpresa;
 use App\Models\Empresa;
+use App\Models\Parametro;
 use Illuminate\Http\Request;
 use RealRashid\SweetAlert\Facades\Alert;
 class MovimientoController extends Controller
 {
     use \App\Http\Controllers\Concerns\PrevenirRegistroDoble;
+    use \App\Http\Controllers\Concerns\GeneraCodigoSeguimientoUnico;
 
     public function __construct()
     {
@@ -71,7 +73,8 @@ class MovimientoController extends Controller
         $totalIngresos = Movimiento::where('cuenta_empresa_id', $cuenta->id)->where('tipo', 'ingreso')->whereNull('deleted_at')->sum('monto_bolivianos');
         $totalEgresos  = Movimiento::where('cuenta_empresa_id', $cuenta->id)->where('tipo', 'egreso')->whereNull('deleted_at')->sum('monto_bolivianos');
         $idempotencyToken = $this->generarToken('movimiento_store_token');
-        return view('movimientos.por_cuenta', compact('cuenta', 'movimientos', 'totalIngresos', 'totalEgresos', 'idempotencyToken'));
+        $categoriasPersonalizadas = Parametro::tipo('categoria_movimiento')->orderBy('valor')->get();
+        return view('movimientos.por_cuenta', compact('cuenta', 'movimientos', 'totalIngresos', 'totalEgresos', 'idempotencyToken', 'categoriasPersonalizadas'));
 }
     // Registrar movimiento manual
     public function store(Request $request)
@@ -90,7 +93,15 @@ class MovimientoController extends Controller
             'tipo_cambio'       => 'required|numeric|min:0.0001',
             'fecha'             => 'required|date',
             'concepto'          => 'required|string|max:255',
+            'codigo_seguimiento' => ['nullable', 'string', 'max:100', function ($attr, $value, $fail) {
+                if (!$this->codigoDisponible($value)) {
+                    $fail('Ese código de transacción ya está en uso por otro movimiento o pago. Verifique o ingrese uno distinto.');
+                }
+            }],
         ]);
+
+        $codigoSeguimiento = $request->codigo_seguimiento ?: $this->generarCodigoUnico('MOV');
+
         Movimiento::create([
             'cuenta_empresa_id' => $request->cuenta_empresa_id,
             'tipo'              => $request->tipo,
@@ -102,6 +113,7 @@ class MovimientoController extends Controller
             'fecha'             => $request->fecha,
             'concepto'          => $request->concepto,
             'observaciones'     => $request->observaciones,
+            'codigo_seguimiento' => $codigoSeguimiento,
             'created_by'        => auth()->id(),
             'updated_by'        => auth()->id(),
         ]);
