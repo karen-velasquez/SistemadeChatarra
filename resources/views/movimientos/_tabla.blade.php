@@ -51,7 +51,12 @@
                     default               => 'bg-secondary',
                 };
             @endphp
-            <tr class="{{ $rowClass }}">
+            <tr class="{{ $rowClass }}"
+                data-fecha="{{ $m->fecha->format('Y-m-d') }}"
+                data-empresa-id="{{ $m->cuentaEmpresa->empresa_id ?? '' }}"
+                data-categoria="{{ $m->categoria }}"
+                data-tipo="{{ $m->tipo }}"
+                data-codigo="{{ strtoupper((string) $m->codigo_seguimiento) }}">
                 <td class="text-nowrap">{{ $m->fecha->format('d/m/Y') }}</td>
                 @if($mostrarCuenta)
                 <td>

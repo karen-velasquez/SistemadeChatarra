@@ -143,6 +143,64 @@
                 <i class="bi bi-info-circle me-1"></i>
                 Resumen general de todas las cuentas. Para ver el detalle de una cuenta, ingresa desde las cards de empresa.
             </p>
+
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Código</label>
+                    <input type="text" id="mov_filtro_codigo" class="form-control form-control-sm" placeholder="Código de seguimiento">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Desde</label>
+                    <input type="date" id="mov_filtro_desde" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Hasta</label>
+                    <input type="date" id="mov_filtro_hasta" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Empresa</label>
+                    <select id="mov_filtro_empresa" class="form-select form-select-sm">
+                        <option value="">— Todas —</option>
+                        @foreach($empresas as $emp)
+                            <option value="{{ $emp->id }}">{{ $emp->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Categoría</label>
+                    <select id="mov_filtro_categoria" class="form-select form-select-sm">
+                        <option value="">— Todas —</option>
+                        <option value="anticipo_cliente">Anticipo de Cliente</option>
+                        <option value="pago_cliente">Pago de Cliente</option>
+                        <option value="pago_proveedor">Pago a Proveedor</option>
+                        <option value="pago_camion">Pago a Camión</option>
+                        <option value="gasto_extra">Gasto Extra</option>
+                        <option value="pago_sueldo">Pago de Sueldo</option>
+                        <option value="mantenimiento_camion">Mantenimiento de Camión</option>
+                        <option value="prestamo_otorgado">Préstamo Otorgado</option>
+                        <option value="prestamo_recibido">Préstamo Recibido</option>
+                        <option value="devolucion_prestamo">Devolución Préstamo</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Tipo</label>
+                    <select id="mov_filtro_tipo" class="form-select form-select-sm">
+                        <option value="">— Todos —</option>
+                        <option value="ingreso">Ingreso</option>
+                        <option value="egreso">Egreso</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosMovimientos()">
+                        <i class="bi bi-x-circle"></i> Limpiar
+                    </button>
+                </div>
+                <div class="col-auto ms-auto">
+                    <small class="text-muted">Mostrando <span id="mov_lbl_count">{{ $ultimosMovimientos->count() }}</span> movimiento(s)</small>
+                </div>
+            </div>
+
             @include('movimientos._tabla', ['movimientos' => $ultimosMovimientos, 'mostrarCuenta' => true, 'mostrarEliminar' => false])
         </div>
     </div>
@@ -247,7 +305,71 @@
 <script>
 // La tabla ya llega ordenada por fecha desde el backend (orderByDesc en el controlador).
 // DataTables se quitó: su envoltorio rompía el sticky de la cabecera al hacer scroll,
-// igual que en Seguimiento de Cargas. Sin filtro propio que lo reemplace, se pierde la
-// búsqueda y el reordenar por columna, pero se gana la cabecera fija.
+// igual que en Seguimiento de Cargas. En su lugar, el filtro se hace a mano sobre las
+// filas ya renderizadas (toda la tabla llega sin paginar), igual patrón que en
+// Pagos a Proveedores — usando los data-* que cada fila trae en _tabla.blade.php.
+
+// Buscador en el select de Empresa
+$('#mov_filtro_empresa').select2({
+    placeholder: '— Todas —',
+    allowClear: true,
+    width: '100%',
+    language: {
+        noResults: () => 'No se encontró ninguna empresa.',
+        searching: () => 'Buscando...'
+    }
+}).on('change', aplicarFiltrosMovimientos);
+
+let _movFiltroDebounce = null;
+function aplicarFiltrosMovimientosDebounced() {
+    clearTimeout(_movFiltroDebounce);
+    _movFiltroDebounce = setTimeout(aplicarFiltrosMovimientos, 300);
+}
+
+function aplicarFiltrosMovimientos() {
+    const tbody = document.querySelector('#tabla_movimientos tbody');
+    if (!tbody) return;
+
+    const codigo    = (document.getElementById('mov_filtro_codigo').value || '').trim().toUpperCase();
+    const desde     = document.getElementById('mov_filtro_desde').value;
+    const hasta     = document.getElementById('mov_filtro_hasta').value;
+    const empresaId = document.getElementById('mov_filtro_empresa').value;
+    const categoria = document.getElementById('mov_filtro_categoria').value;
+    const tipo      = document.getElementById('mov_filtro_tipo').value;
+
+    let visibles = 0;
+    tbody.querySelectorAll('tr').forEach(fila => {
+        const fecha = fila.dataset.fecha || '';
+        const okCodigo   = !codigo    || (fila.dataset.codigo || '').includes(codigo);
+        const okDesde    = !desde     || (fecha && fecha >= desde);
+        const okHasta    = !hasta     || (fecha && fecha <= hasta);
+        const okEmpresa  = !empresaId || fila.dataset.empresaId === empresaId;
+        const okCategoria= !categoria || fila.dataset.categoria === categoria;
+        const okTipo     = !tipo      || fila.dataset.tipo === tipo;
+
+        const mostrar = okCodigo && okDesde && okHasta && okEmpresa && okCategoria && okTipo;
+        fila.style.display = mostrar ? '' : 'none';
+        if (mostrar) visibles++;
+    });
+
+    const lbl = document.getElementById('mov_lbl_count');
+    if (lbl) lbl.textContent = visibles;
+}
+
+function limpiarFiltrosMovimientos() {
+    document.getElementById('mov_filtro_codigo').value = '';
+    document.getElementById('mov_filtro_desde').value  = '';
+    document.getElementById('mov_filtro_hasta').value  = '';
+    $('#mov_filtro_empresa').val('').trigger('change.select2');
+    document.getElementById('mov_filtro_categoria').value = '';
+    document.getElementById('mov_filtro_tipo').value = '';
+    aplicarFiltrosMovimientos();
+}
+
+document.getElementById('mov_filtro_codigo').addEventListener('input', aplicarFiltrosMovimientosDebounced);
+document.getElementById('mov_filtro_desde').addEventListener('change', aplicarFiltrosMovimientos);
+document.getElementById('mov_filtro_hasta').addEventListener('change', aplicarFiltrosMovimientos);
+document.getElementById('mov_filtro_categoria').addEventListener('change', aplicarFiltrosMovimientos);
+document.getElementById('mov_filtro_tipo').addEventListener('change', aplicarFiltrosMovimientos);
 </script>
 @endsection
