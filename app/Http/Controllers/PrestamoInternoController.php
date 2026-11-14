@@ -19,16 +19,43 @@ class PrestamoInternoController extends Controller
         $this->middleware('auth');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $prestamos = PrestamoInterno::with(['cuentaOrigen.empresa', 'cuentaDestino.empresa'])
-            ->orderByDesc('fecha_prestamo')
-            ->paginate(20);
+        $codigo = trim((string) $request->input('codigo'));
+        $desde = $request->input('desde');
+        $hasta = $request->input('hasta');
+        $cuentaDestinoId = $request->input('cuenta_destino_id');
+        $estado = $request->input('estado');
+
+        $query = PrestamoInterno::with(['cuentaOrigen.empresa', 'cuentaDestino.empresa'])
+            ->orderByDesc('fecha_prestamo');
+
+        if ($codigo !== '') {
+            $query->where('codigo_seguimiento', 'like', "%{$codigo}%");
+        }
+        if ($desde) {
+            $query->whereDate('fecha_prestamo', '>=', $desde);
+        }
+        if ($hasta) {
+            $query->whereDate('fecha_prestamo', '<=', $hasta);
+        }
+        if ($cuentaDestinoId) {
+            $query->where('cuenta_destino_id', $cuentaDestinoId);
+        }
+        if (in_array($estado, ['pendiente', 'pagado_parcial', 'pagado'])) {
+            $query->where('estado', $estado);
+        }
+
+        $prestamos = $query->paginate(20)->withQueryString();
 
         $empresas = Empresa::with('cuentas')->get();
+        $cuentas = CuentaEmpresa::whereNull('deleted_at')->orderBy('nombre_cuenta')->get();
         $idempotencyToken = $this->generarToken('prestamo_store_token');
 
-        return view('prestamos_internos.index', compact('prestamos', 'empresas', 'idempotencyToken'));
+        return view('prestamos_internos.index', compact(
+            'prestamos', 'empresas', 'cuentas', 'idempotencyToken',
+            'codigo', 'desde', 'hasta', 'cuentaDestinoId', 'estado'
+        ));
     }
 
     public function store(Request $request)

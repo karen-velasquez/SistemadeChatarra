@@ -81,7 +81,49 @@
     <div class="card">
         <div class="card-body">
             <h5 class="card-title mb-3">Historial de Préstamos</h5>
-            <div class="table-responsive">
+
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Código</label>
+                    <input type="text" id="pi_filtro_codigo" class="form-control form-control-sm"
+                           placeholder="Código de seguimiento" value="{{ $codigo }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Desde</label>
+                    <input type="date" id="pi_filtro_desde" class="form-control form-control-sm" value="{{ $desde }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Hasta</label>
+                    <input type="date" id="pi_filtro_hasta" class="form-control form-control-sm" value="{{ $hasta }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Destino</label>
+                    <select id="pi_filtro_destino" class="form-select form-select-sm">
+                        <option value="">— Todos —</option>
+                        @foreach($cuentas as $cta)
+                            <option value="{{ $cta->id }}" {{ (string) $cuentaDestinoId === (string) $cta->id ? 'selected' : '' }}>
+                                {{ $cta->empresa->nombre ?? '—' }} — {{ $cta->nombre_cuenta }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Estado</label>
+                    <select id="pi_filtro_estado" class="form-select form-select-sm">
+                        <option value="">— Todos —</option>
+                        <option value="pendiente" {{ $estado === 'pendiente' ? 'selected' : '' }}>Pendiente</option>
+                        <option value="pagado_parcial" {{ $estado === 'pagado_parcial' ? 'selected' : '' }}>Parcial</option>
+                        <option value="pagado" {{ $estado === 'pagado' ? 'selected' : '' }}>Pagado</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosPrestamos()">
+                        <i class="bi bi-x-circle"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive" id="pi-contenido">
                 <table id="pi-tabla" class="table table-hover table-sm table-bordered">
                     <thead>
                         <tr>
@@ -171,8 +213,8 @@
                         @endforelse
                     </tbody>
                 </table>
+                <div class="mt-2">{{ $prestamos->links() }}</div>
             </div>
-            {{ $prestamos->links() }}
         </div>
     </div>
 </section>
@@ -411,6 +453,67 @@
 
 @section('scripts')
 <script>
+// ===== Filtros del historial de préstamos (AJAX: no pierde el filtro al paginar/recargar) =====
+let _piFiltroDebounce = null;
+function aplicarFiltrosPrestamosDebounced() {
+    clearTimeout(_piFiltroDebounce);
+    _piFiltroDebounce = setTimeout(aplicarFiltrosPrestamos, 400);
+}
+
+function aplicarFiltrosPrestamos(url) {
+    const codigo = document.getElementById('pi_filtro_codigo')?.value || '';
+    const desde = document.getElementById('pi_filtro_desde')?.value || '';
+    const hasta = document.getElementById('pi_filtro_hasta')?.value || '';
+    const destino = document.getElementById('pi_filtro_destino')?.value || '';
+    const estado = document.getElementById('pi_filtro_estado')?.value || '';
+
+    const target = url || `${url_global}/prestamos-internos?codigo=${encodeURIComponent(codigo)}`
+        + `&desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`
+        + `&cuenta_destino_id=${encodeURIComponent(destino)}&estado=${encodeURIComponent(estado)}`;
+
+    fetch(target)
+        .then(r => r.text())
+        .then(html => {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nuevo = doc.getElementById('pi-contenido');
+            const actual = document.getElementById('pi-contenido');
+            if (nuevo && actual) actual.innerHTML = nuevo.innerHTML;
+        });
+}
+
+function limpiarFiltrosPrestamos() {
+    document.getElementById('pi_filtro_codigo').value = '';
+    document.getElementById('pi_filtro_desde').value = '';
+    document.getElementById('pi_filtro_hasta').value = '';
+    $('#pi_filtro_destino').val('').trigger('change.select2');
+    document.getElementById('pi_filtro_estado').value = '';
+    aplicarFiltrosPrestamos();
+}
+
+document.getElementById('pi_filtro_codigo')?.addEventListener('input', aplicarFiltrosPrestamosDebounced);
+document.getElementById('pi_filtro_desde')?.addEventListener('change', () => aplicarFiltrosPrestamos());
+document.getElementById('pi_filtro_hasta')?.addEventListener('change', () => aplicarFiltrosPrestamos());
+document.getElementById('pi_filtro_estado')?.addEventListener('change', () => aplicarFiltrosPrestamos());
+
+// Buscador en el select de Destino
+$('#pi_filtro_destino').select2({
+    placeholder: '— Todos —',
+    allowClear: true,
+    width: '100%',
+    language: {
+        noResults: () => 'No se encontró ninguna cuenta.',
+        searching: () => 'Buscando...'
+    }
+}).on('change', () => aplicarFiltrosPrestamos());
+
+// Paginación del listado por AJAX para no recargar toda la vista ni perder el filtro
+document.getElementById('pi-contenido')?.addEventListener('click', function (e) {
+    const link = e.target.closest('.pagination a[href]');
+    if (!link) return;
+    e.preventDefault();
+    aplicarFiltrosPrestamos(link.href);
+});
+
 function filtrarDestino() {
     const origenSel = document.getElementById('cuentaOrigen');
     const origenId  = origenSel.value;
