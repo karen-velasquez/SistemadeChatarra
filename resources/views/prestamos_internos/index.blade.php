@@ -182,6 +182,21 @@
                             </td>
                             @canany(['prestamos_internos.create', 'prestamos_internos.edit', 'prestamos_internos.destroy'])
                             <td class="text-center text-nowrap">
+                                @if($p->devoluciones->isNotEmpty())
+                                <button class="btn btn-sm btn-outline-info" title="Ver devoluciones"
+                                        onclick="abrirVerDevoluciones({{ Js::from($p->uuid) }}, {{ Js::from($p->moneda) }}, {{ Js::from($p->devoluciones->map(fn($d) => [
+                                            'uuid' => $d->uuid,
+                                            'monto' => $d->monto,
+                                            'fecha' => $d->fecha->format('Y-m-d'),
+                                            'concepto' => $d->concepto,
+                                            'metodo_pago' => $d->metodo_pago,
+                                            'codigo_seguimiento' => $d->codigo_seguimiento,
+                                            'voucher' => $d->voucher,
+                                            'estado' => $d->estado,
+                                        ])) }})">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                @endif
                                 @can('prestamos_internos.create')
                                 @if($p->estado !== 'pagado')
                                 <button class="btn btn-sm btn-outline-success"
@@ -242,7 +257,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
             </div>
-            <form id="formPrestamo" method="POST" action="{{ route('prestamos_internos.store') }}">
+            <form id="formPrestamo" method="POST" action="{{ route('prestamos_internos.store') }}" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_idempotency_token" id="idempotencyTokenPrestamo" value="{{ $idempotencyToken ?? '' }}">
                 <div class="modal-body">
@@ -315,6 +330,11 @@
                             <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
                             <input type="text" name="concepto" class="form-control" required placeholder="Motivo del préstamo">
                         </div>
+                        <div class="col-12">
+                            <label class="form-label">Voucher / Comprobante</label>
+                            <input type="file" name="voucher" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                            <small class="text-muted">Opcional. JPG, PNG o PDF, máx. 5 MB.</small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -363,7 +383,7 @@
                 <h5 class="modal-title"><i class="bi bi-arrow-return-left"></i> Registrar Devolución</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="formDevolucion" method="POST" action="">
+            <form id="formDevolucion" method="POST" action="" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body">
                     <div class="alert alert-info py-2" id="infoDevolucion"></div>
@@ -380,11 +400,143 @@
                             <label class="form-label">Concepto</label>
                             <input type="text" name="concepto" class="form-control" placeholder="Devolución parcial / total">
                         </div>
+                        <div class="col-md-6" id="contenedor_metodo_pago_devolucion">
+                            <label class="form-label">Método de Pago<span id="asterisco_metodo_pago_devolucion" class="text-danger">(*)</span></label>
+                            <select name="metodo_pago" id="metodo_pago_devolucion" class="form-select" required onchange="actualizarCodigoSeguimientoDevolucion()">
+                                <option value="">-- SELECCIONE --</option>
+                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                <option value="QR">QR</option>
+                            </select>
+                            <small class="text-muted">Cómo se transfirió el dinero entre cuentas.</small>
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_seguimiento_devolucion">
+                            <label class="form-label">Código de Transferencia<span class="text-danger">(*)</span></label>
+                            <input type="text" name="codigo_seguimiento" id="codigo_seguimiento_devolucion" class="form-control" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_qr_info_devolucion">
+                            <label class="form-label">Código QR</label>
+                            <input type="text" id="codigo_qr_info_devolucion" class="form-control" readonly>
+                            <small class="text-muted">Código interno generado automáticamente.</small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Voucher de Devolución</label>
+                            <input type="file" name="voucher" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                            <small class="text-muted">Opcional. JPG, PNG o PDF, máx. 5 MB.</small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success">Registrar Devolución</button>
+                </div>
+            </form>
+            <script>
+            function actualizarCodigoSeguimientoDevolucion() {
+                var metodo = document.getElementById('metodo_pago_devolucion').value;
+                var contCodigo = document.getElementById('contenedor_codigo_seguimiento_devolucion');
+                var contQrInfo = document.getElementById('contenedor_codigo_qr_info_devolucion');
+                var inpCodigo = document.getElementById('codigo_seguimiento_devolucion');
+
+                contCodigo.classList.add('d-none');
+                contQrInfo.classList.add('d-none');
+                inpCodigo.required = false;
+
+                if (metodo === 'TRANSFERENCIA') {
+                    contCodigo.classList.remove('d-none');
+                    inpCodigo.required = true;
+                } else if (metodo === 'QR') {
+                    contQrInfo.classList.remove('d-none');
+                    document.getElementById('codigo_qr_info_devolucion').value = 'Se generará automáticamente al guardar';
+                }
+            }
+            </script>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL VER DEVOLUCIONES --}}
+<div class="modal fade" id="modalVerDevoluciones" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye"></i> Devoluciones del Préstamo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th class="text-end">Monto</th>
+                                <th>Concepto</th>
+                                <th>Código</th>
+                                <th class="text-center">Voucher</th>
+                                <th class="text-center">Estado</th>
+                                @canany(['prestamos_internos.devoluciones.edit', 'prestamos_internos.devoluciones.destroy'])
+                                <th class="text-center">Acción</th>
+                                @endcanany
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyVerDevoluciones"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL EDITAR DEVOLUCIÓN --}}
+<div class="modal fade" id="modalEditarDevolucion" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Devolución</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarDevolucion" method="POST" action="" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha <span class="text-danger">(*)</span></label>
+                            <input type="date" name="fecha" id="fechaEditarDevolucion" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Concepto</label>
+                            <input type="text" name="concepto" id="conceptoEditarDevolucion" class="form-control">
+                        </div>
+                        <div class="col-md-6" id="contenedor_metodo_pago_editar_devolucion">
+                            <label class="form-label">Método de Pago<span class="text-danger">(*)</span></label>
+                            <select name="metodo_pago" id="metodoPagoEditarDevolucion" class="form-select" required onchange="actualizarCodigoSeguimientoEditarDevolucion()">
+                                <option value="">-- SELECCIONE --</option>
+                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                <option value="QR">QR</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_seguimiento_editar_devolucion">
+                            <label class="form-label">Código de Transferencia<span class="text-danger">(*)</span></label>
+                            <input type="text" name="codigo_seguimiento" id="codigoSeguimientoEditarDevolucion" class="form-control" placeholder="CÓDIGO DEL BANCO" onkeyup="this.value=this.value.toUpperCase();">
+                        </div>
+                        <div class="col-md-6 d-none" id="contenedor_codigo_qr_info_editar_devolucion">
+                            <label class="form-label">Código QR</label>
+                            <input type="text" id="codigoQrInfoEditarDevolucion" class="form-control" readonly>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Voucher de Devolución</label>
+                            <div id="voucherActualEditarDevolucion" class="small mb-1"></div>
+                            <input type="file" name="voucher" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                            <small class="text-muted">Opcional. Suba uno nuevo solo si desea reemplazarlo.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -399,7 +551,7 @@
                 <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Préstamo Interno</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="formEditarPrestamo" method="POST" action="">
+            <form id="formEditarPrestamo" method="POST" action="" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-body">
@@ -437,6 +589,12 @@
                         <div class="col-12">
                             <label class="form-label">Concepto <span class="text-danger">(*)</span></label>
                             <input type="text" name="concepto" id="conceptoEditarPrestamo" class="form-control" required placeholder="Motivo del préstamo">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Voucher / Comprobante</label>
+                            <div id="voucherActualEditarPrestamo" class="small mb-1"></div>
+                            <input type="file" name="voucher" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                            <small class="text-muted">Opcional. Suba uno nuevo solo si desea reemplazarlo.</small>
                         </div>
                     </div>
                 </div>
@@ -577,7 +735,102 @@ function abrirDevolucion(uuid, concepto, montoPendiente, moneda) {
     document.getElementById('montoDevolucion').value = montoPendiente;
     document.getElementById('infoDevolucion').innerHTML =
         '<strong>' + concepto + '</strong><br>Pendiente: <strong>' + moneda + ' ' + _fmtPI(montoPendiente) + '</strong>';
+    document.getElementById('metodo_pago_devolucion').value = '';
+    document.getElementById('codigo_seguimiento_devolucion').value = '';
+    actualizarCodigoSeguimientoDevolucion();
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDevolucion')).show();
+}
+
+const _puedeEditarDevolucion  = @json(auth()->user()->can('prestamos_internos.devoluciones.edit'));
+const _puedeEliminarDevolucion = @json(auth()->user()->can('prestamos_internos.devoluciones.destroy'));
+
+function abrirVerDevoluciones(prestamoUuid, moneda, devoluciones) {
+    const tbody = document.getElementById('tbodyVerDevoluciones');
+    const conAccion = _puedeEditarDevolucion || _puedeEliminarDevolucion;
+    tbody.innerHTML = devoluciones.map(d => {
+        const cancelada = d.estado === 'cancelada';
+        return `
+        <tr class="${cancelada ? 'table-secondary text-decoration-line-through' : ''}">
+            <td>${new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-BO')}</td>
+            <td class="text-end">${moneda} ${_fmtPI(d.monto)}</td>
+            <td>${d.concepto ?? ''}</td>
+            <td>${d.codigo_seguimiento
+                ? `<span class="small text-muted d-block">${d.metodo_pago ?? ''}</span><code class="small">${d.codigo_seguimiento}</code>`
+                : '<span class="text-muted small">—</span>'}</td>
+            <td class="text-center">${d.voucher
+                ? `<a href="/storage/${d.voucher}" target="_blank"><i class="bi bi-file-earmark-check"></i> Ver</a>`
+                : '<span class="text-muted">—</span>'}</td>
+            <td class="text-center">${cancelada ? '<span class="badge bg-secondary">Cancelada</span>' : '<span class="badge bg-success">Activa</span>'}</td>
+            ${conAccion ? `<td class="text-center text-nowrap">
+                ${cancelada ? '' : `
+                ${_puedeEditarDevolucion ? `<button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="abrirEditarDevolucion('${d.uuid}')"><i class="bi bi-pencil"></i></button>` : ''}
+                ${_puedeEliminarDevolucion ? `<a class="btn btn-sm btn-outline-danger" title="Cancelar" href="${url_global}/prestamos-internos/devoluciones/${d.uuid}" onclick="return confirmarEliminarDevolucion(event, '${d.uuid}')"><i class="bi bi-trash"></i></a>` : ''}
+                `}
+            </td>` : ''}
+        </tr>
+    `;
+    }).join('') || '<tr><td colspan="7" class="text-center text-muted">Sin devoluciones</td></tr>';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalVerDevoluciones')).show();
+}
+
+function confirmarEliminarDevolucion(e, uuid) {
+    e.preventDefault();
+    Swal.fire({
+        title: '¿Cancelar esta devolución?',
+        html: 'Se revertirá el efecto en los saldos de ambas cuentas. Quedará marcada como <strong>cancelada</strong> (no se elimina del historial).',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, cancelar',
+        cancelButtonText: 'Volver',
+        confirmButtonColor: '#dc3545',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url_global + '/prestamos-internos/devoluciones/' + uuid;
+        form.innerHTML = `@csrf @method('DELETE')`;
+        document.body.appendChild(form);
+        form.submit();
+    });
+    return false;
+}
+
+function abrirEditarDevolucion(uuid) {
+    fetch(url_global + '/prestamos-internos/devoluciones/' + uuid + '/edit')
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('formEditarDevolucion').action = url_global + '/prestamos-internos/devoluciones/' + uuid;
+            document.getElementById('fechaEditarDevolucion').value = d.fecha ? d.fecha.substring(0, 10) : '';
+            document.getElementById('conceptoEditarDevolucion').value = d.concepto ?? '';
+            document.getElementById('metodoPagoEditarDevolucion').value = d.metodo_pago ?? '';
+            document.getElementById('codigoSeguimientoEditarDevolucion').value = d.metodo_pago === 'TRANSFERENCIA' ? (d.codigo_seguimiento ?? '') : '';
+            document.getElementById('voucherActualEditarDevolucion').innerHTML = d.voucher
+                ? '<a href="/storage/' + d.voucher + '" target="_blank"><i class="bi bi-file-earmark-check"></i> Ver voucher actual</a>'
+                : '<span class="text-muted">Sin voucher cargado</span>';
+            actualizarCodigoSeguimientoEditarDevolucion();
+            if (d.metodo_pago === 'QR') {
+                document.getElementById('codigoQrInfoEditarDevolucion').value = d.codigo_seguimiento ?? '';
+            }
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarDevolucion')).show();
+        });
+}
+
+function actualizarCodigoSeguimientoEditarDevolucion() {
+    var metodo = document.getElementById('metodoPagoEditarDevolucion').value;
+    var contCodigo = document.getElementById('contenedor_codigo_seguimiento_editar_devolucion');
+    var contQrInfo = document.getElementById('contenedor_codigo_qr_info_editar_devolucion');
+    var inpCodigo = document.getElementById('codigoSeguimientoEditarDevolucion');
+
+    contCodigo.classList.add('d-none');
+    contQrInfo.classList.add('d-none');
+    inpCodigo.required = false;
+
+    if (metodo === 'TRANSFERENCIA') {
+        contCodigo.classList.remove('d-none');
+        inpCodigo.required = true;
+    } else if (metodo === 'QR') {
+        contQrInfo.classList.remove('d-none');
+    }
 }
 
 // ── Cajero monto préstamo ──
@@ -624,6 +877,9 @@ function abrirEditarPrestamo(uuid) {
             document.getElementById('conceptoEditarPrestamo').value = p.concepto ?? '';
             document.getElementById('metodoPagoEditarPrestamo').value = p.metodo_pago ?? '';
             document.getElementById('codigoSeguimientoEditarPrestamo').value = p.metodo_pago === 'TRANSFERENCIA' ? (p.codigo_seguimiento ?? '') : '';
+            document.getElementById('voucherActualEditarPrestamo').innerHTML = p.voucher
+                ? '<a href="/storage/' + p.voucher + '" target="_blank"><i class="bi bi-file-earmark-check"></i> Ver voucher actual</a>'
+                : '<span class="text-muted">Sin voucher cargado</span>';
             actualizarCodigoSeguimientoEditarPrestamo();
             if (p.metodo_pago === 'QR') {
                 document.getElementById('codigoQrInfoEditarPrestamo').value = p.codigo_seguimiento ?? '';

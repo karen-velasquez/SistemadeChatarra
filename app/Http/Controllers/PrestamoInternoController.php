@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\PrestamoInterno;
+use App\Models\PrestamoInternoDevolucion;
 use App\Models\CuentaEmpresa;
 use App\Models\Empresa;
 use App\Models\Movimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class PrestamoInternoController extends Controller
@@ -27,7 +29,7 @@ class PrestamoInternoController extends Controller
         $cuentaDestinoId = $request->input('cuenta_destino_id');
         $estado = $request->input('estado');
 
-        $query = PrestamoInterno::with(['cuentaOrigen.empresa', 'cuentaDestino.empresa'])
+        $query = PrestamoInterno::with(['cuentaOrigen.empresa', 'cuentaDestino.empresa', 'devoluciones'])
             ->orderByDesc('fecha_prestamo');
 
         if ($codigo !== '') {
@@ -74,8 +76,11 @@ class PrestamoInternoController extends Controller
             'concepto'           => 'nullable|string',
             'metodo_pago'        => 'nullable|in:TRANSFERENCIA,QR',
             'codigo_seguimiento' => 'required_if:metodo_pago,TRANSFERENCIA|nullable|string|max:100',
+            'voucher'            => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
+            'voucher.mimes'                  => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'                    => 'El comprobante no debe superar los 5 MB.',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -91,6 +96,7 @@ class PrestamoInternoController extends Controller
                 'concepto'           => $request->concepto,
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $this->resolverCodigoSeguimiento($request->metodo_pago, $request->codigo_seguimiento),
+                'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_prestamo_interno', 'public') : null,
                 'created_by'         => auth()->id(),
                 'updated_by'         => auth()->id(),
             ]);
@@ -155,14 +161,17 @@ class PrestamoInternoController extends Controller
             'concepto'           => 'nullable|string',
             'metodo_pago'        => 'nullable|in:TRANSFERENCIA,QR',
             'codigo_seguimiento' => 'required_if:metodo_pago,TRANSFERENCIA|nullable|string|max:100',
+            'voucher'            => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
+            'voucher.mimes'                  => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'                    => 'El comprobante no debe superar los 5 MB.',
         ]);
 
         DB::transaction(function () use ($request, $prestamo) {
             $codigoActualSiEraQr = $prestamo->metodo_pago === 'QR' ? $prestamo->codigo_seguimiento : null;
 
-            $prestamo->update([
+            $datos = [
                 'monto_original'     => $request->monto,
                 'fecha_prestamo'     => $request->fecha_prestamo,
                 'fecha_vencimiento'  => $request->fecha_vencimiento,
@@ -170,7 +179,17 @@ class PrestamoInternoController extends Controller
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $this->resolverCodigoSeguimiento($request->metodo_pago, $request->codigo_seguimiento, $codigoActualSiEraQr),
                 'updated_by'         => auth()->id(),
-            ]);
+            ];
+
+            if ($request->hasFile('voucher')) {
+                $anterior = $prestamo->voucher;
+                $datos['voucher'] = $request->file('voucher')->store('vouchers_prestamo_interno', 'public');
+                if ($anterior) {
+                    Storage::disk('public')->delete($anterior);
+                }
+            }
+
+            $prestamo->update($datos);
 
             // Los hooks de Movimiento revierten el efecto anterior en la cuenta
             // y aplican el nuevo automáticamente al detectar el cambio de monto/fecha.
@@ -228,8 +247,19 @@ class PrestamoInternoController extends Controller
         $prestamo = PrestamoInterno::where('uuid', $uuid)->firstOrFail();
 
         $request->validate([
-            'monto' => 'required|numeric|min:0.01|max:' . $prestamo->monto_pendiente,
-            'fecha' => 'required|date',
+            'monto'              => 'required|numeric|min:0.01|max:' . $prestamo->monto_pendiente,
+            'fecha'              => 'required|date',
+            'metodo_pago'        => 'nullable|in:TRANSFERENCIA,QR',
+            'codigo_seguimiento' => ['required_if:metodo_pago,TRANSFERENCIA', 'nullable', 'string', 'max:100', function ($attr, $value, $fail) {
+                if (!$this->codigoDevolucionDisponible($value)) {
+                    $fail('Ese código de transferencia ya está en uso por otro préstamo o devolución.');
+                }
+            }],
+            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
+            'voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'   => 'El comprobante no debe superar los 5 MB.',
         ]);
 
         DB::transaction(function () use ($request, $prestamo) {
@@ -239,6 +269,17 @@ class PrestamoInternoController extends Controller
                 : 'pagado_parcial';
             $prestamo->updated_by = auth()->id();
             $prestamo->save();
+
+            $devolucion = PrestamoInternoDevolucion::create([
+                'prestamo_interno_id' => $prestamo->id,
+                'monto'               => $request->monto,
+                'fecha'               => $request->fecha,
+                'concepto'            => $request->concepto,
+                'metodo_pago'         => $request->metodo_pago,
+                'codigo_seguimiento'  => $this->resolverCodigoSeguimientoDevolucion($request->metodo_pago, $request->codigo_seguimiento),
+                'voucher'             => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_devolucion_prestamo', 'public') : null,
+                'created_by'          => auth()->id(),
+            ]);
 
             // Egreso de cuenta destino (devuelve)
             Movimiento::create([
@@ -251,8 +292,9 @@ class PrestamoInternoController extends Controller
                 'monto_bolivianos'  => $request->monto,
                 'fecha'             => $request->fecha,
                 'concepto'          => 'Devolución préstamo a ' . $prestamo->cuentaOrigen->nombre_cuenta,
-                'origen_type'       => PrestamoInterno::class,
-                'origen_id'         => $prestamo->id,
+                'codigo_seguimiento'=> $devolucion->codigo_seguimiento,
+                'origen_type'       => PrestamoInternoDevolucion::class,
+                'origen_id'         => $devolucion->id,
                 'created_by'        => auth()->id(),
                 'updated_by'        => auth()->id(),
             ]);
@@ -268,14 +310,122 @@ class PrestamoInternoController extends Controller
                 'monto_bolivianos'  => $request->monto,
                 'fecha'             => $request->fecha,
                 'concepto'          => 'Devolución recibida de ' . $prestamo->cuentaDestino->nombre_cuenta,
-                'origen_type'       => PrestamoInterno::class,
-                'origen_id'         => $prestamo->id,
+                'codigo_seguimiento'=> $devolucion->codigo_seguimiento,
+                'origen_type'       => PrestamoInternoDevolucion::class,
+                'origen_id'         => $devolucion->id,
                 'created_by'        => auth()->id(),
                 'updated_by'        => auth()->id(),
             ]);
         });
 
         Alert::success('Guardado', 'Devolución registrada correctamente.');
+        return redirect()->route('prestamos_internos.index');
+    }
+
+    public function editDevolucion(string $uuid)
+    {
+        $devolucion = PrestamoInternoDevolucion::where('uuid', $uuid)->firstOrFail();
+        return response()->json($devolucion);
+    }
+
+    // El monto no es editable aquí: cambiarlo alteraría monto_devuelto/estado del
+    // préstamo y el efecto en los saldos de ambas cuentas (ver nota en destroyDevolucion).
+    // Solo se ajustan fecha, concepto y voucher; los movimientos siguen a la fecha.
+    public function updateDevolucion(Request $request, string $uuid)
+    {
+        $devolucion = PrestamoInternoDevolucion::where('uuid', $uuid)->firstOrFail();
+
+        if ($devolucion->estado === 'cancelada') {
+            Alert::error('No permitido', 'Esta devolución está cancelada y no se puede editar.');
+            return redirect()->route('prestamos_internos.index');
+        }
+
+        $request->validate([
+            'fecha'              => 'required|date',
+            'concepto'           => 'nullable|string|max:255',
+            'metodo_pago'        => 'nullable|in:TRANSFERENCIA,QR',
+            'codigo_seguimiento' => ['required_if:metodo_pago,TRANSFERENCIA', 'nullable', 'string', 'max:100', function ($attr, $value, $fail) use ($devolucion) {
+                if (!$this->codigoDevolucionDisponible($value) && $value !== $devolucion->codigo_seguimiento) {
+                    $fail('Ese código de transferencia ya está en uso por otro préstamo o devolución.');
+                }
+            }],
+            'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'codigo_seguimiento.required_if' => 'El código de la transferencia es obligatorio.',
+            'voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
+            'voucher.max'   => 'El comprobante no debe superar los 5 MB.',
+        ]);
+
+        DB::transaction(function () use ($request, $devolucion) {
+            $codigoActualSiEraQr = $devolucion->metodo_pago === 'QR' ? $devolucion->codigo_seguimiento : null;
+
+            $datos = [
+                'fecha'              => $request->fecha,
+                'concepto'           => $request->concepto,
+                'metodo_pago'        => $request->metodo_pago,
+                'codigo_seguimiento' => $request->metodo_pago === 'QR'
+                    ? ($codigoActualSiEraQr ?: $this->resolverCodigoSeguimientoDevolucion('QR', null))
+                    : ($request->codigo_seguimiento ?: null),
+            ];
+
+            if ($request->hasFile('voucher')) {
+                $anterior = $devolucion->voucher;
+                $datos['voucher'] = $request->file('voucher')->store('vouchers_devolucion_prestamo', 'public');
+                if ($anterior) {
+                    Storage::disk('public')->delete($anterior);
+                }
+            }
+
+            $devolucion->update($datos);
+
+            Movimiento::where('origen_type', PrestamoInternoDevolucion::class)
+                ->where('origen_id', $devolucion->id)
+                ->each(fn($m) => $m->update([
+                    'fecha'              => $request->fecha,
+                    'codigo_seguimiento' => $devolucion->codigo_seguimiento,
+                ]));
+        });
+
+        Alert::success('Actualizado', 'Devolución actualizada correctamente.');
+        return redirect()->route('prestamos_internos.index');
+    }
+
+    // No es eliminación física: la devolución queda marcada "cancelada" (igual
+    // que un pago cancelado) y sus movimientos se anulan con soft delete, para
+    // que sigan visibles tachados en Tesorería > Movimientos, como el resto del
+    // sistema. El hook deleted() de Movimiento revierte el efecto en los saldos.
+    public function destroyDevolucion(string $uuid)
+    {
+        $devolucion = PrestamoInternoDevolucion::where('uuid', $uuid)->firstOrFail();
+
+        if ($devolucion->estado === 'cancelada') {
+            Alert::error('No permitido', 'Esta devolución ya está cancelada.');
+            return redirect()->route('prestamos_internos.index');
+        }
+
+        DB::transaction(function () use ($devolucion) {
+            $prestamo = $devolucion->prestamo;
+
+            Movimiento::where('origen_type', PrestamoInternoDevolucion::class)
+                ->where('origen_id', $devolucion->id)
+                ->get()
+                ->each->delete();
+
+            $prestamo->monto_devuelto -= $devolucion->monto;
+            if ($prestamo->monto_devuelto < 0) {
+                $prestamo->monto_devuelto = 0;
+            }
+            $prestamo->estado = $prestamo->monto_devuelto <= 0
+                ? 'pendiente'
+                : ($prestamo->monto_devuelto >= $prestamo->monto_original ? 'pagado' : 'pagado_parcial');
+            $prestamo->updated_by = auth()->id();
+            $prestamo->save();
+
+            $devolucion->estado = 'cancelada';
+            $devolucion->save();
+        });
+
+        Alert::success('Cancelada', 'Devolución cancelada y saldos revertidos.');
         return redirect()->route('prestamos_internos.index');
     }
 
@@ -293,8 +443,35 @@ class PrestamoInternoController extends Controller
 
         do {
             $codigo = 'QR-' . strtoupper(bin2hex(random_bytes(4)));
-        } while (PrestamoInterno::withTrashed()->where('codigo_seguimiento', $codigo)->exists());
+        } while (
+            PrestamoInterno::withTrashed()->where('codigo_seguimiento', $codigo)->exists()
+            || PrestamoInternoDevolucion::withTrashed()->where('codigo_seguimiento', $codigo)->exists()
+        );
 
         return $codigo;
+    }
+
+    // Mismo criterio que resolverCodigoSeguimiento(), aplicado a la devolución.
+    private function resolverCodigoSeguimientoDevolucion(?string $metodoPago, ?string $codigoIngresado): ?string
+    {
+        if ($metodoPago !== 'QR') {
+            return $codigoIngresado ?: null;
+        }
+
+        do {
+            $codigo = 'QR-' . strtoupper(bin2hex(random_bytes(4)));
+        } while (!$this->codigoDevolucionDisponible($codigo));
+
+        return $codigo;
+    }
+
+    private function codigoDevolucionDisponible(?string $codigo): bool
+    {
+        if (!$codigo) {
+            return true;
+        }
+
+        return !PrestamoInterno::withTrashed()->where('codigo_seguimiento', $codigo)->exists()
+            && !PrestamoInternoDevolucion::withTrashed()->where('codigo_seguimiento', $codigo)->exists();
     }
 }

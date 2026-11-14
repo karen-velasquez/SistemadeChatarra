@@ -313,6 +313,9 @@ use Illuminate\Support\Facades\Route;
     Route::put('prestamos-internos/{uuid}', [App\Http\Controllers\PrestamoInternoController::class, 'update'])->name('prestamos_internos.update')->middleware('permission:prestamos_internos.edit');
     Route::get('prestamos-internos/{uuid}/destroy', [App\Http\Controllers\PrestamoInternoController::class, 'destroy'])->name('prestamos_internos.destroy')->middleware('permission:prestamos_internos.destroy');
     Route::post('prestamos-internos/{uuid}/devolver', [App\Http\Controllers\PrestamoInternoController::class, 'devolver'])->name('prestamos_internos.devolver')->middleware('permission:prestamos_internos.create');
+    Route::get('prestamos-internos/devoluciones/{uuid}/edit', [App\Http\Controllers\PrestamoInternoController::class, 'editDevolucion'])->name('prestamos_internos.devoluciones.edit')->middleware('permission:prestamos_internos.devoluciones.edit');
+    Route::put('prestamos-internos/devoluciones/{uuid}', [App\Http\Controllers\PrestamoInternoController::class, 'updateDevolucion'])->name('prestamos_internos.devoluciones.update')->middleware('permission:prestamos_internos.devoluciones.edit');
+    Route::delete('prestamos-internos/devoluciones/{uuid}', [App\Http\Controllers\PrestamoInternoController::class, 'destroyDevolucion'])->name('prestamos_internos.devoluciones.destroy')->middleware('permission:prestamos_internos.devoluciones.destroy');
 
     // Parámetros
     Route::get('parametros', [App\Http\Controllers\ParametroController::class, 'index'])->name('parametros.index')->middleware('permission:parametros.index');

@@ -15,7 +15,7 @@ class PrestamoInterno extends Model
     protected $fillable = [
         'uuid', 'cuenta_origen_id', 'cuenta_destino_id', 'monto_original',
         'monto_devuelto', 'moneda', 'fecha_prestamo', 'fecha_vencimiento',
-        'estado', 'concepto', 'metodo_pago', 'codigo_seguimiento',
+        'estado', 'concepto', 'metodo_pago', 'codigo_seguimiento', 'voucher',
         'created_by', 'updated_by',
     ];
 
@@ -43,6 +43,11 @@ class PrestamoInterno extends Model
     public function cuentaDestino()
     {
         return $this->belongsTo(CuentaEmpresa::class, 'cuenta_destino_id');
+    }
+
+    public function devoluciones()
+    {
+        return $this->hasMany(PrestamoInternoDevolucion::class, 'prestamo_interno_id')->orderByDesc('fecha');
     }
 
     public function getMontoPendienteAttribute(): float

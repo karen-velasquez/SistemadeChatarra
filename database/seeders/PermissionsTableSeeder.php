@@ -134,6 +134,8 @@ class PermissionsTableSeeder extends Seeder
             ['name' => 'prestamos_internos.create',  'descripcion' => 'Registrar Préstamos Internos', 'grupo' => 'PRESTAMOS_INTERNOS'],
             ['name' => 'prestamos_internos.edit',    'descripcion' => 'Editar Préstamos Internos',    'grupo' => 'PRESTAMOS_INTERNOS'],
             ['name' => 'prestamos_internos.destroy', 'descripcion' => 'Eliminar Préstamos Internos',  'grupo' => 'PRESTAMOS_INTERNOS'],
+            ['name' => 'prestamos_internos.devoluciones.edit',    'descripcion' => 'Editar Devoluciones de Préstamos Internos',   'grupo' => 'PRESTAMOS_INTERNOS'],
+            ['name' => 'prestamos_internos.devoluciones.destroy', 'descripcion' => 'Eliminar Devoluciones de Préstamos Internos', 'grupo' => 'PRESTAMOS_INTERNOS'],
             // Créditos y Adquisiciones
             ['name' => 'adquisiciones.index',   'descripcion' => 'Ver Créditos y Adquisiciones',               'grupo' => 'ADQUISICIONES'],
             ['name' => 'adquisiciones.create',  'descripcion' => 'Registrar Adquisiciones',                    'grupo' => 'ADQUISICIONES'],
