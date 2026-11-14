@@ -299,6 +299,23 @@
       font-weight:500;
     }
 
+    .login-banner{
+      margin-bottom:16px;
+      padding:12px 14px;
+      border-radius:10px;
+      font-size:.85rem;
+      font-weight:500;
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+    }
+    .login-banner--warning{
+      background:#fff7ed;
+      color:#9a5b00;
+      border:1px solid #fed7aa;
+    }
+    .login-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px;}
+
     .remember-row{
       display:flex;
       align-items:center;
@@ -421,6 +438,13 @@
 
         <h2 class="login-card__title">Bienvenido</h2>
         <p class="login-card__subtitle">Ingrese sus credenciales para acceder al sistema.</p>
+
+        @if(session('mensaje_sesion'))
+          <div class="login-banner login-banner--warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+            <span>{{ session('mensaje_sesion') }}</span>
+          </div>
+        @endif
 
         <form method="POST" action="{{ route('login') }}" novalidate>
           @csrf

@@ -20,6 +20,17 @@ use Carbon\Carbon;
 
 class HomeController extends Controller
 {
+    /**
+     * Endpoint ligero para "Seguir conectado": basta con que la petición
+     * pase por el middleware auth para que Laravel renueve el timestamp de
+     * actividad de la sesión (last_activity), sin necesidad de lógica propia
+     * aquí. Lo llama el aviso de sesión por expirar (ver scripts.blade.php).
+     */
+    public function ping()
+    {
+        return response()->json(['ok' => true]);
+    }
+
     public function index(Request $request)
     {
         $inicioMes = Carbon::now()->startOfMonth();

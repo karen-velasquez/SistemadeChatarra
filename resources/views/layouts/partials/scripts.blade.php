@@ -87,6 +87,106 @@
 }());
 </script>
 
+<!-- ===================== Aviso de sesión por expirar ===================== -->
+<script>
+(function () {
+    // Mismo valor que SESSION_LIFETIME (minutos) en el backend — ver config/session.php.
+    // Si se cambia allá, hay que actualizar este número también.
+    var SESSION_LIFETIME_MIN = {{ config('session.lifetime') }};
+    var AVISO_ANTES_SEG = 120; // mostrar el aviso 2 minutos antes de expirar
+    var avisoMostrado = false;
+    var intervaloCuentaRegresiva = null;
+
+    function segundosRestantes() {
+        var vidaMs = SESSION_LIFETIME_MIN * 60 * 1000;
+        var transcurridoMs = Date.now() - window._sesionInicioActividad;
+        return Math.max(0, Math.round((vidaMs - transcurridoMs) / 1000));
+    }
+
+    function reiniciarContador() {
+        window._sesionInicioActividad = Date.now();
+        avisoMostrado = false;
+        if (intervaloCuentaRegresiva) {
+            clearInterval(intervaloCuentaRegresiva);
+            intervaloCuentaRegresiva = null;
+        }
+        if (typeof Swal !== 'undefined' && Swal.isVisible()) {
+            Swal.close();
+        }
+    }
+
+    function extenderSesion() {
+        fetch('{{ route('ping') }}', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then(function (r) {
+                if (!r.ok) throw new Error('No se pudo renovar la sesión');
+                reiniciarContador();
+            })
+            .catch(function () {
+                Swal.fire('Error', 'No se pudo renovar la sesión. Es posible que ya haya expirado.', 'error');
+            });
+    }
+
+    function mostrarAvisoExpiracion() {
+        if (avisoMostrado || typeof Swal === 'undefined') return;
+        avisoMostrado = true;
+
+        var segundos = segundosRestantes();
+
+        Swal.fire({
+            title: 'Tu sesión está por expirar',
+            html: 'Por inactividad, tu sesión se cerrará en <strong><span id="sesion_contador">' + segundos + '</span></strong> segundos.<br>¿Deseas seguir conectado?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Seguir conectado',
+            cancelButtonText: 'Cerrar sesión',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: function () {
+                intervaloCuentaRegresiva = setInterval(function () {
+                    var restantes = segundosRestantes();
+                    var el = document.getElementById('sesion_contador');
+                    if (el) el.textContent = restantes;
+                    if (restantes <= 0) {
+                        clearInterval(intervaloCuentaRegresiva);
+                        Swal.close();
+                        window.location.reload();
+                    }
+                }, 1000);
+            },
+            willClose: function () {
+                if (intervaloCuentaRegresiva) {
+                    clearInterval(intervaloCuentaRegresiva);
+                    intervaloCuentaRegresiva = null;
+                }
+            },
+        }).then(function (result) {
+            if (result.isConfirmed) {
+                extenderSesion();
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // logout es POST (Auth::routes() de laravel/ui), no un link GET.
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route('logout') }}';
+                form.innerHTML = '@csrf';
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+
+    reiniciarContador();
+
+    setInterval(function () {
+        var restantes = segundosRestantes();
+        if (restantes <= AVISO_ANTES_SEG) {
+            mostrarAvisoExpiracion();
+        }
+    }, 5000);
+}());
+</script>
+
 <!-- ===================== Shepherd.js: Guías interactivas ===================== -->
 <script src="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js"></script>
 <script>

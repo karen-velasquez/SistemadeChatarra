@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Route;
     //Route::middleware(['auth'])->group(function(){
     Route::middleware(['auth', 'checkPasswordChange'])->group(function() {
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::get('/ping', [App\Http\Controllers\HomeController::class, 'ping'])->name('ping');
       
     //Roles
     Route::post('roles/store',[App\Http\Controllers\RoleController::class,'store'])->name('roles.store')->middleware('permission:roles.create');
