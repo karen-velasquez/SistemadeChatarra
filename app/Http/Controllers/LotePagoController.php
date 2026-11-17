@@ -74,6 +74,7 @@ class LotePagoController extends Controller
                 'monto'         => (float) $p->monto,
                 'moneda'        => $p->moneda_pago,
                 'fecha'         => $p->fecha_pago->format('d/m/Y'),
+                'fecha_iso'     => $p->fecha_pago->format('Y-m-d'),
                 'codigo'        => $p->codigo_seguimiento,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.proveedores.voucher', $p->uuid) : null,
@@ -85,6 +86,7 @@ class LotePagoController extends Controller
                 'monto'         => (float) $p->monto,
                 'moneda'        => $p->moneda_pago,
                 'fecha'         => $p->fecha_pago->format('d/m/Y'),
+                'fecha_iso'     => $p->fecha_pago->format('Y-m-d'),
                 'codigo'        => $p->codigo_seguimiento,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.clientes.voucher', $p->uuid) : null,
@@ -96,6 +98,7 @@ class LotePagoController extends Controller
                 'monto'         => (float) $p->monto,
                 'moneda'        => $p->moneda_pago,
                 'fecha'         => $p->fecha_pago->format('d/m/Y'),
+                'fecha_iso'     => $p->fecha_pago->format('Y-m-d'),
                 'codigo'        => $p->codigo_seguimiento,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
@@ -176,6 +179,7 @@ class LotePagoController extends Controller
             'codigos.*.pago_uuid'     => ['required', 'string'],
             'codigos.*.codigo_real'   => ['nullable', 'string', 'max:100'],
             'codigos.*.monto'         => ['nullable', 'numeric', 'min:0.01'],
+            'codigos.*.fecha'         => ['nullable', 'date'],
             'codigos.*.voucher'       => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ], [
             'codigos.*.voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
@@ -191,7 +195,7 @@ class LotePagoController extends Controller
         $filas = collect($request->input('codigos'))->map(function ($f, $i) use ($request) {
             $f['voucher'] = $request->file("codigos.$i.voucher");
             return $f;
-        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher'] || filled($f['monto'] ?? null));
+        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher'] || filled($f['monto'] ?? null) || ($permiteEditarMonto && filled($f['fecha'] ?? null)));
 
         if ($filas->isEmpty()) {
             if ($request->expectsJson()) {
@@ -243,6 +247,10 @@ class LotePagoController extends Controller
                 if ($permiteEditarMonto && filled($fila['monto'] ?? null) && round((float) $fila['monto'], 2) !== round((float) $pago->monto, 2)) {
                     $datos['monto'] = round((float) $fila['monto'], 2);
                 }
+                // Igual que el monto: la fecha solo se corrige mientras el lote está pendiente.
+                if ($permiteEditarMonto && filled($fila['fecha'] ?? null) && $fila['fecha'] !== $pago->fecha_pago->format('Y-m-d')) {
+                    $datos['fecha_pago'] = $fila['fecha'];
+                }
                 if ($fila['voucher']) {
                     $anterior = $pago->voucher;
                     $datos['voucher'] = $fila['voucher']->store($carpetaVoucher, 'public');
@@ -255,11 +263,14 @@ class LotePagoController extends Controller
                 $pago->update($datos);
                 $actualizados[] = $pago;
 
-                if (!isset($datos['codigo_seguimiento'])) continue;
+                $cambiosMov = [];
+                if (isset($datos['codigo_seguimiento'])) $cambiosMov['codigo_seguimiento'] = $datos['codigo_seguimiento'];
+                if (isset($datos['fecha_pago']))         $cambiosMov['fecha']              = $datos['fecha_pago'];
+                if (!$cambiosMov) continue;
 
                 Movimiento::where('origen_type', $modeloClase)
                     ->where('origen_id', $pago->id)
-                    ->update(['codigo_seguimiento' => $datos['codigo_seguimiento']]);
+                    ->update($cambiosMov);
             }
             return $actualizados;
         });
@@ -293,7 +304,7 @@ class LotePagoController extends Controller
     }
 
     /**
-     * Corrige la fecha del lote. Se propaga a los pagos individuales y a los
+     * Corrige la fecha global del lote (solo pendiente). Se propaga a los pagos individuales y a los
      * movimientos de tesorería asociados para que todo quede consistente,
      * igual criterio que actualizarCodigo() con el código real.
      */
@@ -305,6 +316,12 @@ class LotePagoController extends Controller
         $request->validate([
             'fecha_pago' => ['required', 'date'],
         ]);
+
+        // Una vez confirmado el lote ya generó movimientos de tesorería con esa
+        // fecha: cambiarla después dejaría la contabilidad desincronizada.
+        if ($lote->estado !== 'pendiente') {
+            return response()->json(['message' => 'El lote ya está confirmado: no se puede cambiar su fecha.'], 422);
+        }
 
         DB::transaction(function () use ($request, $lote, $modeloClase) {
             $lote->update(['fecha_pago' => $request->fecha_pago]);

@@ -182,11 +182,13 @@
                       <i class="bi bi-pencil-square text-primary me-2"></i> Editar lote
                     </button>
                   </li>
+                  @if($lote->estado === 'pendiente')
                   <li>
                     <button class="dropdown-item" onclick="abrirModalFecha('{{ $lote->uuid }}', '{{ $labelTipo }}', '{{ $lote->fecha_pago->format('Y-m-d') }}')">
-                      <i class="bi bi-calendar-event text-primary me-2"></i> Editar fecha
+                      <i class="bi bi-calendar-event text-primary me-2"></i> Editar fecha global del lote
                     </button>
                   </li>
+                  @endif
                   @endcan
                   @can('lotes_pago.destroy')
                   <li><hr class="dropdown-divider"></li>
@@ -212,6 +214,36 @@
 </div>
 </div>
 </section>
+
+{{-- Modal de edición de fecha del lote --}}
+<div class="modal fade" id="modalFecha" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-event me-2"></i>Editar fecha global del lote</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="form_fecha" method="POST">
+        @csrf
+        <div class="modal-body">
+          <p class="small text-muted mb-3" id="lbl_info_lote_fecha"></p>
+          <div class="alert alert-warning small py-2 mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Se cambiará la fecha de <strong>todos</strong> los pagos del lote. Para cambiar solo un pago, usa «Editar lote». Solo disponible mientras el lote está pendiente.
+          </div>
+          <label class="form-label">Nueva fecha <span class="text-danger">(*)</span></label>
+          <input type="date" name="fecha_pago" id="input_fecha_lote" class="form-control" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 {{-- Modal para ingresar/editar el código real por cada pago del lote --}}
 <div class="modal fade" id="modalCodigo" tabindex="-1" aria-hidden="true">
@@ -239,36 +271,6 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-{{-- Modal de edición de fecha del lote --}}
-<div class="modal fade" id="modalFecha" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-calendar-event me-2"></i>Editar fecha del lote</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form id="form_fecha" method="POST">
-        @csrf
-        <div class="modal-body">
-          <p class="small text-muted mb-3" id="lbl_info_lote_fecha"></p>
-          <div class="alert alert-warning small py-2 mb-3">
-            <i class="bi bi-info-circle me-1"></i>
-            Se actualizará la fecha del lote, de todos sus pagos individuales y de los movimientos de tesorería asociados.
-          </div>
-          <label class="form-label">Nueva fecha <span class="text-danger">(*)</span></label>
-          <input type="date" name="fecha_pago" id="input_fecha_lote" class="form-control" required>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-save me-1"></i>Guardar
-          </button>
         </div>
       </form>
     </div>
@@ -511,7 +513,7 @@ function cargarDetalleLoteModal(uuid, estado) {
                 html += `<div id="bloque_agregar_pago" class="mb-3"></div>`;
             }
             html += `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
-                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th>Fecha</th><th style="width:220px">Código real</th><th style="width:140px">Voucher</th><th style="width:110px">Acciones</th></tr></thead>
+                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th style="width:150px">Fecha</th><th style="width:220px">Código real</th><th style="width:140px">Voucher</th><th style="width:110px">Acciones</th></tr></thead>
                 <tbody>`;
             let totalMonto = 0;
             const moneda = d.pagos[0]?.moneda ?? '';
@@ -526,7 +528,7 @@ function cargarDetalleLoteModal(uuid, estado) {
                 html += `<tr id="fila_pago_lote_${p.uuid}">
                     <td>${p.referencia}</td>
                     <td class="text-end">${celdaMonto}</td>
-                    <td>${p.fecha}</td>
+                    <td>${montoEditable ? `<input type="date" class="form-control form-control-sm" name="codigos[${i}][fecha]" value="${p.fecha_iso}" required>` : p.fecha}</td>
                     <td>
                         <input type="hidden" name="codigos[${i}][pago_uuid]" value="${p.uuid}">
                         <input type="text" class="form-control form-control-sm" name="codigos[${i}][codigo_real]"
@@ -537,7 +539,7 @@ function cargarDetalleLoteModal(uuid, estado) {
                     </td>
                     <td class="text-center">
                         <div class="d-flex gap-1 justify-content-center">
-                            <button type="button" class="btn btn-success btn-sm" title="Guardar código/monto/voucher de este pago"
+                            <button type="button" class="btn btn-success btn-sm" title="Guardar código/monto/fecha/voucher de este pago"
                                     onclick="guardarFilaLote('${uuid}', '${p.uuid}')">
                                 <i class="bi bi-check-lg"></i>
                             </button>
@@ -621,7 +623,7 @@ function recalcularTotalLote() {
     lbl.textContent = _fmtLote(total, lbl.dataset.moneda);
 }
 
-// Guarda solo la fila de un pago (código real, monto y/o voucher) sin tocar
+// Guarda solo la fila de un pago (código real, monto, fecha y/o voucher) sin tocar
 // las demás filas del lote — así una fila sin código no bloquea ni reporta
 // error por las que sí se llenaron.
 function guardarFilaLote(loteUuid, pagoUuid) {
@@ -632,11 +634,13 @@ function guardarFilaLote(loteUuid, pagoUuid) {
     const codigoInput = fila.querySelector('input[name$="[codigo_real]"]');
     const voucherInput = fila.querySelector('input[type="file"][name$="[voucher]"]');
     const montoHidden = fila.querySelector('input[type="hidden"][name$="[monto]"]');
+    const fechaInput = fila.querySelector('input[type="date"][name$="[fecha]"]');
 
     const formData = new FormData();
     formData.append('codigos[0][pago_uuid]', pagoUuid);
     formData.append('codigos[0][codigo_real]', codigoInput?.value ?? '');
     if (montoHidden) formData.append('codigos[0][monto]', montoHidden.value ?? '');
+    if (fechaInput?.value) formData.append('codigos[0][fecha]', fechaInput.value);
     if (voucherInput?.files?.[0]) formData.append('codigos[0][voucher]', voucherInput.files[0]);
 
     const iconoOriginal = btn.innerHTML;
