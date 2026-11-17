@@ -541,6 +541,7 @@ class PagoCamionController extends Controller
                 foreach ($montosAPagar as $montoSub) {
                     $montoSub = round((float) $montoSub, 2);
                     $tipoPagoSub = $montoSub >= round((float) $saldo, 2) ? 'pago_final' : 'adelanto';
+                    $saldo      -= $montoSub; // el siguiente sub-pago se evalúa contra lo que queda
 
                     $pago = PagoCamion::create([
                         'lote_pago_id'       => $lote->id,

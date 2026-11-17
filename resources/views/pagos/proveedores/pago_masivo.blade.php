@@ -630,7 +630,7 @@ function calcularPct(contratoId) {
     const monto = _txt2numM(montoInput.value);
     const pct   = entry.saldo > 0 ? Math.round(monto / entry.saldo * 10000) / 100 : 0;
 
-    const invalido = monto < 0 || monto > entry.saldo;
+    const invalido = monto < 0; // se permite pagar más que el saldo
     montoInput.classList.toggle('is-invalid', invalido);
     errEl.style.display = invalido ? '' : 'none';
 
@@ -1074,7 +1074,7 @@ function confirmarYEnviar() {
         if (!contratosVistos.has(r.contratoId)) {
             contratosVistos.add(r.contratoId);
             addHidden(`contrato_ids[]`, r.contratoId);
-            addHidden(`porcentaje[${r.contratoId}]`, r.pct);
+            addHidden(`monto[${r.contratoId}]`, _seleccionados[r.contratoId].monto);
             addHidden(`cuenta_destino[${r.contratoId}]`, r.ctaId);
         }
 

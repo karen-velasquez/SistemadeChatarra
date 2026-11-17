@@ -335,8 +335,10 @@ class PagoProveedorController extends Controller
             'metodo_pago'      => 'required|in:transferencia,qr',
             'contrato_ids'     => 'required|array|min:1',
             'contrato_ids.*'   => 'exists:contratos,id',
-            'porcentaje'       => 'required|array',
-            'porcentaje.*'     => 'nullable|numeric|min:0|max:100',
+            // Se recibe el monto exacto (el mismo del Excel del banco), no el %:
+            // recalcular desde un % redondeado registraba montos distintos al transferido.
+            'monto'            => 'required|array',
+            'monto.*'          => 'nullable|numeric|min:0',
             'cuenta_destino'   => 'required|array',
             'cuenta_destino.*' => 'nullable|exists:cuentas_bancarias,id',
             'vouchers'         => 'nullable|array',
@@ -357,11 +359,7 @@ class PagoProveedorController extends Controller
         // Calcular total a pagar y verificar saldo suficiente
         $totalAPagar = 0;
         foreach ($request->contrato_ids as $cid) {
-            $pct = (float) ($request->porcentaje[$cid] ?? 0);
-            if ($pct <= 0) continue;
-            $c = Contrato::find($cid);
-            if (!$c) continue;
-            $totalAPagar += round($c->saldo_pendiente_proveedor * $pct / 100, 2);
+            $totalAPagar += round((float) ($request->monto[$cid] ?? 0), 2);
         }
         // ponytail: bloqueo de saldo insuficiente comentado a pedido del cliente,
         // mientras se ponen al día con los pagos de este mes. Restaurar cuando corresponda.
@@ -390,17 +388,17 @@ class PagoProveedorController extends Controller
             $resumen = [];
 
             foreach ($request->contrato_ids as $contratoId) {
-                $pct       = (float) ($request->porcentaje[$contratoId] ?? 0);
+                $monto     = round((float) ($request->monto[$contratoId] ?? 0), 2);
                 $ctaDestId = $request->cuenta_destino[$contratoId] ?? null;
 
-                if ($pct <= 0 || !$ctaDestId) continue;
+                if ($monto <= 0 || !$ctaDestId) continue;
 
                 $contrato = Contrato::with('proveedor')->find($contratoId);
                 if (!$contrato) continue;
 
                 $saldo = $contrato->saldo_pendiente_proveedor;
-                $monto = round($saldo * $pct / 100, 2);
                 if ($monto <= 0) continue;
+                $pct   = $saldo > 0 ? round($monto / $saldo * 100, 2) : 0;
 
                 $ctaDest = CuentaBancaria::with('banco')->find($ctaDestId);
                 if (!$ctaDest) continue;
@@ -428,8 +426,9 @@ class PagoProveedorController extends Controller
                 foreach ($montosAPagar as $idxSplit => $montoPago) {
                     $montoPago = round((float) $montoPago, 2);
                     // Si el pago cubre el saldo pendiente liquida el contrato; si no, es un adelanto.
-                    // Con splits, solo el último puede llegar a liquidar (se evalúa contra el saldo real).
+                    // Con splits, solo el último puede llegar a liquidar (se evalúa contra el saldo restante).
                     $tipoPago = $montoPago >= round($saldo, 2) ? 'pago_final' : 'adelanto';
+                    $saldo   -= $montoPago;
 
                     $voucherFile = $splitsContrato
                         ? $request->file("split_vouchers.$contratoId.$idxSplit")
@@ -473,7 +472,7 @@ class PagoProveedorController extends Controller
         });
 
         if (empty($resumen)) {
-            Alert::warning('Sin pagos', 'No se registró ningún pago. Verifique los porcentajes y cuentas seleccionadas.');
+            Alert::warning('Sin pagos', 'No se registró ningún pago. Verifique los montos y cuentas seleccionadas.');
             return back()->withInput();
         }
 
