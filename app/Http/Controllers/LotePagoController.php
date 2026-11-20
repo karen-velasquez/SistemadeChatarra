@@ -76,6 +76,7 @@ class LotePagoController extends Controller
                 'fecha'         => $p->fecha_pago->format('d/m/Y'),
                 'fecha_iso'     => $p->fecha_pago->format('Y-m-d'),
                 'codigo'        => $p->codigo_seguimiento,
+                'boleta'        => $p->numero_boleta,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.proveedores.voucher', $p->uuid) : null,
                 'voucher_es_imagen' => es_imagen_archivo($p->voucher),
@@ -88,6 +89,7 @@ class LotePagoController extends Controller
                 'fecha'         => $p->fecha_pago->format('d/m/Y'),
                 'fecha_iso'     => $p->fecha_pago->format('Y-m-d'),
                 'codigo'        => $p->codigo_seguimiento,
+                'boleta'        => $p->numero_boleta,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.clientes.voucher', $p->uuid) : null,
                 'voucher_es_imagen' => es_imagen_archivo($p->voucher),
@@ -100,6 +102,7 @@ class LotePagoController extends Controller
                 'fecha'         => $p->fecha_pago->format('d/m/Y'),
                 'fecha_iso'     => $p->fecha_pago->format('Y-m-d'),
                 'codigo'        => $p->codigo_seguimiento,
+                'boleta'        => $p->numero_boleta,
                 'tiene_voucher' => (bool) $p->voucher,
                 'voucher_url'   => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
                 'voucher_es_imagen' => es_imagen_archivo($p->voucher),
@@ -180,11 +183,13 @@ class LotePagoController extends Controller
             'codigos.*.codigo_real'   => ['nullable', 'string', 'max:100'],
             'codigos.*.monto'         => ['nullable', 'numeric', 'min:0.01'],
             'codigos.*.fecha'         => ['nullable', 'date'],
+            'codigos.*.boleta'        => ['nullable', 'regex:/^\d{5,8}$/'],
             'codigos.*.voucher'       => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ], [
             'codigos.*.voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
             'codigos.*.voucher.max'   => 'El comprobante no debe superar los 5 MB.',
             'codigos.*.monto.min'     => 'El monto debe ser mayor a cero.',
+            'codigos.*.boleta.regex'  => 'El número de boleta debe tener entre 5 y 8 dígitos.',
         ]);
 
         // El monto solo se puede corregir mientras el lote sigue pendiente: una
@@ -195,7 +200,7 @@ class LotePagoController extends Controller
         $filas = collect($request->input('codigos'))->map(function ($f, $i) use ($request) {
             $f['voucher'] = $request->file("codigos.$i.voucher");
             return $f;
-        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher'] || filled($f['monto'] ?? null) || ($permiteEditarMonto && filled($f['fecha'] ?? null)));
+        })->filter(fn($f) => filled($f['codigo_real'] ?? null) || $f['voucher'] || filled($f['monto'] ?? null) || filled($f['boleta'] ?? null) || ($permiteEditarMonto && filled($f['fecha'] ?? null)));
 
         if ($filas->isEmpty()) {
             if ($request->expectsJson()) {
@@ -218,6 +223,24 @@ class LotePagoController extends Controller
             ->whereIn('uuid', $filas->pluck('pago_uuid'))
             ->get()
             ->keyBy('uuid');
+
+        // Boleta: única entre todos los pagos (también dentro de este mismo envío).
+        $boletas = $filas->pluck('boleta')->filter();
+        foreach ($filas as $fila) {
+            $pago = $pagos->get($fila['pago_uuid']);
+            $boleta = $fila['boleta'] ?? null;
+            if (!$pago || !filled($boleta)) continue;
+
+            if ($boletas->filter(fn($b) => $b === $boleta)->count() > 1
+                || $this->boletaYaExiste($boleta, $pago->id, $modeloClase)) {
+                $mensaje = "El número de boleta \"{$boleta}\" ya está registrado en otro pago.";
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $mensaje], 400);
+                }
+                Alert::error('Boleta en uso', $mensaje);
+                return back();
+            }
+        }
 
         foreach ($filas as $fila) {
             $pago = $pagos->get($fila['pago_uuid']);
@@ -243,6 +266,9 @@ class LotePagoController extends Controller
                 $datos = [];
                 if (filled($fila['codigo_real'] ?? null)) {
                     $datos['codigo_seguimiento'] = trim($fila['codigo_real']);
+                }
+                if (filled($fila['boleta'] ?? null) && $fila['boleta'] !== $pago->numero_boleta) {
+                    $datos['numero_boleta'] = $fila['boleta'];
                 }
                 if ($permiteEditarMonto && filled($fila['monto'] ?? null) && round((float) $fila['monto'], 2) !== round((float) $pago->monto, 2)) {
                     $datos['monto'] = round((float) $fila['monto'], 2);
@@ -392,9 +418,8 @@ class LotePagoController extends Controller
                 ?: ($lote->tipo === 'proveedor'
                     ? ($p->contrato?->proveedor?->nombre ?? '')
                     : ($p->receptor?->nombre ?? ''));
-            $glosa      = $lote->tipo === 'proveedor'
-                ? 'Pago proveedor ' . ($p->contrato?->numero_contrato ?? '#' . $p->contrato_id)
-                : '';
+            // La glosa lleva el número de boleta del pago (si ya se cargó).
+            $glosa      = trim('BOLETA ' . ($p->numero_boleta ?? ''));
 
             return [
                 $i + 1,
@@ -409,6 +434,9 @@ class LotePagoController extends Controller
                 $esGanadero ? 0 : ($cta?->banco?->codigo_banco ?? ''),
                 $esGanadero ? 0 : ($sucMap[$cta?->sucursal_departamento] ?? ''),
                 $glosa,
+                // Código real de la transferencia bancaria: solo si ya se cargó (mientras
+                // no, el pago conserva el código provisional del lote, que no es del banco).
+                ($p->codigo_seguimiento && $p->codigo_seguimiento !== $lote->codigo_provisional) ? $p->codigo_seguimiento : '',
                 // El código único lo completa el banco: va vacío igual que en el
                 // pop-up de Pago Masivo, no el código de seguimiento del sistema.
                 '',
@@ -419,7 +447,7 @@ class LotePagoController extends Controller
         });
 
         return response()->json([
-            'cols' => ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'],
+            'cols' => ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO REAL','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'],
             'filas' => $filas,
             'total' => round($pagos->sum('monto'), 2),
             'moneda' => $pagos->first()?->moneda_pago ?? 'BOB',

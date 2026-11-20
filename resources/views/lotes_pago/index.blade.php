@@ -513,7 +513,7 @@ function cargarDetalleLoteModal(uuid, estado) {
                 html += `<div id="bloque_agregar_pago" class="mb-3"></div>`;
             }
             html += `<div class="table-responsive"><table class="table table-sm table-bordered mb-0">
-                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th style="width:150px">Fecha</th><th style="width:220px">Código real</th><th style="width:140px">Voucher</th><th style="width:110px">Acciones</th></tr></thead>
+                <thead class="table-light"><tr><th>Referencia</th><th class="text-end" style="width:140px">Monto</th><th style="width:150px">Fecha</th><th style="width:220px">Código real</th><th style="width:120px">N° boleta</th><th style="width:140px">Voucher</th><th style="width:110px">Acciones</th></tr></thead>
                 <tbody>`;
             let totalMonto = 0;
             const moneda = d.pagos[0]?.moneda ?? '';
@@ -533,6 +533,11 @@ function cargarDetalleLoteModal(uuid, estado) {
                         <input type="hidden" name="codigos[${i}][pago_uuid]" value="${p.uuid}">
                         <input type="text" class="form-control form-control-sm" name="codigos[${i}][codigo_real]"
                                value="${p.codigo ?? ''}" placeholder="Ej: TRF-2026052500123" maxlength="100">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm" name="codigos[${i}][boleta]" value="${p.boleta ?? ''}"
+                               inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5-8 dígitos" title="Entre 5 y 8 dígitos"
+                               oninput="this.value = this.value.replace(/\D/g, '')">
                     </td>
                     <td>
                         <input type="file" class="form-control form-control-sm" name="codigos[${i}][voucher]" accept=".jpg,.jpeg,.png,.pdf">
@@ -560,6 +565,7 @@ function cargarDetalleLoteModal(uuid, estado) {
             html += `<tr class="table-light fw-bold">
                     <td class="text-end">TOTAL</td>
                     <td class="text-end" id="lbl_total_lote" data-moneda="${moneda}">${_fmtLote(totalMonto, moneda)}</td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -635,12 +641,14 @@ function guardarFilaLote(loteUuid, pagoUuid) {
     const voucherInput = fila.querySelector('input[type="file"][name$="[voucher]"]');
     const montoHidden = fila.querySelector('input[type="hidden"][name$="[monto]"]');
     const fechaInput = fila.querySelector('input[type="date"][name$="[fecha]"]');
+    const boletaInput = fila.querySelector('input[name$="[boleta]"]');
 
     const formData = new FormData();
     formData.append('codigos[0][pago_uuid]', pagoUuid);
     formData.append('codigos[0][codigo_real]', codigoInput?.value ?? '');
     if (montoHidden) formData.append('codigos[0][monto]', montoHidden.value ?? '');
     if (fechaInput?.value) formData.append('codigos[0][fecha]', fechaInput.value);
+    if (boletaInput?.value) formData.append('codigos[0][boleta]', boletaInput.value);
     if (voucherInput?.files?.[0]) formData.append('codigos[0][voucher]', voucherInput.files[0]);
 
     const iconoOriginal = btn.innerHTML;
@@ -1221,7 +1229,7 @@ function _exportarXlsxLote(headers, rows, sheetName, filename) {
 
     const colLetter = i => { let s='', n=i+1; while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26);} return s; };
 
-    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 19.0, 25.9, 25.9, 25.9];
+    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 22.0, 19.0, 25.9, 25.9, 25.9];
     let colsXml = '<cols>';
     colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
     colsXml += '</cols>';

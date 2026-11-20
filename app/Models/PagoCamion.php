@@ -28,6 +28,7 @@ class PagoCamion extends Model
         'cuenta_destino_id',
         'metodo_pago',
         'codigo_seguimiento',
+        'numero_boleta',
         'observaciones',
         'voucher',
         'created_by',

@@ -433,6 +433,11 @@
                                 placeholder="Ej: TRX-20260512-001" oninput="actualizarBtnPagoProveedor()">
                         </div>
 
+                        <div class="col-md-6">
+                            <label class="form-label">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
+                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                        </div>
+
                         {{-- Cuenta origen (tesorería empresa) --}}
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Cuenta Origen (Tesorería) <span class="text-danger">(*)</span></label>
@@ -652,6 +657,9 @@
                     <div class="form-text">
                         Al guardar se actualiza también el movimiento en tesorería y el saldo de la cuenta.
                     </div>
+
+                    <label class="form-label fw-semibold mt-3">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
+                    <input type="text" class="form-control" name="numero_boleta" id="edit_pp_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
 
                     {{-- Voucher: opcional, para adjuntarlo si faltaba o reemplazar uno incorrecto --}}
                     <hr class="my-3">
@@ -1041,8 +1049,9 @@ function toggleCodigo(metodo) {
         metodo === 'transferencia' ? 'block' : 'none';
 }
 
-function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoLabel, tieneVoucher, voucherEsImagen) {
+function abrirEditarPagoProveedor(uuid, tipoLabel, monto, moneda, fecha, metodoLabel, tieneVoucher, voucherEsImagen, boleta) {
     document.getElementById('formEditarPagoProveedor').action = url_global + '/pagos/proveedores/' + uuid;
+    document.getElementById('edit_pp_boleta').value = boleta || '';
 
     // Voucher: limpiar la selección previa y mostrar el actual si lo hay
     document.getElementById('edit_pp_voucher').value = '';
@@ -1263,7 +1272,7 @@ function verDetalle(contratoId) {
                                     <i class="bi bi-download"></i>
                                 </a>` : ''}
                                 ${canEditPago ? `<button class="btn btn-sm btn-outline-primary border-0"
-                                    onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo}',${p.monto},'${p.moneda_pago}','${p.fecha}','${p.metodo}',${p.tiene_voucher},${p.voucher_es_imagen})"
+                                    onclick="abrirEditarPagoProveedor('${p.uuid}','${p.tipo}',${p.monto},'${p.moneda_pago}','${p.fecha}','${p.metodo}',${p.tiene_voucher},${p.voucher_es_imagen},'${p.boleta || ''}')"
                                     title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>` : ''}

@@ -24,6 +24,7 @@ class PagoProveedor extends Model
         'fecha_pago',
         'metodo_pago',
         'codigo_seguimiento',
+        'numero_boleta',
         'cuenta_origen_id',
         'cuenta_destino_id',
         'observaciones',

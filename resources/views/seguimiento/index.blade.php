@@ -942,6 +942,11 @@
                             <input type="text" class="form-control" name="codigo_seguimiento" maxlength="100" placeholder="Ej: TRX-001">
                         </div>
 
+                        <div class="col-md-6">
+                            <label class="form-label">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
+                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                        </div>
+
                         {{-- Receptor --}}
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Pagar a</label>
@@ -1082,6 +1087,10 @@
                                 <option value="transferencia">Transferencia Bancaria</option>
                                 <option value="qr">QR</option>
                             </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
+                            <input type="text" class="form-control" name="numero_boleta" id="edit_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Código de seguimiento</label>
@@ -2474,7 +2483,8 @@ document.getElementById('formEditarLote').addEventListener('submit', function (e
         });
 });
 
-function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo, voucherUrl, voucherEsImagen) {
+function abrirModalEditarPago(uuid, tipo, monto, moneda, tipoCambio, fecha, metodo, codigo, voucherUrl, voucherEsImagen, boleta) {
+    document.getElementById('edit_boleta').value = boleta || '';
     document.getElementById('formEditarPago').action = url_global + '/pagos/camiones/' + uuid;
     document.getElementById('edit_tipo_pago').value   = tipo;
     document.getElementById('edit_monto').value       = monto;
@@ -3204,7 +3214,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                 if (segCanEditPago || segCanDeletePago) {
                     const editar = segCanEditPago
                         ? `<button class="btn btn-sm btn-outline-secondary border-0"
-                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}', ${p.voucher_url ? `'${p.voucher_url}'` : 'null'}, ${!!p.voucher_es_imagen})"
+                                   onclick="abrirModalEditarPago('${p.uuid}', '${p.tipo_raw}', ${parseFloat(p.monto)}, '${p.moneda_pago}', ${parseFloat(p.tipo_cambio)}, '${p.fecha_raw}', '${p.metodo_raw}', '${p.codigo || ''}', ${p.voucher_url ? `'${p.voucher_url}'` : 'null'}, ${!!p.voucher_es_imagen}, '${p.boleta || ''}')"
                                    title="Editar"><i class="bi bi-pencil"></i></button>`
                         : '';
                     const eliminar = segCanDeletePago

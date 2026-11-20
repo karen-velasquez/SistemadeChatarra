@@ -80,6 +80,7 @@ class PagoProveedorController extends Controller
                     $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
                 }
             }],
+            'numero_boleta'      => $this->reglasBoleta(),
             'cuenta_origen_id'   => 'required|exists:cuentas_empresa,id',
             'cuenta_destino_id'  => 'required|exists:cuentas_bancarias,id',
             'observaciones'      => 'nullable|string|max:500',
@@ -114,6 +115,7 @@ class PagoProveedorController extends Controller
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $codigoSeguimiento,
+                'numero_boleta'      => $request->numero_boleta ?: null,
                 'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
                 'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
                 'observaciones'      => $request->observaciones ?: null,
@@ -150,6 +152,7 @@ class PagoProveedorController extends Controller
         // fecha y método se conservan tal como se registró el pago.
         $request->validate([
             'monto'   => 'required|numeric|min:0.01',
+            'numero_boleta' => $this->reglasBoleta($pago->id, PagoProveedor::class),
             'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'monto.required' => 'El monto es obligatorio.',
@@ -163,6 +166,9 @@ class PagoProveedorController extends Controller
                 'monto'      => $request->monto,
                 'updated_by' => auth()->id(),
             ];
+            if ($request->has('numero_boleta')) {
+                $datos['numero_boleta'] = $request->numero_boleta ?: null;
+            }
 
             // Voucher nuevo: reemplaza al anterior y borra el archivo viejo
             if ($request->hasFile('voucher')) {
@@ -248,6 +254,7 @@ class PagoProveedorController extends Controller
                 'tipo_raw'       => $p->tipo_pago,
                 'monto_bob'      => $p->monto_en_moneda_contrato,
                 'codigo'         => $p->codigo_seguimiento,
+                'boleta'         => $p->numero_boleta,
                 'observaciones'  => $p->observaciones,
                 'tiene_voucher'  => (bool) $p->voucher,
                 'voucher_es_imagen' => es_imagen_archivo($p->voucher),
@@ -350,7 +357,15 @@ class PagoProveedorController extends Controller
             'splits.*.*'       => 'numeric|min:0.01',
             'split_vouchers'   => 'nullable|array',
             'split_vouchers.*.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'boletas.*'        => $this->reglasBoleta(),
+            'split_boletas.*.*' => $this->reglasBoleta(),
         ]);
+
+        // Cada pago lleva su propia boleta: no pueden repetirse dentro del mismo envío.
+        $boletasEnviadas = collect($request->input('boletas', []))->merge(collect($request->input('split_boletas', []))->flatten())->filter();
+        if ($boletasEnviadas->count() !== $boletasEnviadas->unique()->count()) {
+            return back()->withInput()->withErrors(['boletas' => 'Hay números de boleta repetidos en este lote.']);
+        }
 
         $cuentaOrigen = CuentaEmpresa::with('empresa')->findOrFail($request->cuenta_origen_id);
         $monedaPago   = $cuentaOrigen->moneda ?? 'BOB';
@@ -445,6 +460,9 @@ class PagoProveedorController extends Controller
                         'fecha_pago'         => $request->fecha_pago,
                         'metodo_pago'        => $request->metodo_pago,
                         'codigo_seguimiento' => $codigoLote,
+                        'numero_boleta'      => ($splitsContrato
+                            ? $request->input("split_boletas.$contratoId.$idxSplit")
+                            : $request->input("boletas.$contratoId")) ?: null,
                         'cuenta_origen_id'   => $request->cuenta_origen_id,
                         'cuenta_destino_id'  => $ctaDest->id,
                         'voucher'            => $voucherPath,

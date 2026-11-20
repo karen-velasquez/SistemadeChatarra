@@ -81,4 +81,32 @@ trait GeneraCodigoSeguimientoUnico
         }
         return !$this->codigoYaExiste($codigo, $exceptoPagoId, $exceptoPagoClase, $exceptoLoteId, $exceptoPagoIds);
     }
+
+    /**
+     * Reglas del número de boleta: opcional, 5 a 8 dígitos y único entre los
+     * pagos a proveedores, camiones y clientes ($exceptoId/$exceptoClase dejan
+     * que un pago conserve su propia boleta al editarse).
+     */
+    protected function reglasBoleta(?int $exceptoId = null, ?string $exceptoClase = null): array
+    {
+        return ['nullable', function ($attr, $value, $fail) use ($exceptoId, $exceptoClase) {
+            if (!preg_match('/^\d{5,8}$/', (string) $value)) {
+                $fail('El número de boleta debe tener entre 5 y 8 dígitos.');
+            } elseif ($this->boletaYaExiste((string) $value, $exceptoId, $exceptoClase)) {
+                $fail('Ese número de boleta ya está registrado en otro pago.');
+            }
+        }];
+    }
+
+    protected function boletaYaExiste(string $boleta, ?int $exceptoId = null, ?string $exceptoClase = null): bool
+    {
+        foreach ([PagoProveedor::class, PagoCamion::class, PagoCliente::class] as $clase) {
+            $q = $clase::where('numero_boleta', $boleta);
+            if ($exceptoId && $clase === $exceptoClase) {
+                $q->where('id', '!=', $exceptoId);
+            }
+            if ($q->exists()) return true;
+        }
+        return false;
+    }
 }

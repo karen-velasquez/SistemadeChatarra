@@ -322,6 +322,7 @@
                 <th>ENTIDAD DESTINO</th>
                 <th>SUCURSAL DESTINO</th>
                 <th>GLOSA</th>
+                <th>CODIGO REAL</th>
                 <th>CODIGO UNICO</th>
                 <th>EMAIL NOTIFICACION</th>
                 <th>NRO_DOC_TERCERO</th>
@@ -769,12 +770,22 @@ function irAPaso2() {
                 bodyHtml += `</tbody></table></div>`;
             }
             bodyHtml += `
-                <div class="mb-1" id="voucher_unico_${ctr.id}">
-                  <label class="form-label small mb-1"><i class="bi bi-paperclip me-1"></i>Voucher de este pago (opcional)</label>
-                  <input type="file" class="form-control form-control-sm voucher_input" style="max-width:320px"
-                         id="voucher_input_${ctr.id}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                         onchange="marcarVoucher(${ctr.id}, this)">
-                  <span class="small text-success ms-1 d-none" id="voucher_ok_${ctr.id}"><i class="bi bi-check-circle"></i> adjuntado</span>
+                <div class="mb-1 d-flex flex-wrap align-items-end gap-3" id="voucher_unico_${ctr.id}">
+                  <div>
+                    <label class="form-label small mb-1"><i class="bi bi-paperclip me-1"></i>Voucher de este pago (opcional)</label>
+                    <div class="d-flex align-items-center">
+                      <input type="file" class="form-control form-control-sm voucher_input" style="max-width:320px"
+                             id="voucher_input_${ctr.id}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                             onchange="marcarVoucher(${ctr.id}, this)">
+                      <span class="small text-success ms-1 d-none" id="voucher_ok_${ctr.id}"><i class="bi bi-check-circle"></i> adjuntado</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label small mb-1"><i class="bi bi-receipt me-1"></i>N° de boleta (opcional)</label>
+                    <input type="text" class="form-control form-control-sm" style="width:150px" id="boleta_input_${ctr.id}"
+                           inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos"
+                           oninput="this.value = this.value.replace(/\D/g, '')">
+                  </div>
                 </div>
                 <div class="mt-2">
                   <button type="button" class="btn btn-outline-secondary btn-sm" id="btn_dividir_${ctr.id}" onclick="dividirPago(${ctr.id})">
@@ -920,6 +931,9 @@ function renderSplits(contratoId) {
                    id="split_voucher_${contratoId}_${idx}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
                    onchange="onSplitVoucher(${contratoId}, ${idx}, this)">
             <span class="small text-success d-none" id="split_voucher_ok_${contratoId}_${idx}"><i class="bi bi-check-circle"></i></span>
+            <input type="text" class="form-control form-control-sm" style="width:150px" inputmode="numeric" maxlength="8"
+                   placeholder="N° boleta (opc.)" title="Entre 5 y 8 dígitos" value="${sp.boleta || ''}"
+                   oninput="this.value = this.value.replace(/\D/g, ''); _seleccionados[${contratoId}].splits[${idx}].boleta = this.value">
             <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarSplit(${contratoId}, ${idx})" title="Quitar">
               <i class="bi bi-x-lg"></i>
             </button>
@@ -996,7 +1010,7 @@ function _buildRows() {
                 moneda:      ganadero ? 0 : (e.moneda === 'USD' ? 2 : 1),
                 entidad:     ganadero ? 0 : (e.cuentaCodigoBanco || ''),
                 sucursal:    ganadero ? 0 : (e.cuentaSiglaSucursal || ''),
-                glosa:       `Pago proveedor ${e.contratoNum}`,
+                glosa:       `BOLETA ${(e.splits ? e.splits[splitIdx].boleta : document.getElementById('boleta_input_' + id)?.value) || ''}`.trim(),
                 codigo:      '',
                 email:       e.cuentaEmailNotificacion || '',
                 nro_doc_ter: '',
@@ -1037,6 +1051,7 @@ function abrirConfirmacion() {
           <td>${r.entidad}</td>
           <td>${r.sucursal}</td>
           <td>${r.glosa}</td>
+          <td></td>
           <td>${r.codigo}</td>
           <td>${r.email}</td>
           <td>${r.nro_doc_ter}</td>
@@ -1079,6 +1094,8 @@ function confirmarYEnviar() {
         }
 
         if (r.splitIdx === null) {
+            const boleta = document.getElementById(`boleta_input_${r.contratoId}`)?.value.trim();
+            if (boleta) addHidden(`boletas[${r.contratoId}]`, boleta);
             const fileInput = document.getElementById(`voucher_input_${r.contratoId}`);
             if (fileInput && fileInput.files.length) {
                 fileInput.name = `vouchers[${r.contratoId}]`;
@@ -1086,6 +1103,8 @@ function confirmarYEnviar() {
             }
         } else {
             addHidden(`splits[${r.contratoId}][${r.splitIdx}]`, r.montoAbs);
+            const boletaSplit = _seleccionados[r.contratoId].splits[r.splitIdx].boleta;
+            if (boletaSplit) addHidden(`split_boletas[${r.contratoId}][${r.splitIdx}]`, boletaSplit);
             const fileInput = document.getElementById(`split_voucher_${r.contratoId}_${r.splitIdx}`);
             if (fileInput && fileInput.files.length) {
                 fileInput.name = `split_vouchers[${r.contratoId}][${r.splitIdx}]`;
@@ -1099,8 +1118,8 @@ function confirmarYEnviar() {
 
 function descargarExcel() {
     const rows = _buildRows();
-    const cols = ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'];
-    const dataRows = rows.map(r => [r.nro_orden,r.cod_cliente,r.nro_cuenta,r.nombre,r.doc_id,r.importe,r.fecha,r.forma_pago,r.moneda,r.entidad,r.sucursal,r.glosa,r.codigo,r.email,r.nro_doc_ter,r.nombre_ter]);
+    const cols = ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO REAL','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'];
+    const dataRows = rows.map(r => [r.nro_orden,r.cod_cliente,r.nro_cuenta,r.nombre,r.doc_id,r.importe,r.fecha,r.forma_pago,r.moneda,r.entidad,r.sucursal,r.glosa,'',r.codigo,r.email,r.nro_doc_ter,r.nombre_ter]);
     _exportarXlsx(cols, dataRows, 'Hoja 1', `pago_masivo_proveedores_{{ date('Ymd') }}.xlsx`);
 }
 
@@ -1134,7 +1153,7 @@ function _exportarXlsx(headers, rows, sheetName, filename) {
 
     // Calcular ancho de cada columna: máximo entre encabezado y datos, mínimo 12
     // Anchos fijos en unidades Excel (píxeles / 7)
-    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 19.0, 25.9, 25.9, 25.9];
+    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 22.0, 19.0, 25.9, 25.9, 25.9];
     let colsXml = '<cols>';
     colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
     colsXml += '</cols>';
@@ -1203,11 +1222,11 @@ function _exportarXlsx(headers, rows, sheetName, filename) {
 
 function abrirEnVentana() {
     const rows = _buildRows();
-    const cols = ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'];
+    const cols = ['NRO DE ORDEN','CODIGO DE CLIENTE','NRO DE CUENTA','NOMBRE DEL CLIENTE','DOC DE IDENTIDAD','IMPORTE','FECHA DE PAGO','FORMA DE PAGO','MONEDA DESTINO','ENTIDAD DESTINO','SUCURSAL DESTINO','GLOSA','CODIGO REAL','CODIGO UNICO','EMAIL NOTIFICACION','NRO_DOC_TERCERO','NOMBRE TERCERO'];
     const th   = cols.map(c => `<th style="background:#1d7a3a;color:#fff;padding:6px 10px;white-space:nowrap">${c}</th>`).join('');
     let tr_html = rows.map((r,i) => {
         const bg = i%2===0 ? '#fff' : '#f5f5f5';
-        const td = [r.nro_orden,r.cod_cliente,r.nro_cuenta,r.nombre,r.doc_id,r.importe,r.fecha,r.forma_pago,r.moneda,r.entidad,r.sucursal,r.glosa,r.codigo,r.email,r.nro_doc_ter,r.nombre_ter];
+        const td = [r.nro_orden,r.cod_cliente,r.nro_cuenta,r.nombre,r.doc_id,r.importe,r.fecha,r.forma_pago,r.moneda,r.entidad,r.sucursal,r.glosa,'',r.codigo,r.email,r.nro_doc_ter,r.nombre_ter];
         return `<tr style="background:${bg}">${td.map(v=>`<td style="padding:5px 10px;border:1px solid #ddd">${v??''}</td>`).join('')}</tr>`;
     }).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pago Masivo Proveedores</title></head><body style="font-family:Arial,sans-serif;font-size:12px"><h3>Vista previa pago masivo a proveedores</h3><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${th}</tr></thead><tbody>${tr_html}</tbody></table></div></body></html>`;

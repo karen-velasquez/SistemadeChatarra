@@ -2,6 +2,12 @@
 @section('titulo', 'Pago Masivo de Fletes')
 @section('content')
 
+<style>
+    /* chevron: apunta arriba cuando el grupo está abierto */
+    [data-bs-toggle="collapse"] .bi-chevron-down { transition: transform .2s; }
+    [data-bs-toggle="collapse"]:not(.collapsed) .bi-chevron-down { transform: rotate(180deg); }
+</style>
+
 <div class="pagetitle">
     <div class="d-flex flex-row align-items-center justify-content-between">
         <div>
@@ -92,58 +98,67 @@
 {{-- ================================================================
      PASO 1: Selección de fletes y datos del pago
      ================================================================ --}}
+{{-- Datos globales del pago: fijos entre el Paso 1 y el Paso 2, igual que en el pago masivo a proveedores --}}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h6 class="card-title mb-0 text-muted"><i class="bi bi-gear me-1"></i>Datos del pago</h6>
+      <div>
+        <button type="button" id="btn_continuar" class="btn btn-primary" disabled onclick="irAPaso2()">
+          Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+        <button type="button" id="btn_pm_volver" class="btn btn-outline-secondary" onclick="volverAPaso1()" style="display:none">
+          <i class="bi bi-arrow-left me-1"></i> Volver al Paso 1
+        </button>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-5">
+        <label class="form-label fw-semibold"><i class="bi bi-building"></i> Cuenta de origen (empresa) <span class="text-danger">*</span></label>
+        <select id="pm_cuenta" class="form-select" required onchange="actualizarResumen()">
+          <option value="" data-saldo="" data-moneda="">— Seleccione cuenta —</option>
+          @foreach($empresas as $empresa)
+            @foreach($empresa->cuentas as $cta)
+            <option value="{{ $cta->id }}" data-saldo="{{ $cta->saldo_actual }}" data-moneda="{{ $cta->moneda }}">
+              {{ $empresa->nombre }} — {{ $cta->alias ?? $cta->numero_cuenta }} [{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
+            </option>
+            @endforeach
+          @endforeach
+        </select>
+        <div id="saldo_cuenta_info" style="display:none" class="mt-1">
+          <small>Saldo disponible: <strong id="lbl_saldo_cuenta" class="text-success"></strong></small>
+          <div id="aviso_saldo" class="alert alert-danger py-1 mt-1 small d-none">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span id="aviso_saldo_texto"></span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold"><i class="bi bi-calendar3"></i> Fecha de pago <span class="text-danger">*</span></label>
+        <input type="date" id="pm_fecha" class="form-control" value="{{ date('Y-m-d') }}" required onchange="actualizarResumen()">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold"><i class="bi bi-credit-card"></i> Método de pago <span class="text-danger">*</span></label>
+        <select id="pm_metodo" class="form-select" required onchange="actualizarResumen()">
+          <option value="">— Seleccione —</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="qr">QR</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="paso1">
 
 <div class="card">
 <div class="card-body">
-    {{-- El botón de avanzar va arriba, como en el pago masivo a proveedores --}}
-    <div class="d-flex align-items-center justify-content-between mb-3">
-        <h5 class="card-title mb-0">Paso 1 — Seleccionar fletes y datos del pago</h5>
-        <button type="button" id="btn_continuar" class="btn btn-primary" disabled onclick="irAPaso2()">
-            Siguiente: Asignar cuentas destino <i class="bi bi-arrow-right ms-1"></i>
-        </button>
-    </div>
+    <h5 class="card-title">Paso 1 — Seleccionar fletes y monto a pagar</h5>
     <p class="text-muted small mb-3">
         <i class="bi bi-info-circle me-1"></i>
         Seleccione los fletes a pagar e indique cuánto abonar a cada uno: el <strong>saldo completo</strong>
         o un <strong>adelanto</strong> (un % del saldo o un monto). Luego asigne la cuenta destino de cada flete.
     </p>
-
-    {{-- Datos globales del pago --}}
-    <div class="row g-3 mb-4 p-3 bg-light rounded">
-        <div class="col-md-4">
-            <label class="form-label fw-semibold"><i class="bi bi-building"></i> Cuenta de origen (empresa) <span class="text-danger">*</span></label>
-            <select id="pm_cuenta" class="form-select" required onchange="actualizarResumen()">
-                <option value="" data-saldo="" data-moneda="">— Seleccione cuenta —</option>
-                @foreach($empresas as $empresa)
-                    @foreach($empresa->cuentas as $cta)
-                    <option value="{{ $cta->id }}" data-saldo="{{ $cta->saldo_actual }}" data-moneda="{{ $cta->moneda }}">
-                        {{ $empresa->nombre }} — {{ $cta->alias ?? $cta->numero_cuenta }} [{{ $cta->moneda }}] — Saldo: {{ number_format($cta->saldo_actual, 2, ',', '.') }}
-                    </option>
-                    @endforeach
-                @endforeach
-            </select>
-            <div id="saldo_cuenta_info" style="display:none" class="mt-1">
-                <small>Saldo disponible: <strong id="lbl_saldo_cuenta" class="text-success"></strong></small>
-                <div id="aviso_saldo" class="alert alert-danger py-1 mt-1 small d-none">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                    <span id="aviso_saldo_texto"></span>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <label class="form-label fw-semibold"><i class="bi bi-calendar3"></i> Fecha de pago <span class="text-danger">*</span></label>
-            <input type="date" id="pm_fecha" class="form-control" value="{{ date('Y-m-d') }}" required onchange="actualizarResumen()">
-        </div>
-        <div class="col-md-2">
-            <label class="form-label fw-semibold"><i class="bi bi-credit-card"></i> Método de pago <span class="text-danger">*</span></label>
-            <select id="pm_metodo" class="form-select" required onchange="actualizarResumen()">
-                <option value="">— Seleccione —</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="qr">QR</option>
-            </select>
-        </div>
-    </div>
 
     {{-- Lista de fletes --}}
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -161,20 +176,28 @@
     <div id="zona-fletes">
     @foreach($porProveedor as $grupo)
     <div class="card border mb-3">
-        <div class="card-header bg-light d-flex align-items-center gap-2 py-2">
-            <i class="bi bi-person-badge text-primary"></i>
-            <span class="fw-semibold">{{ $grupo['proveedor']->nombre }}</span>
-            <span class="badge bg-secondary ms-auto">{{ $grupo['contratos']->count() }} flete(s)</span>
+        <div class="card-header py-2 bg-light d-flex align-items-center gap-2">
+            <input type="checkbox" class="form-check-input chk-proveedor" id="chk_prov_{{ $grupo['proveedor']->id }}"
+                   onchange="seleccionarProveedor(this, '{{ $grupo['proveedor']->id }}')">
+            <label class="form-check-label fw-bold mb-0" for="chk_prov_{{ $grupo['proveedor']->id }}">
+                <i class="bi bi-box-seam me-1"></i>{{ $grupo['proveedor']->nombre }}
+            </label>
+            <span class="ms-auto text-muted small">{{ $grupo['contratos']->count() }} flete(s)</span>
+            {{-- Contador de seleccionados, visible con el grupo cerrado --}}
+            <span class="badge bg-primary d-none" id="badge_sel_{{ $grupo['proveedor']->id }}"></span>
+            <button class="btn btn-sm btn-outline-secondary border-0 collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#prov_body_{{ $grupo['proveedor']->id }}"
+                    aria-expanded="false" aria-controls="prov_body_{{ $grupo['proveedor']->id }}"
+                    title="Mostrar/ocultar fletes">
+                <i class="bi bi-chevron-down"></i>
+            </button>
         </div>
+        <div class="collapse" id="prov_body_{{ $grupo['proveedor']->id }}">
         <div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th class="text-center ps-3" style="width:40px">
-                            <input type="checkbox" class="form-check-input chk-proveedor"
-                                   onchange="seleccionarProveedor(this, '{{ $grupo['proveedor']->id }}')"
-                                   title="Seleccionar todos de este proveedor">
-                        </th>
+                        <th style="width:40px"></th>
                         <th>Contrato</th>
                         <th>Camión</th>
                         <th>Conductor</th>
@@ -273,6 +296,7 @@
                 </tbody>
             </table>
         </div>
+        </div>{{-- /collapse --}}
     </div>
     @endforeach
     </div>{{-- /zona-fletes --}}
@@ -301,9 +325,8 @@
                 class="btn btn-outline-primary btn-sm btn-iniciar-tour"
                 data-steps='[
                     {"intro":"📍 Estás en el <b>Paso 2</b>. Aquí defines a qué <b>cuenta bancaria</b> llega el pago de cada flete que seleccionaste antes."},
-                    {"element":"#p2_resumen","intro":"📋 Este resumen recuerda la cuenta de origen, la fecha, el método y el total del lote.","position":"bottom"},
                     {"element":"#paso2_contenido","intro":"🏦 Los fletes aparecen agrupados por proveedor. Para cada uno, elige la <b>cuenta del conductor o propietario</b> donde se depositará el pago.","position":"top"},
-                    {"element":"#btn_pm_volver","intro":"↩️ Si necesitas cambiar montos o la selección, con <b>Volver al paso 1</b> regresas sin perder nada.","position":"right"},
+                    {"element":"#btn_pm_volver","intro":"↩️ Si necesitas cambiar montos o la selección, con <b>Volver al Paso 1</b> (arriba) regresas sin perder nada.","position":"bottom"},
                     {"element":"#btn_registrar","intro":"✅ Cuando todos los fletes tengan cuenta asignada, este botón se activa y muestra un resumen final (exportable a Excel) antes de registrar los pagos.","position":"left"}
                 ]'>
             <i class="bi bi-question-circle"></i>
@@ -314,7 +337,7 @@
         Para cada flete seleccione <strong>una cuenta bancaria</strong> a la que llegará el pago.
     </p>
 
-    <form method="POST" action="{{ route('pagos.camiones.pago_masivo.store') }}" id="formPaso2">
+    <form method="POST" action="{{ route('pagos.camiones.pago_masivo.store') }}" id="formPaso2" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="cuenta_origen_id"   id="h_cuenta_origen">
         <input type="hidden" name="fecha_pago"          id="h_fecha_pago">
@@ -323,22 +346,11 @@
         <input type="hidden" name="observaciones"       id="h_obs">
         <div id="h_contrato_ids_container"></div>
 
-        {{-- Resumen del pago (se rellena por JS) --}}
-        <div id="p2_resumen" class="row g-2 mb-4 p-3 bg-light rounded" style="display:none;">
-            <div class="col-auto"><small><i class="bi bi-building me-1"></i>Cuenta: <strong id="p2_res_cuenta">—</strong></small></div>
-            <div class="col-auto"><small><i class="bi bi-calendar me-1"></i>Fecha: <strong id="p2_res_fecha">—</strong></small></div>
-            <div class="col-auto"><small><i class="bi bi-credit-card me-1"></i>Método: <strong id="p2_res_metodo">—</strong></small></div>
-            <div class="col-auto ms-auto"><small class="text-danger fw-semibold">Total: <strong id="p2_res_total">—</strong></small></div>
-        </div>
-
         {{-- Cards por proveedor generadas por JS --}}
         <div id="paso2_contenido"></div>
 
-        <div class="d-flex gap-3 mt-4">
-            <button type="button" id="btn_pm_volver" class="btn btn-outline-secondary" onclick="volverAPaso1()">
-                <i class="bi bi-arrow-left me-1"></i> Volver al paso 1
-            </button>
-            <button type="button" id="btn_registrar" class="btn btn-success ms-auto" disabled onclick="abrirConfirmacion()">
+        <div class="d-flex justify-content-end mt-4">
+            <button type="button" id="btn_registrar" class="btn btn-success" disabled onclick="abrirConfirmacion()">
                 <i class="bi bi-check-circle me-1"></i> Revisar y confirmar
             </button>
         </div>
@@ -390,6 +402,7 @@
                                 <th class="text-center px-2">ENTIDAD DESTINO</th>
                                 <th class="text-center px-2">SUCURSAL DESTINO</th>
                                 <th class="text-center px-2">GLOSA</th>
+                                <th class="text-center px-2">CODIGO REAL</th>
                                 <th class="text-center px-2">CODIGO UNICO</th>
                                 <th class="text-center px-2">EMAIL NOTIFICACION</th>
                                 <th class="text-center px-2">NRO_DOC_TERCERO</th>
@@ -477,6 +490,11 @@ function seleccionarTodos(estado) {
 function seleccionarProveedor(chkAll, proveedorId) {
     document.querySelectorAll(`.chk-camion[data-proveedor="${proveedorId}"]`)
         .forEach(cb => { cb.checked = chkAll.checked; onCheckFlete(cb); });
+    // Al marcar el proveedor, abrir su grupo: hay que revisar/escribir los montos
+    const body = document.getElementById(`prov_body_${proveedorId}`);
+    if (chkAll.checked && body && !body.classList.contains('show')) {
+        bootstrap.Collapse.getOrCreateInstance(body).show();
+    }
     actualizarResumen();
 }
 
@@ -490,6 +508,15 @@ function actualizarResumen() {
 
     // Suma lo que se va a pagar de cada flete (el saldo completo o el adelanto indicado)
     checks.forEach(cb => { total += montoAPagarFlete(cb.value); });
+
+    // Contador de seleccionados en la cabecera de cada grupo (visible con el grupo cerrado)
+    const conteo = {};
+    checks.forEach(cb => { conteo[cb.dataset.proveedor] = (conteo[cb.dataset.proveedor] || 0) + 1; });
+    document.querySelectorAll('[id^="badge_sel_"]').forEach(badge => {
+        const n = conteo[badge.id.replace('badge_sel_', '')] || 0;
+        badge.textContent = n + ' sel.';
+        badge.classList.toggle('d-none', n === 0);
+    });
 
     document.getElementById('res_cant').textContent  = checks.length;
     document.getElementById('res_total').textContent = moneda + ' ' + _fmtMonto(total);
@@ -659,20 +686,6 @@ function irAPaso2() {
         cont.appendChild(monto);
     });
 
-    // Rellenar resumen del pago
-    const cuentaTexto = cuentaSel.options[cuentaSel.selectedIndex]?.text?.split('—')[0]?.trim() || '—';
-    document.getElementById('p2_res_cuenta').textContent = cuentaTexto;
-    document.getElementById('p2_res_fecha').textContent  = fecha;
-    document.getElementById('p2_res_metodo').textContent = metodo === 'qr' ? 'QR (auto)' : 'Transferencia (auto)';
-    let totalGeneral = 0, monedaGeneral = 'BOB';
-    checks.forEach(cb => {
-        const info = _contratosData[cb.dataset.ccId];
-        // Lo que se va a pagar, no la deuda total: puede ser un adelanto
-        if (info) { totalGeneral += montoAPagarFlete(cb.value); monedaGeneral = info.moneda; }
-    });
-    document.getElementById('p2_res_total').textContent = monedaGeneral + ' ' + _fmtMonto(totalGeneral);
-    document.getElementById('p2_resumen').style.display = '';
-
     // Construir cards por proveedor
     const contenido = document.getElementById('paso2_contenido');
     contenido.innerHTML = '';
@@ -681,7 +694,7 @@ function irAPaso2() {
     checks.forEach(cb => {
         const ccId     = cb.dataset.ccId;
         const provId   = cb.dataset.proveedor;
-        const provNombre = cb.closest('table')?.closest('.card')?.querySelector('.fw-semibold')?.textContent?.trim() || '—';
+        const provNombre = cb.closest('.card')?.querySelector('.card-header label')?.textContent?.trim() || '—';
         if (!grupos[provId]) grupos[provId] = { nombre: provNombre, contratos: [] };
         grupos[provId].contratos.push({ ccId, info: _contratosData[ccId] });
     });
@@ -802,6 +815,23 @@ function irAPaso2() {
                 fletem.appendChild(tbl);
             }
 
+            const extra = document.createElement('div');
+            extra.id = `voucher_unico_f_${ccId}`;
+            extra.className = 'px-3 pt-2 d-flex flex-wrap align-items-end gap-3';
+            extra.innerHTML = `
+                <div>
+                    <label class="form-label small mb-1"><i class="bi bi-paperclip me-1"></i>Voucher de este pago (opcional)</label>
+                    <input type="file" class="form-control form-control-sm" style="max-width:320px"
+                           name="vouchers[${ccId}]" id="voucher_f_${ccId}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                </div>
+                <div>
+                    <label class="form-label small mb-1"><i class="bi bi-receipt me-1"></i>N° de boleta (opcional)</label>
+                    <input type="text" class="form-control form-control-sm" style="width:150px" name="boletas[${ccId}]" id="boleta_f_${ccId}"
+                           inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos"
+                           oninput="this.value = this.value.replace(/\D/g, '')">
+                </div>`;
+            fletem.appendChild(extra);
+
             const splitZona = document.createElement('div');
             splitZona.className = 'px-3 py-2';
             splitZona.innerHTML = `
@@ -820,6 +850,9 @@ function irAPaso2() {
 
     document.getElementById('paso1').style.display = 'none';
     document.getElementById('paso2').style.display = 'block';
+    document.getElementById('btn_continuar').style.display = 'none';
+    document.getElementById('btn_pm_volver').style.display = '';
+    cuentaSel.disabled = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     validarPaso2();
 }
@@ -827,30 +860,43 @@ function irAPaso2() {
 function volverAPaso1() {
     document.getElementById('paso2').style.display = 'none';
     document.getElementById('paso1').style.display = 'block';
+    document.getElementById('btn_continuar').style.display = '';
+    document.getElementById('btn_pm_volver').style.display = 'none';
+    document.getElementById('pm_cuenta').disabled = false;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Un flete puede llegar como varios pagos reales (mismo monto total) en vez de
 // una sola transferencia: { ccId: [monto1, monto2, ...] }
 let _splitsFlete = {};
+let _splitsBoleta = {};   // { ccId: ['12345', '', ...] } boleta de cada sub-pago
 
 function dividirPagoFlete(ccId) {
     const montoTotal = montoAPagarFlete(ccId);
     document.getElementById(`btn_dividir_f_${ccId}`).classList.add('d-none');
+    // Con el pago dividido, el voucher y la boleta pasan a ser de cada sub-pago
+    document.getElementById(`voucher_unico_f_${ccId}`).classList.add('d-none');
+    document.getElementById(`voucher_f_${ccId}`).value = '';
+    document.getElementById(`boleta_f_${ccId}`).value = '';
     _splitsFlete[ccId] = [montoTotal, 0];
+    _splitsBoleta[ccId] = ['', ''];
     renderSplitsFlete(ccId);
 }
 
 function agregarSplitFlete(ccId) {
     _splitsFlete[ccId].push(0);
+    _splitsBoleta[ccId].push('');
     renderSplitsFlete(ccId);
 }
 
 function quitarSplitFlete(ccId, idx) {
     _splitsFlete[ccId].splice(idx, 1);
+    _splitsBoleta[ccId].splice(idx, 1);
     if (_splitsFlete[ccId].length < 2) {
         delete _splitsFlete[ccId];
+        delete _splitsBoleta[ccId];
         document.getElementById(`btn_dividir_f_${ccId}`).classList.remove('d-none');
+        document.getElementById(`voucher_unico_f_${ccId}`).classList.remove('d-none');
         const cont = document.getElementById(`split_body_f_${ccId}`);
         cont.classList.add('d-none');
         cont.innerHTML = '';
@@ -894,13 +940,19 @@ function renderSplitsFlete(ccId) {
 
     _splitsFlete[ccId].forEach((monto, idx) => {
         html += `
-          <div class="d-flex align-items-center gap-2 mb-2">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <div class="input-group input-group-sm" style="max-width:180px">
               <span class="input-group-text">${info.moneda}</span>
               <input type="text" inputmode="numeric" class="form-control text-end"
                      value="${monto ? _fmtMonto(monto) : ''}" placeholder="0,00" autocomplete="off"
                      oninput="onSplitFleteMontoInput(${ccId}, ${idx}, this)">
             </div>
+            <input type="file" class="form-control form-control-sm" style="max-width:260px"
+                   name="split_vouchers[${ccId}][${idx}]" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" title="Voucher (opcional)">
+            <input type="text" class="form-control form-control-sm" style="width:150px" inputmode="numeric" maxlength="8"
+                   name="split_boletas[${ccId}][${idx}]" placeholder="N° boleta (opc.)" title="Entre 5 y 8 dígitos"
+                   value="${_splitsBoleta[ccId][idx] || ''}"
+                   oninput="this.value = this.value.replace(/\D/g, ''); _splitsBoleta[${ccId}][${idx}] = this.value">
             <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarSplitFlete(${ccId}, ${idx})" title="Quitar">
               <i class="bi bi-x-lg"></i>
             </button>
@@ -943,7 +995,7 @@ const COLS = [
     'NRO. DE ORDEN', 'CODIGO DE CLIENTE', 'NRO. DE CUENTA', 'NOMBRE DEL CLIENTE',
     'DOC. DE IDENTIDAD', 'IMPORTE', 'FECHA DE PAGO', 'FORMA DE PAGO',
     'MONEDA DESTINO', 'ENTIDAD DESTINO', 'SUCURSAL DESTINO', 'GLOSA',
-    'CODIGO UNICO', 'EMAIL NOTIFICACION', 'NRO_DOC_TERCERO', 'NOMBRE TERCERO',
+    'CODIGO REAL', 'CODIGO UNICO', 'EMAIL NOTIFICACION', 'NRO_DOC_TERCERO', 'NOMBRE TERCERO',
 ];
 
 function _buildRows() {
@@ -983,7 +1035,8 @@ function _buildRows() {
         // Sin dividir: una fila con el monto completo. Dividido: una fila por sub-pago.
         const montos = _splitsFlete[ccId] ? _splitsFlete[ccId] : [montoAPagarFlete(ccId)];
 
-        montos.forEach(monto => {
+        montos.forEach((monto, idxMonto) => {
+            const boleta = (_splitsFlete[ccId] ? _splitsBoleta[ccId][idxMonto] : document.getElementById('boleta_f_' + ccId)?.value) || '';
             rows.push({
                 orden, codigo_cliente: 0, nro_cuenta: nroCuenta, nombre_cliente: nombreCliente,
                 doc_identidad: docIdentidad, importe: monto.toFixed(2).replace('.', ','), fecha_pago: fechaFmt,
@@ -991,7 +1044,7 @@ function _buildRows() {
                 moneda_destino:  esGanadero ? 0 : (monedaCuenta === 'USD' ? 2 : 1),
                 entidad_destino: esGanadero ? 0 : codigoBanco,
                 sucursal:        esGanadero ? 0 : siglaSucursal,
-                glosa: '', codigo_unico: '', email: emailNotificacion, nro_doc_tercero: '', nombre_tercero: '',
+                glosa: `BOLETA ${boleta}`.trim(), codigo_unico: '', email: emailNotificacion, nro_doc_tercero: '', nombre_tercero: '',
                 _moneda: info.moneda, _saldo: monto,
             });
             orden++;
@@ -1015,7 +1068,7 @@ function abrirConfirmacion() {
             r.orden, r.codigo_cliente, r.nro_cuenta, r.nombre_cliente,
             r.doc_identidad, r.importe, r.fecha_pago, r.forma_pago,
             r.moneda_destino, r.entidad_destino, r.sucursal, r.glosa,
-            r.codigo_unico, r.email, r.nro_doc_tercero, r.nombre_tercero,
+            '', r.codigo_unico, r.email, r.nro_doc_tercero, r.nombre_tercero,
         ];
         const conDatos = [0, 2, 3, 5, 6];
         cells.forEach((val, i) => {
@@ -1060,7 +1113,7 @@ function descargarExcel() {
     const dataRows = _previewRows.map(r => [
         r.orden, r.codigo_cliente, r.nro_cuenta, r.nombre_cliente, r.doc_identidad,
         r.importe, r.fecha_pago, r.forma_pago, r.moneda_destino, r.entidad_destino,
-        r.sucursal, r.glosa, r.codigo_unico, r.email, r.nro_doc_tercero, r.nombre_tercero,
+        r.sucursal, r.glosa, '', r.codigo_unico, r.email, r.nro_doc_tercero, r.nombre_tercero,
     ]);
     _exportarXlsx(COLS, dataRows, 'Hoja 1', 'pago_masivo_' + (document.getElementById('h_fecha_pago').value || 'hoy') + '.xlsx');
 }
@@ -1089,7 +1142,7 @@ function _exportarXlsx(headers, rows, sheetName, filename) {
   </cellXfs>
 </styleSheet>`;
     const colLetter = i => { let s='', n=i+1; while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26);} return s; };
-    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 19.0, 25.9, 25.9, 25.9];
+    const colWidths = [20.6, 23.6, 23.9, 40.4, 25.6, 20.6, 22.6, 22.4, 24.1, 24.6, 25.7, 20.3, 22.0, 19.0, 25.9, 25.9, 25.9];
     let colsXml = '<cols>';
     colWidths.forEach((w, ci) => { colsXml += `<col min="${ci+1}" max="${ci+1}" width="${w}" customWidth="1"/>`; });
     colsXml += '</cols>';
@@ -1143,7 +1196,7 @@ function abrirEnVentana() {
     const trs = _previewRows.map(r => {
         const cells = [r.orden, r.codigo_cliente, r.nro_cuenta, r.nombre_cliente, r.doc_identidad,
             r.importe, r.fecha_pago, r.forma_pago, r.moneda_destino, r.entidad_destino,
-            r.sucursal, r.glosa, r.codigo_unico, r.email, r.nro_doc_tercero, r.nombre_tercero];
+            r.sucursal, r.glosa, '', r.codigo_unico, r.email, r.nro_doc_tercero, r.nombre_tercero];
         const conDatos = [0, 2, 3, 5, 6];
         const tds = cells.map((v, i) => {
             const bg = conDatos.includes(i) && v !== '' ? '#f0fff4' : '#fff';

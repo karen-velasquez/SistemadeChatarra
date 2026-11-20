@@ -495,6 +495,11 @@
                             </select>
                         </div>
 
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
+                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                        </div>
+
                         {{-- Código solo para transferencia --}}
                         <div class="col-md-6" id="cobro_sec_codigo" style="display:none;">
                             <label class="form-label fw-semibold">Código de Transferencia <span class="text-danger">(*)</span></label>
@@ -774,6 +779,11 @@
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="ec_fecha">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
+                        <input type="text" class="form-control" id="ec_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos"
+                               oninput="this.value = this.value.replace(/\D/g, '')">
                     </div>
                     <div class="col-12">
                         <div class="alert alert-warning small py-2 mb-0">
@@ -1227,7 +1237,7 @@ function verDetalle(tramoId) {
                         : voucherBtn + (canEditCobro
                             ? `<button type="button" class="btn btn-sm btn-outline-primary btn-editar-cobro"
                                    title="Editar"
-                                   data-uuid="${p.uuid}" data-monto="${p.monto}" data-fecha="${p.fecha_raw}">
+                                   data-uuid="${p.uuid}" data-monto="${p.monto}" data-fecha="${p.fecha_raw}" data-boleta="${p.boleta || ''}">
                                    <i class="bi bi-pencil"></i>
                                 </button>`
                             : '') + (canDeleteCobro
@@ -1257,7 +1267,7 @@ function verDetalle(tramoId) {
             // Event listeners con data attributes — evita problemas con caracteres especiales
             document.querySelectorAll('.btn-editar-cobro').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    abrirEditarCobro(btn.dataset.uuid, btn.dataset.monto, btn.dataset.fecha);
+                    abrirEditarCobro(btn.dataset.uuid, btn.dataset.monto, btn.dataset.fecha, btn.dataset.boleta);
                 });
             });
 
@@ -1453,8 +1463,9 @@ let _editarCobroUuid = null;
 
 // Solo monto y fecha son editables: tipo, método, código y observaciones
 // quedan fijos y no se muestran en este modal.
-function abrirEditarCobro(uuid, monto, fecha) {
+function abrirEditarCobro(uuid, monto, fecha, boleta) {
     _editarCobroUuid = uuid;
+    document.getElementById('ec_boleta').value = boleta || '';
     document.getElementById('ec_monto').value = monto;
     document.getElementById('ec_fecha').value = fecha;
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditarCobro')).show();
@@ -1490,6 +1501,7 @@ function guardarEditarCobro() {
         body: JSON.stringify({
             monto:      document.getElementById('ec_monto').value,
             fecha_pago: document.getElementById('ec_fecha').value,
+            numero_boleta: document.getElementById('ec_boleta').value,
         }),
     })
     .then(async r => {

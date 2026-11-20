@@ -76,6 +76,7 @@ class PagoCamionController extends Controller
                     $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
                 }
             }],
+            'numero_boleta'      => $this->reglasBoleta(),
             'observaciones'      => 'nullable|string|max:500',
             'voucher'            => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
@@ -121,6 +122,7 @@ class PagoCamionController extends Controller
                 'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $codigoSeguimiento,
+                'numero_boleta'      => $request->numero_boleta ?: null,
                 'observaciones'      => $request->observaciones ?: null,
                 'voucher'            => $request->hasFile('voucher') ? $request->file('voucher')->store('vouchers_pago_camion', 'public') : null,
                 'created_by'         => auth()->id(),
@@ -166,6 +168,7 @@ class PagoCamionController extends Controller
                     $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
                 }
             }],
+            'numero_boleta'      => $this->reglasBoleta($pago->id, PagoCamion::class),
             'voucher' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
@@ -190,6 +193,9 @@ class PagoCamionController extends Controller
                 'codigo_seguimiento' => $codigo,
                 'updated_by'         => auth()->id(),
             ];
+            if ($request->has('numero_boleta')) {
+                $datos['numero_boleta'] = $request->numero_boleta ?: null;
+            }
 
             if ($request->hasFile('voucher')) {
                 $anterior = $pago->voucher;
@@ -345,6 +351,7 @@ class PagoCamionController extends Controller
                 'metodo_raw'  => $p->metodo_pago,
                 'receptor'        => $p->nombre_receptor,
                 'codigo'          => $p->codigo_seguimiento,
+                'boleta'          => $p->numero_boleta,
                 'tiene_voucher'   => (bool) $p->voucher,
                 'voucher_url'     => $p->voucher ? route('pagos.camiones.voucher', $p->uuid) : null,
                 'voucher_es_imagen' => es_imagen_archivo($p->voucher),
@@ -433,10 +440,20 @@ class PagoCamionController extends Controller
             'splits'               => 'nullable|array',
             'splits.*'             => 'array',
             'splits.*.*'           => 'numeric|min:0.01',
+            'vouchers.*'           => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'split_vouchers.*.*'   => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
+            'boletas.*'            => $this->reglasBoleta(),
+            'split_boletas.*.*'    => $this->reglasBoleta(),
         ], [
             'contrato_camion_ids.required' => 'Debe seleccionar al menos un camión.',
             'cuenta_origen_id.required'    => 'Debe seleccionar la cuenta desde donde se realiza el pago.',
         ]);
+
+        // Cada pago lleva su propia boleta: no pueden repetirse dentro del mismo envío.
+        $boletasEnviadas = collect($request->input('boletas', []))->merge(collect($request->input('split_boletas', []))->flatten())->filter();
+        if ($boletasEnviadas->count() !== $boletasEnviadas->unique()->count()) {
+            return back()->withInput()->withErrors(['boletas' => 'Hay números de boleta repetidos en este lote.']);
+        }
 
         $cuenta     = CuentaEmpresa::findOrFail($request->cuenta_origen_id);
         $monedaPago = $cuenta->moneda;
@@ -538,10 +555,15 @@ class PagoCamionController extends Controller
                     ? array_values(array_filter($splitsFlete, fn($m) => (float) $m > 0))
                     : [$montoPago];
 
-                foreach ($montosAPagar as $montoSub) {
+                foreach ($montosAPagar as $idxSub => $montoSub) {
                     $montoSub = round((float) $montoSub, 2);
                     $tipoPagoSub = $montoSub >= round((float) $saldo, 2) ? 'pago_final' : 'adelanto';
                     $saldo      -= $montoSub; // el siguiente sub-pago se evalúa contra lo que queda
+
+                    $voucherFile = $splitsFlete
+                        ? $request->file("split_vouchers.{$cc->id}.$idxSub")
+                        : $request->file("vouchers.{$cc->id}");
+                    $voucherPath = $voucherFile ? $voucherFile->store('vouchers_pago_camion', 'public') : null;
 
                     $pago = PagoCamion::create([
                         'lote_pago_id'       => $lote->id,
@@ -553,6 +575,10 @@ class PagoCamionController extends Controller
                         'fecha_pago'         => $request->fecha_pago,
                         'metodo_pago'        => $request->metodo_pago,
                         'codigo_seguimiento' => $codigoLote,
+                        'numero_boleta'      => ($splitsFlete
+                            ? $request->input("split_boletas.{$cc->id}.$idxSub")
+                            : $request->input("boletas.{$cc->id}")) ?: null,
+                        'voucher'            => $voucherPath,
                         'cuenta_origen_id'   => $request->cuenta_origen_id,
                         'cuenta_destino_id'  => $ctaDestId ?: null,
                         'receptor_type'      => $receptorType,

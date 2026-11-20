@@ -133,6 +133,7 @@ class PagoClienteController extends Controller
                     $fail('Ese código de seguimiento ya está en uso por otro pago o lote. Verifique o ingrese uno distinto.');
                 }
             }],
+            'numero_boleta'      => $this->reglasBoleta(),
             'cuenta_origen_id'   => 'required|exists:cuentas_bancarias,id',
             'cuenta_destino_id'  => 'required|exists:cuentas_empresa,id',
             'observaciones'      => 'nullable|string|max:500',
@@ -168,6 +169,7 @@ class PagoClienteController extends Controller
                 'fecha_pago'         => $request->fecha_pago,
                 'metodo_pago'        => $request->metodo_pago,
                 'codigo_seguimiento' => $codigo,
+                'numero_boleta'      => $request->numero_boleta ?: null,
                 'cuenta_origen_id'   => $request->cuenta_origen_id ?: null,
                 'cuenta_destino_id'  => $request->cuenta_destino_id ?: null,
                 'observaciones'      => $request->observaciones ?: null,
@@ -431,6 +433,7 @@ class PagoClienteController extends Controller
         $request->validate([
             'monto'      => 'required|numeric|min:0.01',
             'fecha_pago' => 'required|date',
+            'numero_boleta' => $this->reglasBoleta($pago->id, PagoCliente::class),
         ]);
 
         $montoAnterior = $pago->monto;
@@ -441,7 +444,7 @@ class PagoClienteController extends Controller
                 'monto'      => $request->monto,
                 'fecha_pago' => $request->fecha_pago,
                 'updated_by' => auth()->id(),
-            ]);
+            ] + ($request->has('numero_boleta') ? ['numero_boleta' => $request->numero_boleta ?: null] : []));
 
             // Ajuste en tesorería solo si el monto cambió
             if ($diferencia != 0) {
@@ -543,6 +546,7 @@ class PagoClienteController extends Controller
                 'metodo'         => $p->metodo_pago,
                 'metodo_raw'     => $p->metodo_pago,
                 'codigo'         => $p->codigo_seguimiento,
+                'boleta'         => $p->numero_boleta,
                 'observaciones'  => $p->observaciones,
                 'tiene_voucher'  => (bool) $p->voucher,
                 'voucher_es_imagen' => es_imagen_archivo($p->voucher),
