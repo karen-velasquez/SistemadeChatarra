@@ -536,7 +536,7 @@ function cargarDetalleLoteModal(uuid, estado) {
                     </td>
                     <td>
                         <input type="text" class="form-control form-control-sm" name="codigos[${i}][boleta]" value="${p.boleta ?? ''}"
-                               inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5-8 dígitos" title="Entre 5 y 8 dígitos"
+                               inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5-9 dígitos" title="Entre 5 y 9 dígitos"
                                oninput="this.value = this.value.replace(/\D/g, '')">
                     </td>
                     <td>

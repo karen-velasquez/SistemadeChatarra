@@ -183,13 +183,13 @@ class LotePagoController extends Controller
             'codigos.*.codigo_real'   => ['nullable', 'string', 'max:100'],
             'codigos.*.monto'         => ['nullable', 'numeric', 'min:0.01'],
             'codigos.*.fecha'         => ['nullable', 'date'],
-            'codigos.*.boleta'        => ['nullable', 'regex:/^\d{5,8}$/'],
+            'codigos.*.boleta'        => ['nullable', 'regex:/^\d{5,9}$/'],
             'codigos.*.voucher'       => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ], [
             'codigos.*.voucher.mimes' => 'El comprobante debe ser JPG, PNG o PDF.',
             'codigos.*.voucher.max'   => 'El comprobante no debe superar los 5 MB.',
             'codigos.*.monto.min'     => 'El monto debe ser mayor a cero.',
-            'codigos.*.boleta.regex'  => 'El número de boleta debe tener entre 5 y 8 dígitos.',
+            'codigos.*.boleta.regex'  => 'El número de boleta debe tener entre 5 y 9 dígitos.',
         ]);
 
         // El monto solo se puede corregir mientras el lote sigue pendiente: una

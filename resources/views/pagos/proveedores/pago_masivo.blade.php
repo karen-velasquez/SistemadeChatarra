@@ -783,7 +783,7 @@ function irAPaso2() {
                   <div>
                     <label class="form-label small mb-1"><i class="bi bi-receipt me-1"></i>N° de boleta (opcional)</label>
                     <input type="text" class="form-control form-control-sm" style="width:150px" id="boleta_input_${ctr.id}"
-                           inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos"
+                           inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos"
                            oninput="this.value = this.value.replace(/\D/g, '')">
                   </div>
                 </div>
@@ -931,8 +931,8 @@ function renderSplits(contratoId) {
                    id="split_voucher_${contratoId}_${idx}" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
                    onchange="onSplitVoucher(${contratoId}, ${idx}, this)">
             <span class="small text-success d-none" id="split_voucher_ok_${contratoId}_${idx}"><i class="bi bi-check-circle"></i></span>
-            <input type="text" class="form-control form-control-sm" style="width:150px" inputmode="numeric" maxlength="8"
-                   placeholder="N° boleta (opc.)" title="Entre 5 y 8 dígitos" value="${sp.boleta || ''}"
+            <input type="text" class="form-control form-control-sm" style="width:150px" inputmode="numeric" maxlength="9"
+                   placeholder="N° boleta (opc.)" title="Entre 5 y 9 dígitos" value="${sp.boleta || ''}"
                    oninput="this.value = this.value.replace(/\D/g, ''); _seleccionados[${contratoId}].splits[${idx}].boleta = this.value">
             <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarSplit(${contratoId}, ${idx})" title="Quitar">
               <i class="bi bi-x-lg"></i>

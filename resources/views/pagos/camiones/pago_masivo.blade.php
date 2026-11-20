@@ -827,7 +827,7 @@ function irAPaso2() {
                 <div>
                     <label class="form-label small mb-1"><i class="bi bi-receipt me-1"></i>N° de boleta (opcional)</label>
                     <input type="text" class="form-control form-control-sm" style="width:150px" name="boletas[${ccId}]" id="boleta_f_${ccId}"
-                           inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos"
+                           inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos"
                            oninput="this.value = this.value.replace(/\D/g, '')">
                 </div>`;
             fletem.appendChild(extra);
@@ -949,8 +949,8 @@ function renderSplitsFlete(ccId) {
             </div>
             <input type="file" class="form-control form-control-sm" style="max-width:260px"
                    name="split_vouchers[${ccId}][${idx}]" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" title="Voucher (opcional)">
-            <input type="text" class="form-control form-control-sm" style="width:150px" inputmode="numeric" maxlength="8"
-                   name="split_boletas[${ccId}][${idx}]" placeholder="N° boleta (opc.)" title="Entre 5 y 8 dígitos"
+            <input type="text" class="form-control form-control-sm" style="width:150px" inputmode="numeric" maxlength="9"
+                   name="split_boletas[${ccId}][${idx}]" placeholder="N° boleta (opc.)" title="Entre 5 y 9 dígitos"
                    value="${_splitsBoleta[ccId][idx] || ''}"
                    oninput="this.value = this.value.replace(/\D/g, ''); _splitsBoleta[${ccId}][${idx}] = this.value">
             <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarSplitFlete(${ccId}, ${idx})" title="Quitar">

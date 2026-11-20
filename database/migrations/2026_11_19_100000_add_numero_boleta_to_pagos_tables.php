@@ -12,8 +12,8 @@ return new class extends Migration
     {
         foreach ($this->tablas as $tabla) {
             Schema::table($tabla, function (Blueprint $table) {
-                // Número de la boleta de depósito/transferencia (5 a 8 dígitos).
-                $table->string('numero_boleta', 8)->nullable()->after('codigo_seguimiento')->index();
+                // Número de la boleta de depósito/transferencia (5 a 9 dígitos).
+                $table->string('numero_boleta', 9)->nullable()->after('codigo_seguimiento')->index();
             });
         }
     }

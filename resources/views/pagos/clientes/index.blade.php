@@ -497,7 +497,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
-                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
                         </div>
 
                         {{-- Código solo para transferencia --}}
@@ -782,7 +782,7 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
-                        <input type="text" class="form-control" id="ec_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos"
+                        <input type="text" class="form-control" id="ec_boleta" inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos"
                                oninput="this.value = this.value.replace(/\D/g, '')">
                     </div>
                     <div class="col-12">
@@ -1186,6 +1186,7 @@ function verDetalle(tramoId) {
                             <th>Cuenta del cliente</th>
                             <th>Recibió</th>
                             <th>Código</th>
+                            <th>N° boleta</th>
                             <th></th>
                         </tr>
                     </thead><tbody>`;
@@ -1256,6 +1257,7 @@ function verDetalle(tramoId) {
                         <td>${celOrigen}</td>
                         <td>${celDestino}</td>
                         <td><small class="text-muted">${p.codigo||'—'}</small></td>
+                        <td><small class="text-muted">${p.boleta||'—'}</small></td>
                         <td class="text-nowrap">${acciones}</td>
                     </tr>`;
                 });

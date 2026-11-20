@@ -95,6 +95,7 @@
                                 <th>Receptor</th>
                                 <th>Pagado por</th>
                                 <th>Código</th>
+                                <th>N° boleta</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -184,6 +185,9 @@
                                 </td>
                                 <td>
                                     <small class="text-muted">{{ $p->codigo_seguimiento ?? '—' }}</small>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ $p->numero_boleta ?? '—' }}</small>
                                 </td>
                             </tr>
                             @endforeach

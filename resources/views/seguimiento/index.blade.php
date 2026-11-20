@@ -944,7 +944,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
-                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
                         </div>
 
                         {{-- Receptor --}}
@@ -1090,7 +1090,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
-                            <input type="text" class="form-control" name="numero_boleta" id="edit_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                            <input type="text" class="form-control" name="numero_boleta" id="edit_boleta" inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Código de seguimiento</label>
@@ -3202,6 +3202,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                             <th>Receptor</th>
                             <th>Cuenta origen</th>
                             <th>Código</th>
+                            <th>N° boleta</th>
                             <th>Voucher</th>
                             ${(segCanEditPago || segCanDeletePago) ? '<th class="text-center">Acciones</th>' : ''}
                         </tr>
@@ -3239,6 +3240,7 @@ function abrirHistorialPagos(ccId, camionLabel) {
                     <td class="small">${p.receptor ?? '—'}</td>
                     <td class="small">${origen}</td>
                     <td class="small text-muted">${p.codigo ?? '—'}</td>
+                    <td class="small text-muted">${p.boleta ?? '—'}</td>
                     <td class="small">${p.tiene_voucher
                         ? `<a href="${p.voucher_url}${p.voucher_es_imagen ? '?print=1' : ''}" target="_blank" class="btn btn-outline-success btn-sm" title="Ver voucher"><i class="bi bi-file-earmark-check"></i></a>
                            <a href="${p.voucher_url}?download=1" class="btn btn-outline-secondary btn-sm" title="Descargar voucher"><i class="bi bi-download"></i></a>`

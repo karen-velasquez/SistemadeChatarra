@@ -435,7 +435,7 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
-                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                            <input type="text" class="form-control" name="numero_boleta" inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
                         </div>
 
                         {{-- Cuenta origen (tesorería empresa) --}}
@@ -659,7 +659,7 @@
                     </div>
 
                     <label class="form-label fw-semibold mt-3">Número de boleta <span class="text-muted fw-normal">(opcional)</span></label>
-                    <input type="text" class="form-control" name="numero_boleta" id="edit_pp_boleta" inputmode="numeric" maxlength="8" pattern="\d{5,8}" placeholder="5 a 8 dígitos" title="Entre 5 y 8 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
+                    <input type="text" class="form-control" name="numero_boleta" id="edit_pp_boleta" inputmode="numeric" maxlength="9" pattern="\d{5,9}" placeholder="5 a 9 dígitos" title="Entre 5 y 9 dígitos" oninput="this.value = this.value.replace(/\D/g, '')">
 
                     {{-- Voucher: opcional, para adjuntarlo si faltaba o reemplazar uno incorrecto --}}
                     <hr class="my-3">
@@ -1259,7 +1259,7 @@ function verDetalle(contratoId) {
                             <div class="pt-1"><span class="badge ${badge}">${p.tipo}</span></div>
                             <div class="flex-grow-1">
                                 <div class="fw-semibold">${flag} ${p.moneda_pago} ${_fmtP(p.monto)}${tcLine}</div>
-                                <div class="text-muted small">${p.fecha} &nbsp;·&nbsp; ${p.metodo}${p.codigo ? ' &nbsp;·&nbsp; ' + p.codigo : ''}${origLine}</div>
+                                <div class="text-muted small">${p.fecha} &nbsp;·&nbsp; ${p.metodo}${p.codigo ? ' &nbsp;·&nbsp; ' + p.codigo : ''}${p.boleta ? ' &nbsp;·&nbsp; Boleta ' + p.boleta : ''}${origLine}</div>
                                 ${destLine}
                             </div>
                             <div class="d-flex flex-column gap-1">
